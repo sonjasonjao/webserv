@@ -28,7 +28,6 @@ void	Log::logTime(std::ostream *outputStream)
 
 	std::stringstream	timeStream;
 	std::string			timeStr;
-	std::ostream		*outputStream = &std::cout;
 
 	timeStream	<< std::put_time(std::localtime(&time), "%F %T");
 	timeStr		= timeStream.str();
@@ -73,11 +72,11 @@ void	Log::logMessage(logType type, std::string_view message,
 
 	Log::logTime(outputStream);
 
-	if ((type == INFO && isatty(STDOUT_FILENO))
-		|| (type != INFO && isatty(STDERR_FILENO)))
+	if (!_ofs.is_open() && ((type == INFO && isatty(STDOUT_FILENO))
+		|| (type != INFO && isatty(STDERR_FILENO))))
 		typeString = color + typeString + CLR;
 
-	*outputStream << std::right << typeString;
+	*outputStream << std::setw(CATEGORY_WIDTH) << std::right << typeString;
 	if (!file.empty())
 		*outputStream << file << ": ";
 	if (!function.empty())
