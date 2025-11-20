@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fstream>
+#include <string_view>
 
 #define ERROR
 #define INFO

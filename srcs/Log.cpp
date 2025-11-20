@@ -3,13 +3,14 @@
 #include <iostream>
 #include <iomanip>
 #include <unistd.h>
+#include <cerrno>
 
 /* ------------------------------------------------------------------- colors */
 
-#define RED	"\033[0;31m\001"
-#define CYA	"\033[0;36m\001"
-#define YEL	"\033[0;93m\001"
-#define CLR	"\033[0m\002"
+#define RED	"\033[0;31m"
+#define CYA	"\033[0;36m"
+#define YEL	"\033[0;93m"
+#define CLR	"\033[0m"
 
 /* ----------------------------------------------------------- implementation */
 
@@ -38,7 +39,7 @@ void	Log::logTime(int fd)
 		return;
 	}
 
-	if (fd == 2) {
+	if (fd == STDERR_FILENO) {
 		std::cerr << std::setw(TIMESTAMP_W) << std::left << timeStr;
 		return;
 	}
@@ -56,16 +57,15 @@ void	Log::error(std::string_view file, std::string_view function,
 
 	logTime(STDERR_FILENO);	// Always log a time stamp
 
-	if (_ofs.is_open() || !isatty(0) || !isatty(1)) {
-		if (errno == EBADF) {
-			std::cerr << "ERROR: can't establish tty status\n";
-		}
+	if (_ofs.is_open()) {
 		_ofs	<< std::setw(CATEGORY_W) << std::right << errorMarker << file
 				<< ": " << function << " (" << line << "): " << message << "\n";
 		return;
 	}
 
-	errorMarker = RED + errorMarker + CLR;
+	if (isatty(STDERR_FILENO))
+		errorMarker = RED + errorMarker + CLR;
+
 	std::cerr	<< std::setw(CATEGORY_W) << std::right << errorMarker << file
 				<< ": " << function << " (" << line << "): " << message << "\n";
 }
@@ -80,16 +80,15 @@ void	Log::debug(std::string_view file, std::string_view function,
 
 	logTime(STDERR_FILENO);	// Always log a time stamp
 
-	if (_ofs.is_open() || !isatty(0) || !isatty(1)) {
-		if (errno == EBADF) {
-			std::cerr << "ERROR: can't establish tty status\n";
-		}
+	if (_ofs.is_open()) {
 		_ofs	<< std::setw(CATEGORY_W) << std::right << debugMarker << file
 				<< ": " << function << " (" << line << "): " << message << "\n";
 		return;
 	}
 
-	debugMarker = YEL + debugMarker + CLR;
+	if (isatty(STDERR_FILENO))
+		debugMarker = YEL + debugMarker + CLR;
+
 	std::cout	<< std::setw(CATEGORY_W) << std::right << debugMarker << file
 				<< ": " << function << " (" << line << "): " << message << "\n";
 }
