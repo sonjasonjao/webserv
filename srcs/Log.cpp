@@ -3,7 +3,6 @@
 #include <iostream>
 #include <iomanip>
 #include <unistd.h>
-#include <cerrno>
 
 /* ------------------------------------------------------------------- colors */
 
@@ -18,33 +17,79 @@ std::ofstream	Log::_ofs;	// Reserve space for static member variable
 
 /**
  * Logs timestamps for info, debug, and error logging functions. Currently the
- * format is YYYY-MM-DD HH:MM:SS, adjustable padding via macro TIMESTAMP_W in
- * Log.hpp. Takes into account if a logfile is open, otherwise it is possible to
- * pass fds for stdout or stderr to select preferred output.
- * TODO: support other fds
+ * format is YYYY-MM-DD HH:MM:SS, adjustable padding via macro TIMESTAMP_WIDTH in
+ * Log.hpp. Takes into account if a logfile is open, otherwise checks log level
+ * for correct output stream.
  */
-void	Log::logTime(int fd)
+void	Log::logTime(logType type)
 {
 	auto	timePoint	= std::chrono::system_clock::now();
 	auto	time		= std::chrono::system_clock::to_time_t(timePoint);
 
 	std::stringstream	timeStream;
 	std::string			timeStr;
+	std::ostream		*outputStream = &std::cout;
 
 	timeStream	<< std::put_time(std::localtime(&time), "%F %T");
 	timeStr		= timeStream.str();
 
-	if (_ofs.is_open()) {
-		_ofs << std::setw(TIMESTAMP_W) << std::left << timeStr;
-		return;
-	}
+	if (_ofs.is_open())
+		outputStream = &_ofs;
+	else if (type != INFO)
+		outputStream = &std::cerr;
 
-	if (fd == STDERR_FILENO) {
-		std::cerr << std::setw(TIMESTAMP_W) << std::left << timeStr;
-		return;
-	}
+	*outputStream << std::setw(TIMESTAMP_WIDTH) << std::left << timeStr;
+}
 
-	std::cout << std::setw(TIMESTAMP_W) << std::left << timeStr;
+/**
+ * Helper function to unify log functionality. Checks message type and if
+ * parameters are valid. file, function and line have default values in header.
+ */
+void	Log::logMessage(logType type, std::string_view message,
+					std::string_view file, std::string_view function, int line)
+{
+	std::string		typeString;
+	std::string		color;
+	std::ostream	*outputStream = &std::cout;
+
+	switch (type) {
+		case INFO:
+			typeString = "INFO: ";
+			color = CYA;
+			break;
+		case DEBUG:
+			typeString = "DEBUG: ";
+			color = YEL;
+			break;
+		case ERROR:
+			typeString = "ERROR: ";
+			color = RED;
+			break;
+		default:
+			std::string	msg = "logMessage: unknown type " + std::to_string(type);
+			throw std::runtime_error(msg);
+	};
+
+	if (type != INFO)
+		outputStream = &std::cerr;
+
+	Log::logTime(type);
+
+	if (_ofs.is_open())
+		outputStream = &_ofs;
+
+	if ((type == INFO && isatty(STDOUT_FILENO))
+		|| (type != INFO && isatty(STDERR_FILENO)))
+		typeString = color + typeString + CLR;
+
+	*outputStream << std::right << typeString;
+	if (!file.empty())
+		*outputStream << file << ": ";
+	if (!function.empty())
+		*outputStream << function << ": ";
+	if (line > 0)
+		*outputStream << line << ": ";
+	*outputStream << message << "\n";
 }
 
 /**
@@ -53,21 +98,7 @@ void	Log::logTime(int fd)
 void	Log::error(std::string_view file, std::string_view function,
 				int line, std::string_view message)
 {
-	std::string	errorMarker = "ERROR: ";
-
-	logTime(STDERR_FILENO);	// Always log a time stamp
-
-	if (_ofs.is_open()) {
-		_ofs	<< std::setw(CATEGORY_W) << std::right << errorMarker << file
-				<< ": " << function << " (" << line << "): " << message << "\n";
-		return;
-	}
-
-	if (isatty(STDERR_FILENO))
-		errorMarker = RED + errorMarker + CLR;
-
-	std::cerr	<< std::setw(CATEGORY_W) << std::right << errorMarker << file
-				<< ": " << function << " (" << line << "): " << message << "\n";
+	logMessage(ERROR, message, file, function, line);
 }
 
 /**
@@ -76,41 +107,15 @@ void	Log::error(std::string_view file, std::string_view function,
 void	Log::debug(std::string_view file, std::string_view function,
 				int line, std::string_view message)
 {
-	std::string	debugMarker = "DEBUG: ";
-
-	logTime(STDERR_FILENO);	// Always log a time stamp
-
-	if (_ofs.is_open()) {
-		_ofs	<< std::setw(CATEGORY_W) << std::right << debugMarker << file
-				<< ": " << function << " (" << line << "): " << message << "\n";
-		return;
-	}
-
-	if (isatty(STDERR_FILENO))
-		debugMarker = YEL + debugMarker + CLR;
-
-	std::cout	<< std::setw(CATEGORY_W) << std::right << debugMarker << file
-				<< ": " << function << " (" << line << "): " << message << "\n";
+	logMessage(DEBUG, message, file, function, line);
 }
 
 /**
  * Info logging
  */
-void	Log::info(std::string_view functionName, std::string_view context)
+void	Log::info(std::string_view functionName, std::string_view message)
 {
-	std::string	infoMarker = "INFO: ";
-
-	logTime(STDOUT_FILENO);
-
-	if (_ofs.is_open()) {
-		_ofs	<< std::setw(CATEGORY_W) << std::right << infoMarker
-				<< functionName << ": " << context << "\n";
-		return;
-	}
-
-	infoMarker = CYA + infoMarker + CLR;
-	std::cout	<< std::setw(CATEGORY_W) << std::right << infoMarker
-				<< functionName << ": " << context << "\n";
+	logMessage(INFO, message);
 }
 
 /**
@@ -123,11 +128,13 @@ void	Log::setOutputFile(std::string_view outputFileName)
 	if (_ofs.is_open()) {
 		_ofs.close();
 		if (_ofs.fail()) {
-			throw std::runtime_error("setOutputFile: couldn't close previously opened output file stream");
+			std::string	msg = "setOutputFile: couldn't close previously opened output file stream";
+			throw std::runtime_error(msg);
 		}
 	}
 	_ofs.open(std::string(outputFileName));
 	if (!_ofs.is_open()) {
-		throw std::runtime_error("setOutputFile: couldn't open file");
+		std::string	msg = "setOutputFile: couldn't open " + std::string(outputFileName);
+		throw std::runtime_error(msg);
 	}
 }
