@@ -21,22 +21,16 @@ std::ofstream	Log::_ofs;	// Reserve space for static member variable
  * Log.hpp. Takes into account if a logfile is open, otherwise checks log level
  * for correct output stream.
  */
-void	Log::logTime(logType type)
+void	Log::logTime(std::ostream *outputStream)
 {
 	auto	timePoint	= std::chrono::system_clock::now();
 	auto	time		= std::chrono::system_clock::to_time_t(timePoint);
 
 	std::stringstream	timeStream;
 	std::string			timeStr;
-	std::ostream		*outputStream = &std::cout;
 
 	timeStream	<< std::put_time(std::localtime(&time), "%F %T");
 	timeStr		= timeStream.str();
-
-	if (_ofs.is_open())
-		outputStream = &_ofs;
-	else if (type != INFO)
-		outputStream = &std::cerr;
 
 	*outputStream << std::setw(TIMESTAMP_WIDTH) << std::left << timeStr;
 }
@@ -73,10 +67,10 @@ void	Log::logMessage(logType type, std::string_view message,
 	if (type != INFO)
 		outputStream = &std::cerr;
 
-	Log::logTime(type);
-
 	if (_ofs.is_open())
 		outputStream = &_ofs;
+
+	Log::logTime(outputStream);
 
 	if ((type == INFO && isatty(STDOUT_FILENO))
 		|| (type != INFO && isatty(STDERR_FILENO)))
