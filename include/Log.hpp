@@ -21,8 +21,8 @@ public:
 				   int line, std::string_view message);
 	static void	info(std::string_view functionName, std::string_view context);
 	static void	debug(std::string_view file, std::string_view function,
-				   int line, std::string_view function_name);
-	static void	setOuputFile(std::string_view outputFileName);
+				   int line, std::string_view functionName);
+	static void	setOutputFile(std::string_view outputFileName);
 
 private:
 	static void				logTime(int fd);

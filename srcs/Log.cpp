@@ -119,11 +119,11 @@ void	Log::info(std::string_view functionName, std::string_view context)
  * view. Closes previous file if open, throws runtime_error in case a file
  * operation fails.
  */
-void	Log::setOuputFile(std::string_view outputFileName)
+void	Log::setOutputFile(std::string_view outputFileName)
 {
 	if (_ofs.is_open()) {
 		_ofs.close();
-		if (_ofs.failbit) {
+		if (_ofs.fail()) {
 			throw std::runtime_error("setOutputFile: couldn't close previously opened output file stream");
 		}
 	}
