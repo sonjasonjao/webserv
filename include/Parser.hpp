@@ -97,5 +97,11 @@ class Parser {
          * First version of getter method to get a final srever configuration information. As the first
          * version only return some dummy values to start implementing Main loop for Sonja
         */
-       config_t getServerConfig(const std::string& host_name);
+       config_t& getServerConfig(const std::string& host_name);
+
+	   /**
+		* I (Sonja) made this getter to fetch the whole configs vector to try and build the
+		* server object with all necessary data
+	    */
+	   std::vector<config_t> const& getServerConfigs() const;
 };

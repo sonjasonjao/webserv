@@ -1,18 +1,27 @@
 #pragma once
+#include "Parser.hpp"
+#include "Log.hpp"
+#include <vector>
+#include <unordered_map>
+#include <exception>
 
 class Server
 {
 	private:
-		int				_id;
-		int				_port;
-		struct pollfd*	_pfds;
+		std::vector<config_t>					_configs;
+		std::vector<pollfd>						_pfds;
+		std::unordered_map<int, std::string>	_serverFds;
 
 	public:
-		Server(); //int id, int port, what else?
+		Server(Parser& parser);
 		~Server();
 
-		void	run(int listener);
-		void	handleNewClient(int listener, int& fdCount);
-		void	handleClientData(int listener, int& fdCount, int& i);
-		void	processConnections(int listener, int& fdCount);
+		std::vector<config_t> const&	getConfigs() const;
+
+		int					getListenerSocket(std::vector<config_t>::iterator it);
+		void				run(int listener);
+		void				handleNewClient(int listener, int& fdCount);
+		void				handleClientData(int listener, int& fdCount, int& i);
+		void				handleConnections(int listener, int& fdCount);
+		void				closePfds(void);
 };

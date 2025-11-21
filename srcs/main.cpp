@@ -1,86 +1,39 @@
 #include "../include/Server.hpp"
-#include <iostream>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <string.h>
-#include <poll.h>
-#include <fcntl.h>
 
-int	getListenerSocket(void)
-{
-	int	listener;
-	int	yes = 1;
-	int	ret;
-
-	struct addrinfo	hints, *servinfo, *p;
-
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-
-	ret = getaddrinfo("127.0.0.1", "8080", &hints, &servinfo); //IP and port from config file
-	if (ret != 0)
-	{
-		std::cerr << "Server error: " << gai_strerror(ret) << '\n';
-		exit (1);
-	}
-
-	for (p = servinfo; p != NULL; p = p->ai_next)
-	{
-		listener = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-		if (listener < 0)
-			continue;
-		setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
-		if (bind(listener, p->ai_addr, p->ai_addrlen) < 0)
-		{
-			close(listener);
-			continue;
-		}
-		// if (fcntl(listener, F_SETFL, O_NONBLOCK) < 0)
-		// {
-		// 	std::cerr << "Server error: fcntl failed\n";
-		// 	close(listener);
-		// 	continue;
-		// }
-		break;
-	}
-	if (p == NULL)
-		return -1;
-
-	freeaddrinfo(servinfo);
-
-	if (listen(listener, 1000) < 0) //macro for MAX_BACKLOG
-		return -1;
-
-	std::cout << "Server listening...\n";
-
-	return listener;
-}
-
+/**
+ * Main loop: instantiating Parser to parse config file, then creating Server object
+ * with config data. This initial version only creates one server socket (for config
+ * at index 0 for now), but that will be changed to make listener to each config.
+ */
 int	main(int argc, char **argv)
 {
-	// if (argc != 2)
-	// {
-	// 	std::cout << "Usage: ./webserv [configuration file]\n";
-	// 	return 0;
-	// }
-
-	//Parser	parsedConfig(argv[1]);
-
-	int	listener = getListenerSocket(); //do we need multiple listener sockets..?
-	if (listener < 0)
+	if (argc != 2)
 	{
-		std::cerr << "Server error: failed to create listener socket\n";
-		return 1;
+		std::cout << "Usage: ./webserv [configuration file]\n";
+		return 0;
 	}
 
-	Server	myServer; //config data from parser into this constructor
-	myServer.run(listener);
+	try
+	{
+		Parser	parser(argv[1]);
+
+		Server	server(parser);
+
+		std::vector<config_t>	configs = server.getConfigs();
+		std::vector<config_t>::iterator it = configs.begin();
+		int	listener = server.getListenerSocket(it);
+		if (listener < 0)
+		{
+			ERROR_LOG("Server error: socket fail");
+			throw std::runtime_error("Server error: socket fail");
+		}
+
+		server.run(listener);
+	}
+	catch(const std::exception& e)
+	{
+		std::cerr << e.what() << '\n';
+	}
 
 	return 0;
 }
