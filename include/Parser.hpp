@@ -1,11 +1,13 @@
 #pragma once
 
-#include <string>
+#include <iostream>
 #include <fstream>
 #include <sstream>
-#include <vector>
 #include <filesystem>
-#include <iostream>
+#include <cstdint>
+#include <string>
+#include <vector>
+#include <map>
 
 #include "CustomeException.hpp"
 
@@ -15,11 +17,40 @@
 */
 #define EXTENSION "config"
 
+struct redirect_t {
+    uint16_t                            status_code;            // http status code for redirect (eg : 301, 302, 303, etc)
+    std::string                         target_url;             // Target url which client will redirect
+};
+
+struct route_t {
+    std::string                         path;                   // URI prefix for the route, e.g. "/", "/images/", "/upload"
+    std::string                         abs_path;               // Absolute filesystem path corresponding the route's root eg : "/var/www/site"
+    std::vector<std::string>            accepted_methods;       // list of allowed http methds eg : GET, POST, DELETE
+    redirect_t                          redirect;               // This will serve if the request is redirect
+    bool                                auto_index;             // if true, enable directory listing when the requested path is a directory
+    std::string                         index_file;             // Default file name to serve
+    std::vector<std::string>            cgi_extensions;         // File extensions that should be handled by a CGI eg ".php, .py"
+    std::vector<std::string>            cgi_methods;            // http methods allowed specifically for CGI execution
+    std::string                         upload_path;            // Directory where uploaded files handled by route should store
+    std::string                         cgi_executable;         // Path to the CGI interpreter/executable to run for matching files
+    size_t                              client_max_body_size;   // Maximum allowed size (in bytes) of the request body for this route.
+};
+
+struct config_t {
+    std::string                         host;                   // IP or hostname on which this server listens, e.g. "0.0.0.0" or "127.0.0.1"
+    uint16_t                            port;                   // Port on which this server listens
+    std::vector<std::string>            server_names;           // List of server names (virtual hosts) handled by this server eg : {"example.com", "www.example.com"}
+    std::map<uint16_t, std::string>     error_pages;            // Mapping from HTTP error status code to custom error page path.
+    std::map<uint16_t, route_t>         routes;                 // Set of routes (location blocks) defined for this server.
+    size_t                              client_max_body_size;   // Default maximum allowed size (in bytes) of the request body for this server
+};
+
 class Parser {
     private:
-        std::string const           _file_name;
-        std::ifstream               _file;
-        std::vector<std::string>    _tokens;
+        std::string const               _file_name;             // File name of the configuratioon file
+        std::ifstream                   _file;                  // ifstream instance to read the configuration file
+        std::vector<std::string>        _tokens;                // Internal container to store tokenize content (keyword, identifier, symbol, ...)
+        std::vector<config_t>           _server_configs;        // List of fully parsed server configurations built from the token list.
 
     public:
         /**
@@ -28,7 +59,7 @@ class Parser {
          * @return void - content of the file will be tokenize and save to a internal
          * container, type std::vector
         */
-        Parser(std::string& file_name);
+        Parser(const std::string& file_name);
         /**
          * only way of creating Parser instanse should be argument constructor
         */
@@ -61,4 +92,10 @@ class Parser {
         * Debugging helper funtion, will remove later
        */
         void print_tokens(void);
+
+        /**
+         * First version of getter method to get a final srever configuration information. As the first
+         * version only return some dummy values to start implementing Main loop for Sonja
+        */
+       config_t getServerConfig(const std::string& host_name);
 };
