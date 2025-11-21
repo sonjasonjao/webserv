@@ -72,8 +72,8 @@ void	Log::logMessage(logType type, std::string_view message,
 
 	Log::logTime(outputStream);
 
-	if ((type == INFO && isatty(STDOUT_FILENO))
-		|| (type != INFO && isatty(STDERR_FILENO)))
+	if (!_ofs.is_open() && ((type == INFO && isatty(STDOUT_FILENO))
+		|| (type != INFO && isatty(STDERR_FILENO))))
 		typeString = color + typeString + CLR;
 
 	*outputStream << std::setw(CATEGORY_WIDTH) << std::right << typeString;
