@@ -85,7 +85,10 @@ void Parser::print_tokens(void) {
     }
 }
 
-config_t Parser::getServerConfig(const std::string& host_name) {
+/**
+ * Changed return type to reference (Sonja)
+ */
+config_t& Parser::getServerConfig(const std::string& host_name) {
     (void)host_name;
 
     redirect_t  temp_redirect;
@@ -216,3 +219,7 @@ config_t Parser::getServerConfig(const std::string& host_name) {
     return dummy_config;
 }
 
+std::vector<config_t> const& Parser::getServerConfigs() const
+{
+	return _server_configs;
+}
