@@ -1,5 +1,9 @@
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netdb.h>
 #include "Log.hpp"
 #include <iostream>
+#include <cstring>
 
 void	endianTest()
 {
@@ -32,10 +36,26 @@ bool	isLittleEndian()
 
 int	main()
 {
-	if (isLittleEndian())
-		endianTest();
-	ERROR_LOG("This is an error message");
-	INFO_LOG("This is an info message");
-	DEBUG_LOG("This is a debug message");
+	// if (isLittleEndian())
+	// 	endianTest();
+	// ERROR_LOG("This is an error message");
+	// INFO_LOG("This is an info message");
+	// DEBUG_LOG("This is a debug message");
+	int				status;
+	struct addrinfo	hints;
+	struct addrinfo	*servinfo;
+	struct addrinfo	*p;
+
+	bzero(&hints, sizeof(hints));
+	hints.ai_family		= AF_UNSPEC;
+	hints.ai_socktype	= SOCK_STREAM;
+	hints.ai_flags		= AI_PASSIVE;
+
+	if ((status = getaddrinfo(NULL, "9876", &hints, &servinfo)) != 0) {
+		ERROR_LOG("getaddrinfo fail: " + std::string(gai_strerror(status)));
+		return (EXIT_FAILURE);
+	}
+
+	freeaddrinfo(servinfo);
 	return 0;
 }
