@@ -4,6 +4,9 @@
 #include <vector>
 #include <unordered_map>
 #include <exception>
+#include "poll.h"
+
+#define MAX_PENDING 20 //to be decided
 
 class Server
 {
@@ -15,17 +18,17 @@ class Server
 	public:
 		Server() = delete;
 		Server(Parser const& parser);
-		Server(Server& const obj);
-		Server& const	operator=(Server& const other) = delete;
+		Server(Server const& obj);
+		Server const&	operator=(Server const& other) = delete;
 		~Server();
 
 		std::vector<config_t> const&	getConfigs() const;
 
-		void				getServerSockets(void);
-		int					getListenerSocket(config_t conf);
+		void				createServerSockets(void);
+		int					getServerSocket(config_t conf);
 		void				run(void);
 		void				handleNewClient(int listener);
-		void				handleClientData(int& i);
+		void				handleClientData(size_t& i);
 		void				handleConnections(void);
 		void				closePfds(void);
 };
