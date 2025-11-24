@@ -10,18 +10,22 @@ class Server
 	private:
 		std::vector<config_t>					_configs;
 		std::vector<pollfd>						_pfds;
-		std::unordered_map<int, std::string>	_serverFds;
+		std::unordered_map<int, config_t>		_serverFds;
 
 	public:
-		Server(Parser& parser);
+		Server() = delete;
+		Server(Parser const& parser);
+		Server(Server& const obj);
+		Server& const	operator=(Server& const other) = delete;
 		~Server();
 
 		std::vector<config_t> const&	getConfigs() const;
 
-		int					getListenerSocket(std::vector<config_t>::iterator it);
-		void				run(int listener);
-		void				handleNewClient(int listener, int& fdCount);
-		void				handleClientData(int listener, int& fdCount, int& i);
-		void				handleConnections(int listener, int& fdCount);
+		void				getServerSockets(void);
+		int					getListenerSocket(config_t conf);
+		void				run(void);
+		void				handleNewClient(int listener);
+		void				handleClientData(int& i);
+		void				handleConnections(void);
 		void				closePfds(void);
 };

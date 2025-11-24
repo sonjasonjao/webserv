@@ -18,17 +18,7 @@ int	main(int argc, char **argv)
 		Parser	parser(argv[1]);
 
 		Server	server(parser);
-
-		std::vector<config_t>	configs = server.getConfigs();
-		std::vector<config_t>::iterator it = configs.begin();
-		int	listener = server.getListenerSocket(it);
-		if (listener < 0)
-		{
-			ERROR_LOG("Server error: socket fail");
-			throw std::runtime_error("Server error: socket fail");
-		}
-
-		server.run(listener);
+		server.run();
 	}
 	catch(const std::exception& e)
 	{
