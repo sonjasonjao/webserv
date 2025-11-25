@@ -1,0 +1,32 @@
+# What do we have now?
+- Main loop supports multiple configs from the parser, creates listener sockets for each
+- Parser is evolving, might use json type config file structure
+- Loggers for info, debug and error, standard output or file possible (have to set using code)
+# Notes
+- Port validation in the future (0-1024 reserved, typical ports)
+- At the beginning only support IPv4 for configs
+- When the configuration file is invalidated don't start the server
+	- We can decide what to do if some fields are missing (invalid or use default)
+	- Classification: required field vs option field could be thought about
+	- Q: what if there is extra garbage?
+		- A: it might be more professional to invalidate
+		- We can have messages for "We don't support field X", "Unknown field, skipping/stopping"
+# Next steps, what is urgent
+- Start getting more into the requests and responses
+	- Validation for different fields
+	- We need more examples of valid requests
+- Add parser with a file that has the same values that are the defaults now
+- Respond to a GET request
+- Server config resource validation
+	- If the server's directory is defined as example/www/html, check if it exists
+	- Root dir, file/resource dir?
+- Write checker if a resource exists
+	- Lets say someone wants `www.example.com/file1.html`, check if it exists
+- Send the 404 error	- If the server's directory is defined as example/www/html, check if it exists
+- CGI research and testing
+	- Think about forms for a POST request, what type of executable
+		- Example POST 1, 2 -> sum.cgi << "1,2" -> 3 -> response
+- File upload default directory, more research
+- Signals?
+- Think about how to avoid bottlenecks, update project also during week
+- Test siege program, how to use it
