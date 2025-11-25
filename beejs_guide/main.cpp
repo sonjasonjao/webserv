@@ -36,11 +36,11 @@ bool	isLittleEndian()
 
 int	main()
 {
-	// if (isLittleEndian())
-	// 	endianTest();
-	// ERROR_LOG("This is an error message");
-	// INFO_LOG("This is an info message");
-	// DEBUG_LOG("This is a debug message");
+	if (isLittleEndian())
+		endianTest();
+	ERROR_LOG("This is an error message");
+	INFO_LOG("This is an info message");
+	DEBUG_LOG("This is a debug message");
 	int				status;
 	struct addrinfo	hints;
 	struct addrinfo	*servinfo;
