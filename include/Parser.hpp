@@ -9,7 +9,7 @@
 #include <vector>
 #include <map>
 
-#include "CustomeException.hpp"
+#include "CustomException.hpp"
 
 /**
  * Default file_name extension for the configuration file, with out correct extension
@@ -75,9 +75,9 @@ class Parser {
          * All the exceptions in Parsing will be categorize under ParserException
          * and will carry a string describing what went wrong
         */
-        struct ParserException : public CustomeException {
+        struct ParserException : public CustomException {
             ParserException(const std::string& str):
-                CustomeException(str){}
+                CustomException(str){}
         };
 
         /**

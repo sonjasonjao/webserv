@@ -4,16 +4,17 @@
 #include <vector>
 #include <unordered_map>
 #include <exception>
-#include "poll.h"
+#include <poll.h>
+#include <csignal>
 
 #define MAX_PENDING 20 //to be decided
 
 class Server
 {
 	private:
-		std::vector<config_t>					_configs;
-		std::vector<pollfd>						_pfds;
-		std::unordered_map<int, config_t>		_serverFds;
+		std::vector<config_t>				_configs;
+		std::vector<pollfd>					_pfds;
+		std::unordered_map<int, config_t>	_serverFds;
 
 	public:
 		Server() = delete;
@@ -24,11 +25,12 @@ class Server
 
 		std::vector<config_t> const&	getConfigs() const;
 
-		void				createServerSockets(void);
-		int					getServerSocket(config_t conf);
-		void				run(void);
-		void				handleNewClient(int listener);
-		void				handleClientData(size_t& i);
-		void				handleConnections(void);
-		void				closePfds(void);
+		void	createServerSockets(void);
+		int		getServerSocket(config_t conf);
+		void	run(void);
+		void	handleNewClient(int listener);
+		void	handleClientData(size_t& i);
+		void	handleConnections(void);
+		void	closePfds(void);
+		static void	setQuit(int val);
 };
