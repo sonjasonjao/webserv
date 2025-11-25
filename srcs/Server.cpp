@@ -175,6 +175,10 @@ void	Server::handleNewClient(int listener)
 /**
  * Receives data from the client that poll() has recognized ready. Message (= request)
  * will be parsed and response formed.
+ *
+ * Still missing handling of partial request - need to store data in tmp buffer and
+ * join two or more received data blocks from separate poll rounds. How to catch if a
+ * request is not complete?
  */
 void	Server::handleClientData(size_t& i)
 {
