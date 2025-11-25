@@ -88,7 +88,7 @@ void Parser::print_tokens(void) {
 /**
  * Changed return type to reference (Sonja)
  */
-config_t& Parser::getServerConfig(const std::string& host_name) {
+void Parser::getServerConfig(const std::string& host_name, config_t& dummy_config) {
     (void)host_name;
 
     redirect_t  temp_redirect;
@@ -99,13 +99,11 @@ config_t& Parser::getServerConfig(const std::string& host_name) {
     route_t     temp_route4;
     route_t     temp_route5;
 
-    config_t    dummy_config;
-
     /**
      *  creating dummy server config
      */
     dummy_config.host                   = "127.0.0.1";
-    dummy_config.port                   = 9304;
+    dummy_config.port                   = 8080;
     dummy_config.client_max_body_size   = 1048576; // equal to 1MB
 
     dummy_config.server_names.clear();
@@ -215,8 +213,6 @@ config_t& Parser::getServerConfig(const std::string& host_name) {
      * adding server to class standard server container
     */
     _server_configs.emplace_back(dummy_config);
-
-    return dummy_config;
 }
 
 std::vector<config_t> const& Parser::getServerConfigs() const

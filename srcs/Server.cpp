@@ -9,13 +9,16 @@
 #include <poll.h>
 #include <fcntl.h>
 #include <cstring>
+#include <sys/epoll.h>
 
 /**
  * At construction, _configs will be fetched from parser.
  */
-Server::Server(Parser const& parser)
+Server::Server(Parser& parser)
 {
-	_configs = parser.getServerConfigs();
+	config_t tmp;
+	parser.getServerConfig("test", tmp);
+	_configs.push_back(tmp);
 }
 
 Server::Server(Server const& obj)
@@ -110,10 +113,7 @@ void	Server::createServerSockets()
 	for (auto it = _configs.begin(); it != _configs.end(); it++)
 	{
 		int sockfd = getServerSocket(*it);
-		size_t	i = _pfds.size();
-		_pfds[i].fd = sockfd;
-		_pfds[i].events = POLLIN;
-		_pfds[i].revents = 0;
+		_pfds.push_back({ sockfd, POLLIN, 0 });
 		_serverFds[sockfd] = *it; //making a copy of each config not really efficient
 	}
 }
@@ -126,13 +126,14 @@ void	Server::run(void)
 	createServerSockets();
 	while (true)
 	{
-		int	pollCount = poll(&_pfds[0], _pfds.size(), -1);
+		int	pollCount = poll(&_pfds[0], _pfds.size(), 3000);
 		if (pollCount < 0)
 		{
 			closePfds();
 			ERROR_LOG("poll: " + std::string(strerror(errno)));
 			throw std::runtime_error("poll: " + std::string(strerror(errno)));
 		}
+		DEBUG_LOG("pollCount: " + std::string(std::to_string(pollCount)));
 		handleConnections();
 	}
 }
@@ -167,10 +168,7 @@ void	Server::handleNewClient(int listener)
 		ERROR_LOG("fcntl: " + std::string(strerror(errno)));
 		throw std::runtime_error("fcntl: " + std::string(strerror(errno)));
 	}
-	size_t	i = _pfds.size();
-	_pfds[i].fd = clientFd;
-	_pfds[i].events = POLLIN;
-	_pfds[i].revents = 0;
+	_pfds.push_back({ clientFd, POLLIN, 0 });
 	INFO_LOG("Server accepted a new connection with " + std::to_string(clientFd));
 }
 
@@ -196,6 +194,7 @@ void	Server::handleClientData(size_t& i)
 	else
 	{
 		INFO_LOG("Server received data from client " + std::to_string(_pfds[i].fd));
+		std::cout << buf << '\n';
 		//Request const& req = parseRequest(buf);
 		//prepareResponse(req);
 	}
@@ -217,7 +216,10 @@ void	Server::handleConnections(void)
 			if (pos != _serverFds.end())
 				handleNewClient(pos->first);
 			else
+			{
 				handleClientData(i);
+				break ;
+			}
 		}
 	}
 }

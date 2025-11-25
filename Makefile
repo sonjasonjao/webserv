@@ -12,7 +12,7 @@ DIR_SRC = srcs
 
 FLAGS	= $(WARN) $(STD) -O0 -g -I$(DIR_INC) -MMD -MP
 
-SRCS	= $(wildcard $(DIR_SRC)/*.cpp) main.cpp
+SRCS	= $(wildcard $(DIR_SRC)/*.cpp)
 
 OBJS	= $(SRCS:.cpp=.o)
 DEPS	= $(OBJS:.o=.d)

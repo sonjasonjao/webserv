@@ -17,7 +17,7 @@ class Server
 
 	public:
 		Server() = delete;
-		Server(Parser const& parser);
+		Server(Parser& parser);
 		Server(Server const& obj);
 		Server const&	operator=(Server const& other) = delete;
 		~Server();
