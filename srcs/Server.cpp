@@ -199,6 +199,7 @@ void	Server::handleClientData(size_t& i)
 	}
 	else
 	{
+		buf[numBytes] = '\0';
 		INFO_LOG("Server received data from client " + std::to_string(_pfds[i].fd));
 		std::cout << buf << '\n';
 		//Request const& req = parseRequest(buf);

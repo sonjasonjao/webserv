@@ -109,7 +109,6 @@ void	Log::debug(std::string_view file, std::string_view function,
  */
 void	Log::info(std::string_view message)
 {
-	(void)functionName;
 	logMessage(INFO, message);
 }
 
