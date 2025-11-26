@@ -126,7 +126,7 @@ void	Server::run(void)
 	createServerSockets();
 	while (true)
 	{
-		int	pollCount = poll(&_pfds[0], _pfds.size(), 3000);
+		int	pollCount = poll(&_pfds[0], _pfds.size(), -1); //timeout needs to be set
 		if (pollCount < 0)
 		{
 			closePfds();
@@ -179,6 +179,8 @@ void	Server::handleNewClient(int listener)
  * Still missing handling of partial request - need to store data in tmp buffer and
  * join two or more received data blocks from separate poll rounds. How to catch if a
  * request is not complete?
+ *
+ * Erasing a disconnect client doesn't seem to work properly yet.
  */
 void	Server::handleClientData(size_t& i)
 {
@@ -220,10 +222,7 @@ void	Server::handleConnections(void)
 			if (pos != _serverFds.end())
 				handleNewClient(pos->first);
 			else
-			{
 				handleClientData(i);
-				break ;
-			}
 		}
 	}
 }
