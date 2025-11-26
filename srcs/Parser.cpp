@@ -78,20 +78,20 @@ void Parser::tokenize_file(void) {
             line.clear();
         }
     }
-    Token root = create_token(output);
-    print_token(root);
-    if(!root.children.empty()){
-        if(root.children.at(0).type == TokenType::Element) {
-                root = root.children.at(0);
-                if(root.children.at(0).type == TokenType::Identifier) {
-                        std::cout << "root type : "
-                        << type_to_string(root.children.at(0).type)
-                        << "\n";
-                        std::cout << "root value : "
-                        << root.value
-                        << "\n";
-                }
 
+    Token root = create_token(output);
+
+    for(const auto& node : root.children) {
+        if(get_key(node) == "server") {
+            if(node.children.size() > 1) {
+                const Token& content = node.children[1];
+                if(!content.children.empty()) {
+                    for(const auto& block : content.children) {
+                        config_t config = convert_to_server_data(block);
+                        _server_configs.emplace_back(config);
+                    }
+                }
+            }
         }
     }
 }
@@ -100,3 +100,27 @@ config_t Parser::getServerConfig(size_t index) {
     return (_server_configs.at(index));
 }
 
+config_t Parser::convert_to_server_data(const Token& server) {
+    config_t config;
+    for(auto item : server.children) {
+        std::string key = get_key(item);
+        if(key == "host") {
+            if(item.children.size() > 1) {
+                config.host = item.children.at(1).value;
+            }
+        } else if (key == "host_name") {
+            if(item.children.size() > 1) {
+                config.host_name = item.children.at(1).value;
+            }
+        } else if (key == "listen") {
+            if(item.children.size() > 1) {
+                for(auto p : item.children.at(1).children) {
+                    config.ports.emplace_back(
+                        std::atoi(p.value.c_str())
+                    );
+                }
+            }
+        }
+    }
+    return (config);
+}

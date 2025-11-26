@@ -26,6 +26,9 @@ void print_token(const Token& root, int indent = 0);
 
 std::string type_to_string(TokenType type);
 std::string trim(std::string_view sv);
+std::string get_key(const Token& token);
+std::string remove_quotes(const std::string& str);
+
 std::vector<std::string> split_elements(const std::string& str);
 
 size_t unquoted_delimiter(std::string_view sv, const char c);

@@ -120,7 +120,7 @@ Token create_token(const std::string& str, TokenType type) {
     Token token;
     if(type == TokenType::Identifier || type == TokenType::Value) {
         token.type = type;
-        token.value = str;
+        token.value = remove_quotes(str);
     } else {
         token = create_token(str);
     }
@@ -180,9 +180,25 @@ Token create_token(const std::string& str) {
 
     if(type == TokenType::Value) {
         token.type = TokenType::Value;
-        token.value = str;
+        token.value = remove_quotes(str);
     }
 
     return (token);
 }
 
+std::string get_key(const Token& token) {
+    if(token.type == TokenType::Element
+        && !token.children.empty()) {
+            if(token.children.at(0).type == TokenType::Identifier) {
+                return (token.children.at(0).value);
+            }
+    }
+    return ("");
+}
+
+std::string remove_quotes(const std::string& str) {
+    if(str.length() >= 2 && str.front() == '"' && str.back() == '"') {
+        return (trim(str.substr(1, str.length() - 2)));
+    }
+    return (str);
+}

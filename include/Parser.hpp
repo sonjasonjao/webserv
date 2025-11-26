@@ -39,15 +39,12 @@ struct route_t {
 
 struct config_t {
     std::string                         host;                   // IP or hostname on which this server listens, e.g. "0.0.0.0" or "127.0.0.1"
-    uint16_t                            port;                   // Port on which this server listens
-    std::vector<std::string>            server_names;           // List of server names (virtual hosts) handled by this server eg : {"example.com", "www.example.com"}
+    std::vector<uint16_t>               ports;                   // Port on which this server listens
+    std::string                         host_name;           // List of server names (virtual hosts) handled by this server eg : {"example.com", "www.example.com"}
     // will uncomment when we ready to use below
     //std::map<uint16_t, std::string>     error_pages;            // Mapping from HTTP error status code to custom error page path.
     //std::map<uint16_t, route_t>         routes;                 // Set of routes (location blocks) defined for this server.
     //size_t                              client_max_body_size;   // Default maximum allowed size (in bytes) of the request body for this server
-    config_t(Token token) {
-        std::cout << "token : " << type_to_string(token.type) << "\n";
-    }
 };
 
 class Parser {
@@ -98,4 +95,6 @@ class Parser {
          * version only return some dummy values to start implementing Main loop for Sonja
         */
        config_t getServerConfig(size_t index);
+
+       config_t convert_to_server_data(const Token& server);
 };
