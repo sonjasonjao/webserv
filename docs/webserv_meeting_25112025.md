@@ -30,3 +30,4 @@
 - Signals?
 - Think about how to avoid bottlenecks, update project also during week
 - Test siege program, how to use it
+- Research autoindexing
