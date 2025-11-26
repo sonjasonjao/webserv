@@ -10,12 +10,13 @@
 #include <map>
 
 #include "CustomeException.hpp"
+#include "JSON.hpp"
 
 /**
  * Default file_name extension for the configuration file, with out correct extension
  * file_name invalid.
 */
-#define EXTENSION "config"
+#define EXTENSION "json"
 
 struct redirect_t {
     uint16_t                            status_code;            // http status code for redirect (eg : 301, 302, 303, etc)
@@ -40,16 +41,20 @@ struct config_t {
     std::string                         host;                   // IP or hostname on which this server listens, e.g. "0.0.0.0" or "127.0.0.1"
     uint16_t                            port;                   // Port on which this server listens
     std::vector<std::string>            server_names;           // List of server names (virtual hosts) handled by this server eg : {"example.com", "www.example.com"}
-    std::map<uint16_t, std::string>     error_pages;            // Mapping from HTTP error status code to custom error page path.
-    std::map<uint16_t, route_t>         routes;                 // Set of routes (location blocks) defined for this server.
-    size_t                              client_max_body_size;   // Default maximum allowed size (in bytes) of the request body for this server
+    // will uncomment when we ready to use below
+    //std::map<uint16_t, std::string>     error_pages;            // Mapping from HTTP error status code to custom error page path.
+    //std::map<uint16_t, route_t>         routes;                 // Set of routes (location blocks) defined for this server.
+    //size_t                              client_max_body_size;   // Default maximum allowed size (in bytes) of the request body for this server
+    config_t(Token token) {
+        std::cout << "token : " << type_to_string(token.type) << "\n";
+    }
 };
 
 class Parser {
     private:
         std::string const               _file_name;             // File name of the configuratioon file
         std::ifstream                   _file;                  // ifstream instance to read the configuration file
-        std::vector<std::string>        _tokens;                // Internal container to store tokenize content (keyword, identifier, symbol, ...)
+        std::vector<Token>              _tokens;                // Internal container to store tokenize content (keyword, identifier, symbol, ...)
         std::vector<config_t>           _server_configs;        // List of fully parsed server configurations built from the token list.
 
     public:
@@ -88,14 +93,9 @@ class Parser {
         */
         void tokenize_file(void);
 
-       /**
-        * Debugging helper funtion, will remove later
-       */
-        void print_tokens(void);
-
         /**
          * First version of getter method to get a final srever configuration information. As the first
          * version only return some dummy values to start implementing Main loop for Sonja
         */
-       config_t getServerConfig(const std::string& host_name);
+       config_t getServerConfig(size_t index);
 };
