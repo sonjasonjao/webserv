@@ -9,7 +9,7 @@
 #include <vector>
 #include <map>
 
-#include "CustomeException.hpp"
+#include "CustomException.hpp"
 
 /**
  * Default file_name extension for the configuration file, with out correct extension
@@ -75,9 +75,9 @@ class Parser {
          * All the exceptions in Parsing will be categorize under ParserException
          * and will carry a string describing what went wrong
         */
-        struct ParserException : public CustomeException {
+        struct ParserException : public CustomException {
             ParserException(const std::string& str):
-                CustomeException(str){}
+                CustomException(str){}
         };
 
         /**
@@ -97,7 +97,7 @@ class Parser {
          * First version of getter method to get a final srever configuration information. As the first
          * version only return some dummy values to start implementing Main loop for Sonja
         */
-       config_t& getServerConfig(const std::string& host_name);
+       void getServerConfig(const std::string& host_name, config_t& dummy_config);
 
 	   /**
 		* I (Sonja) made this getter to fetch the whole configs vector to try and build the
