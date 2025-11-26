@@ -184,9 +184,9 @@ void	Server::handleNewClient(int listener)
  */
 void	Server::handleClientData(size_t& i)
 {
-	char	buf[4096];
+	char	buf[RECV_BUF_SIZE + 1];
 
-	int		numBytes = recv(_pfds[i].fd, buf, sizeof(buf), 0);
+	int		numBytes = recv(_pfds[i].fd, buf, RECV_BUF_SIZE, 0);
 	if (numBytes <= 0)
 	{
 		if (numBytes == 0)

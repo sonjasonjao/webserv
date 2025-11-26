@@ -8,6 +8,7 @@
 #include <csignal>
 
 #define MAX_PENDING 20 //to be decided
+#define RECV_BUF_SIZE 4096 //to be decided
 
 class Server
 {
@@ -18,7 +19,7 @@ class Server
 
 	public:
 		Server() = delete;
-		Server(Parser& parser);
+		Server(Parser& parser);	//will be Parser const& later when parser is ready
 		Server(Server const& obj);
 		Server const&	operator=(Server const& other) = delete;
 		~Server();
@@ -32,5 +33,4 @@ class Server
 		void	handleClientData(size_t& i);
 		void	handleConnections(void);
 		void	closePfds(void);
-		static void	setQuit(int val);
 };
