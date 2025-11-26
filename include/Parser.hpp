@@ -51,7 +51,6 @@ class Parser {
     private:
         std::string const               _file_name;             // File name of the configuratioon file
         std::ifstream                   _file;                  // ifstream instance to read the configuration file
-        std::vector<Token>              _tokens;                // Internal container to store tokenize content (keyword, identifier, symbol, ...)
         std::vector<config_t>           _server_configs;        // List of fully parsed server configurations built from the token list.
 
     public:
@@ -94,7 +93,9 @@ class Parser {
          * First version of getter method to get a final srever configuration information. As the first
          * version only return some dummy values to start implementing Main loop for Sonja
         */
-       config_t getServerConfig(size_t index);
+       const config_t& getServerConfig(size_t index);
+
+       size_t getNumberOfServerConfigs(void);
 
        config_t convert_to_server_data(const Token& server);
 };

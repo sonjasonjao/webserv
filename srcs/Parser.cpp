@@ -46,6 +46,7 @@ Parser::Parser(const std::string& file_name)
         }
     /**
      * Sucessfully opening the file and tokenizing the content
+     * all the toiken will be sacved into AST tree structure
     */
     tokenize_file();
 }
@@ -68,19 +69,22 @@ Parser::~Parser() {
 void Parser::tokenize_file(void) {
     std::string line;
     std::string output;
-
+    // read a line
     while(getline(_file, line)) {
+        // remove leading/trailing white spaces
         line = trim(line);
+        // if line is empty, skip
         if(line.empty()) {
             continue;
         } else {
+            // concatinate output and reset line for next read
             output.append(line);
             line.clear();
         }
     }
-
+    // create Token AST for validation
     Token root = create_token(output);
-
+    // buliding configuration struct vector to holds all the configuration data
     for(const auto& node : root.children) {
         if(get_key(node) == "server") {
             if(node.children.size() > 1) {
@@ -96,10 +100,33 @@ void Parser::tokenize_file(void) {
     }
 }
 
-config_t Parser::getServerConfig(size_t index) {
+/**
+ * this will return the srever configuration info to any valid request,
+ * pointed by index
+ * @exception will throw and out of bound exception in case reqeust invalid index
+ * caller has to handle the exception
+ * @param index unisigned int value which represent the index of the server
+ * config struct data
+ * @return const reference to the requested data structure
+*/
+const config_t& Parser::getServerConfig(size_t index) {
     return (_server_configs.at(index));
 }
 
+/**
+ * will return the size of the inetrnal container, usefull info when required
+ * to loop through the entire vector
+*/
+size_t Parser::getNumberOfServerConfigs(void) {
+    return (_server_configs.size());
+}
+
+/**
+ * this fucntion will conver a srever data token to a srever data struct
+ * @param server block of data in the AST need to convert
+ * @return value of the config create on the fly, will recreate the similar
+ * data int the respective vector, temporary data so no reference
+*/
 config_t Parser::convert_to_server_data(const Token& server) {
     config_t config;
     for(auto item : server.children) {
