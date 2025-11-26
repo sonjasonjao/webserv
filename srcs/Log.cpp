@@ -34,7 +34,6 @@ void	Log::logTime(std::ostream *outputStream)
 
 	std::stringstream	timeStream;
 	std::string			timeStr;
-	std::ostream		*outputStream = &std::cout;
 
 	timeStream.imbue(std::locale::classic());
 	timeStream	<< std::put_time(std::localtime(&time), "%F %T.");
