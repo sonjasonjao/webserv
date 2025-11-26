@@ -1,4 +1,4 @@
-#include "../include/Server.hpp"
+#include "Server.hpp"
 #include <iostream>
 #include <sys/socket.h>
 #include <sys/types.h>
