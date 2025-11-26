@@ -41,7 +41,7 @@ Parser::Parser(const std::string& file_name)
          */
         if(std::filesystem::file_size(_file_name) == 0) {
             throw ParserException(
-                "Error : empty configutaion file <" + _file_name + ">"
+                "Error : empty configuration file <" + _file_name + ">"
             );
         }
     /**

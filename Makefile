@@ -1,38 +1,56 @@
-NAME	= webserv
+# ---------------------------------------------------------------------------- #
+NAME		:= webserv
 
-CMD		= c++
+CXX			:= c++
+CXX_FLAGS	:= -Wall -Wextra -Werror -std=c++20 -MMD
+DEBUG_FLAGS	:= -g
+# ---------------------------------------------------------------------------- #
+INC_DIR		:= ./include
+SRC_DIR		:= ./srcs
+OBJ_DIR		:= ./obj
+# ---------------------------------------------------------------------------- #
+SRC	:=	$(SRC_DIR)/main.cpp				\
+		$(SRC_DIR)/CustomException.cpp	\
+		$(SRC_DIR)/Log.cpp				\
+		$(SRC_DIR)/Parser.cpp			\
+		$(SRC_DIR)/Server.cpp
 
-STD		= -std=c++20
+OBJ	:=	$(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRC))
+DEP	:=	$(OBJ:.o=.d)
 
-WARN	= -Wall -Werror -Wextra
+.SECONDARY: $(OBJ)
+# ---------------------------------------------------------------------------- #
+all: $(NAME)
 
-DIR_INC	= include
+$(NAME): $(OBJ)
+	$(CXX) $(CXX_FLAGS) -I $(INC_DIR) $(OBJ) -o $@
 
-DIR_SRC = srcs
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
+	$(CXX) $(CXX_FLAGS) -I $(INC_DIR) -c $< -o $@
 
-FLAGS	= $(WARN) $(STD) -O0 -g -I$(DIR_INC) -MMD -MP
+$(OBJ_DIR):
+	mkdir $(OBJ_DIR)
+# ---------------------------------------------------------------------------- #
+clean:
+	rm -rf $(OBJ_DIR)
 
-SRCS	= $(wildcard $(DIR_SRC)/*.cpp) main.cpp
-
-OBJS	= $(SRCS:.cpp=.o)
-DEPS	= $(OBJS:.o=.d)
-
-all		: $(NAME)
-
-$(NAME)	: $(OBJS)
-	$(CMD) $(OBJS) -o $@
-
-%.o		: %.cpp
-	$(CMD) $(FLAGS) -c $< -o $@
-
-clean	:
-	rm -f $(OBJS) $(DEPS)
-
-fclean	: clean
+fclean: clean
 	rm -f $(NAME)
 
-re		: fclean all
+re: fclean all
+# ---------------------------------------------------------------------------- #
+run: $(NAME)
+	./$(NAME) ./config_files/default.config
 
-.PHONY	: all clean fclean re
+gdb: $(NAME)
+	gdb -tui $(NAME)
 
--include $(DEPS)
+ddb: debug gdb
+# ---------------------------------------------------------------------------- #
+debug: CXX_FLAGS += $(DEBUG_FLAGS)
+debug: fclean all
+# ---------------------------------------------------------------------------- #
+.PHONY: all clean fclean re debug run gdb ddb
+# ---------------------------------------------------------------------------- #
+-include $(DEP)
+# ---------------------------------------------------------------------------- #

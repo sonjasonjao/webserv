@@ -76,9 +76,9 @@ class Parser {
          * All the exceptions in Parsing will be categorize under ParserException
          * and will carry a string describing what went wrong
         */
-        struct ParserException : public CustomeException {
+        struct ParserException : public CustomException {
             ParserException(const std::string& str):
-                CustomeException(str){}
+                CustomException(str){}
         };
 
         /**

@@ -42,3 +42,6 @@
 
 # gest directory
 test/googletest
+
+# Settings.json file (for now /Sonja)
+.vscode/settings.json
