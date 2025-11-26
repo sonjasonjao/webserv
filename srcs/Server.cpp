@@ -193,9 +193,12 @@ void	Server::handleClientData(size_t& i)
 			INFO_LOG("Connection closed with " + std::to_string(_pfds[i].fd));
 		else
 			ERROR_LOG("recv: " + std::string(strerror(errno)));
+		DEBUG_LOG("Closing fd " + std::to_string(_pfds[i].fd));
 		close(_pfds[i].fd);
-		_pfds[i] = _pfds[_pfds.size() - 1];
-		i--;
+		if (_pfds.size() > (i + 1)) {
+			_pfds[i] = _pfds[_pfds.size() - 1];
+			i--;
+		}
 	}
 	else
 	{
