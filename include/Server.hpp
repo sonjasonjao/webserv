@@ -1,6 +1,7 @@
 #pragma once
 #include "Parser.hpp"
 #include "Log.hpp"
+#include "Request.hpp"
 #include <vector>
 #include <unordered_map>
 #include <exception>

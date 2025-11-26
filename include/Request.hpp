@@ -1,0 +1,43 @@
+#pragma once
+#include <iostream>
+#include <sstream>
+#include <unordered_map>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <regex>
+
+enum method
+{
+	GET,
+	POST,
+	DELETE
+};
+
+struct requestLine
+{
+	std::string	target;
+	std::string	httpVersion;
+	enum method	method;
+};
+
+class Request
+{
+	using stringMap = std::unordered_map<std::string, std::string>;
+
+	private:
+		struct requestLine	_request;
+		stringMap			_headers;
+		std::string			_body;
+		bool				_isValid;
+
+	public:
+		Request() = delete;
+		Request(std::string buf);
+		~Request();
+
+		void	printData(void) const;
+		bool	isTargetValid(std::string& target);
+		bool	isHttpValid(std::string& httpVersion);
+		bool	isValid(void) const;
+};

@@ -133,7 +133,7 @@ void	Server::run(void)
 			ERROR_LOG("poll: " + std::string(strerror(errno)));
 			throw std::runtime_error("poll: " + std::string(strerror(errno)));
 		}
-		DEBUG_LOG("pollCount: " + std::string(std::to_string(pollCount)));
+		// DEBUG_LOG("pollCount: " + std::string(std::to_string(pollCount)));
 		handleConnections();
 	}
 }
@@ -205,8 +205,9 @@ void	Server::handleClientData(size_t& i)
 		buf[numBytes] = '\0';
 		INFO_LOG("Server received data from client " + std::to_string(_pfds[i].fd));
 		std::cout << buf << '\n';
-		//Request const& req = parseRequest(buf);
-		//prepareResponse(req);
+		Request req(buf);
+		//if (req.isValid()) //how do we communicate (and react) if request was in invalid format?
+		//Response(req);
 	}
 }
 
