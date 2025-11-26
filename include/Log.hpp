@@ -27,7 +27,7 @@ public:
 
 	static void	error(std::string_view file, std::string_view function,
 				   int line, std::string_view message);
-	static void	info(std::string_view functionName, std::string_view message);
+	static void	info(std::string_view message);
 	static void	debug(std::string_view file, std::string_view function,
 				   int line, std::string_view message);
 	static void	setOutputFile(std::string_view outputFileName);
@@ -57,7 +57,7 @@ private:
 #endif
 
 #if INFO_LOGGING
-# define INFO_LOG(MESSAGE)	Log::info(__FUNCTION__, (MESSAGE))
+# define INFO_LOG(MESSAGE)	Log::info((MESSAGE))
 #else
 # define INFO_LOG(MESSAGE)
 #endif
