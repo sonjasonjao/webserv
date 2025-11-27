@@ -2,11 +2,25 @@
 
 Request::Request(std::string buf) : _isValid(true)
 {
-	std::string line, method, target, httpVersion;
-	std::istringstream ss(buf);
-	std::vector<std::string>	methods = { "GET", "POST", "DELETE "};
+	std::string			line;
+	std::istringstream	ss(buf);
 	getline(ss, line);
-	std::istringstream req(line);
+	std::istringstream	req(line);
+	parseRequestLine(req);
+	if (!_isValid)
+		return ;
+	parseHeaders(ss);
+	if (!_isValid)
+		return ;
+	while (getline(ss, line))
+		_body += line;
+	printData();
+}
+
+void	Request::parseRequestLine(std::istringstream& req)
+{
+	std::string method, target, httpVersion;
+	std::vector<std::string>	methods = { "GET", "POST", "DELETE "};
 	if (!(req >> method >> target >> httpVersion))
 	{
 		_isValid = false;
@@ -38,17 +52,33 @@ Request::Request(std::string buf) : _isValid(true)
 		_isValid = false;
 		return ;
 	}
-	printData();
+}
+
+void	Request::parseHeaders(std::istringstream& ss)
+{
+	std::string line;
+	while (true)
+	{
+		getline(ss, line);
+		const size_t point = line.find_first_of(":");
+		if (point != std::string::npos)
+			_headers[line.substr(0, point)] = line.substr(point + 2);
+		else
+			break ;
+	}
+	if (_headers.empty())
+	{
+		_isValid = false;
+		return ;
+	}
 }
 
 bool	Request::isTargetValid(std::string& target)
 {
-	if (target[0] == '/')
-	{
-		_request.target = target;
-		return true ;
-	}
-	return false ;
+	if (access(target.c_str(), F_OK) != 0)
+		return false ;
+	_request.target = target;
+	return true ;
 }
 
 bool	Request::isHttpValid(std::string& httpVersion)
@@ -61,8 +91,13 @@ bool	Request::isHttpValid(std::string& httpVersion)
 
 void	Request::printData(void) const
 {
-	std::cout << "Method: " << _request.method << ", target: " << _request.target << ", HTTP version: "
-		<< _request.httpVersion << '\n';
+	std::cout << "Request line:\nMethod: " << _request.method << ", target: "
+		<< _request.target << ", HTTP version: " << _request.httpVersion << '\n';
+	std::cout << "Headers:\n";
+	for (auto it = _headers.begin(); it != _headers.end(); it++)
+		std::cout << it->first << ": " << it->second << '\n';
+	if (!_body.empty())
+		std::cout << "Body:\n" << _body << '\n';
 }
 
 bool	Request::isValid(void) const

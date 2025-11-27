@@ -6,6 +6,8 @@
 #include <string>
 #include <algorithm>
 #include <regex>
+#include <fcntl.h>
+#include <unistd.h>
 
 enum method
 {
@@ -36,6 +38,8 @@ class Request
 		Request(std::string buf);
 		~Request();
 
+		void	parseRequestLine(std::istringstream& req);
+		void	parseHeaders(std::istringstream& ss);
 		void	printData(void) const;
 		bool	isTargetValid(std::string& target);
 		bool	isHttpValid(std::string& httpVersion);
