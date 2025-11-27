@@ -8,6 +8,7 @@
 #include <regex>
 #include <fcntl.h>
 #include <unistd.h>
+#include <optional>
 
 enum method
 {
@@ -18,9 +19,10 @@ enum method
 
 struct requestLine
 {
-	std::string	target;
-	std::string	httpVersion;
-	enum method	method;
+	std::string					target;
+	std::optional<std::string>	query;
+	std::string					httpVersion;
+	enum method					method;
 };
 
 class Request
@@ -32,6 +34,7 @@ class Request
 		stringMap			_headers;
 		std::string			_body;
 		bool				_isValid;
+		bool				_isMissingData;
 
 	public:
 		Request() = delete;
@@ -42,6 +45,7 @@ class Request
 		void	parseHeaders(std::istringstream& ss);
 		void	printData(void) const;
 		bool	isTargetValid(std::string& target);
+		bool	areValidChars(std::string& target);
 		bool	isHttpValid(std::string& httpVersion);
 		bool	isValid(void) const;
 };

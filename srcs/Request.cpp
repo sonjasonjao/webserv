@@ -1,7 +1,10 @@
 #include "../include/Request.hpp"
 
-Request::Request(std::string buf) : _isValid(true)
+Request::Request(std::string buf) : _isValid(true), _isMissingData(false)
 {
+	size_t	end = buf.find_last_of("\r\n");
+	if (buf[end + 1] || end == std::string::npos)
+		_isMissingData = true ;
 	std::string			line;
 	std::istringstream	ss(buf);
 	getline(ss, line);
@@ -56,7 +59,7 @@ void	Request::parseRequestLine(std::istringstream& req)
 
 void	Request::parseHeaders(std::istringstream& ss)
 {
-	std::string line;
+	std::string	line;
 	while (true)
 	{
 		getline(ss, line);
@@ -71,13 +74,44 @@ void	Request::parseHeaders(std::istringstream& ss)
 		_isValid = false;
 		return ;
 	}
+	//check for mandatory headers
 }
 
+bool	Request::areValidChars(std::string& s)
+{
+	for (size_t i = 0; i < s.size(); i++)
+	{
+		if (s[i] < 32 || s[i] == 127 || s[i] == '<' || s[i] == '>'
+			|| s[i] == '"' || s[i] == '\\')
+			return false ;
+	}
+	return true ;
+}
+
+/**
+ * If we don't handle OPTION method, will have to change not to accept a solo '*'
+ */
 bool	Request::isTargetValid(std::string& target)
 {
-	if (access(target.c_str(), F_OK) != 0)
+	if (target.size() == 1 && target != "/" && target != "*")
 		return false ;
-	_request.target = target;
+	if (!areValidChars(target))
+		return false ;
+	size_t	protocolEnd = target.find("://");
+	if (protocolEnd != std::string::npos)
+	{
+		std::string protocol = target.substr(0, protocolEnd);
+		if (protocol != "http" && protocol != "https")
+			return false ;
+	}
+	size_t	queryStart = target.find_first_of('?');
+	if (queryStart != std::string::npos)
+	{
+		_request.target = target.substr(0, queryStart);
+		_request.query = target.substr(queryStart + 1);
+	}
+	else
+		_request.target = target;
 	return true ;
 }
 
@@ -91,13 +125,15 @@ bool	Request::isHttpValid(std::string& httpVersion)
 
 void	Request::printData(void) const
 {
-	std::cout << "Request line:\nMethod: " << _request.method << ", target: "
+	std::cout << "----Request line:----\nMethod: " << _request.method << ", target: "
 		<< _request.target << ", HTTP version: " << _request.httpVersion << '\n';
-	std::cout << "Headers:\n";
+	if (_request.query.has_value())
+		std::cout << "Query: " << _request.query.value() << '\n';
+	std::cout << "----Headers----:\n";
 	for (auto it = _headers.begin(); it != _headers.end(); it++)
 		std::cout << it->first << ": " << it->second << '\n';
 	if (!_body.empty())
-		std::cout << "Body:\n" << _body << '\n';
+		std::cout << "----Body:----\n" << _body << '\n';
 }
 
 bool	Request::isValid(void) const
