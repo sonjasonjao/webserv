@@ -16,8 +16,11 @@
  */
 Server::Server(Parser& parser)
 {
-	config_t tmp;
-	parser.getServerConfig("test", tmp);
+	/**
+	 * for matter of simplicity to start build upon, requested 0th element
+	 * from the parser, you can request any element
+	*/
+	config_t tmp = parser.getServerConfig(0);
 	_configs.push_back(tmp);
 }
 
@@ -54,7 +57,7 @@ int	Server::getServerSocket(config_t conf)
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
-	ret = getaddrinfo(conf.host.c_str(), (std::to_string(conf.port)).c_str(),
+	ret = getaddrinfo(conf.host.c_str(), (std::to_string(conf.ports.at(0))).c_str(),
 		&hints, &servinfo);
 	if (ret != 0)
 	{

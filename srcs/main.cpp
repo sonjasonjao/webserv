@@ -16,13 +16,15 @@ int	main(int argc, char **argv)
 	try
 	{
 		Parser	parser(argv[1]);
-
+		config_t config = parser.getServerConfig(0);
+		std::cout << "Host	: " << config.host << "\n";
+		std::cout << "Host Name	: " << config.host_name << "\n";
+		std::cout << "Listen	: " << config.ports.at(0) << "\n";
 		Server	server(parser);
 		server.run();
 	}
-	catch(const std::exception& e)
-	{
-		std::cerr << "Error: " << e.what() << '\n';
+	catch(const std::exception& e) {
+		ERROR_LOG(e.what());
 	}
 
 	return 0;

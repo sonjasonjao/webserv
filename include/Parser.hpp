@@ -9,8 +9,9 @@
 #include <vector>
 #include <map>
 
-#include "CustomeException.hpp"
+#include "CustomException.hpp"
 #include "JSON.hpp"
+#include "../include/Log.hpp"
 
 /**
  * Default file_name extension for the configuration file, with out correct extension

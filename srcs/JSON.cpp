@@ -1,5 +1,8 @@
 #include "JSON.hpp"
 
+/**
+ * this function will print the AST recursively, pure debugging function
+*/
 void print_token(const Token& root, int indent) {
     for(int i = 0; i < indent; ++i){
         std::cout << " ";
@@ -14,6 +17,12 @@ void print_token(const Token& root, int indent) {
     }
 }
 
+/**
+ * convert TokenType enum value to a string
+ * @param type Token type
+ * @return corresponding string value, default or umatching will result
+ * empty string
+*/
 std::string type_to_string(TokenType type) {
     switch (type)
     {
@@ -33,6 +42,12 @@ std::string type_to_string(TokenType type) {
     return ("");
 }
 
+/**
+ * remove leading and trailing white speces (\t\n)
+ * @param string need to be trimmed
+ * @return new copy of the string without leading and trailing
+ * white spaces
+*/
 std::string trim(std::string_view sv) {
     const size_t start = sv.find_first_not_of(" \t\n");
     if(start == std::string::npos) {
@@ -42,6 +57,14 @@ std::string trim(std::string_view sv) {
     return (std::string(sv.substr(start, end - start + 1)));
 }
 
+/**
+ * will return the position of a unqoted character, or not surrounded by
+ * '"', '{', '[' , '}', ']'
+ * usefull to detemine the position of correct position to split
+ * {"key1" : "value1"}, {"key2" : "value2", "key3" : "value3"}
+ * @param string and the character need to check
+ * @return index of the first occuranece of the character in the string
+*/
 size_t unquoted_delimiter(std::string_view sv, const char c) {
     size_t pos = std::string::npos;
     bool in_quote       = false;
@@ -75,6 +98,12 @@ size_t unquoted_delimiter(std::string_view sv, const char c) {
     return (pos);
 }
 
+
+/**
+ * will return the corresponding token type base on thge string provided
+ * @param string need to check
+ * @return TokenType enum value base on the format of the string
+*/
 TokenType get_token_type(const std::string& str) {
     if(str.empty()) {
         return (TokenType::Null);
@@ -95,6 +124,13 @@ TokenType get_token_type(const std::string& str) {
     return (TokenType::Identifier);
 }
 
+/**
+ * will split a string in to small tokens and created a vector
+ * consist of all the tokens for further processing
+ * split will happen base on the character ','
+ * @param string need to split
+ * @return vector filled with tokens
+*/
 std::vector<std::string> split_elements(const std::string& str) {
 
     std::vector<std::string> tokens;
@@ -116,6 +152,11 @@ std::vector<std::string> split_elements(const std::string& str) {
     return (tokens);
 }
 
+/**
+ * will create a token of type and return by value, helper fucntion
+ * @param string and type of the token needed to create
+ * @return token value of Toekn Type
+*/
 Token create_token(const std::string& str, TokenType type) {
     Token token;
     if(type == TokenType::Identifier || type == TokenType::Value) {
@@ -127,6 +168,15 @@ Token create_token(const std::string& str, TokenType type) {
     return (token);
 }
 
+
+/**
+ * /**
+ * will create a token of type and return by value, helper fucntion
+ * type will be detemind by the function it-self, will call recursivle if
+ * string is not a fundamental type (Identifler or Value)
+ * @param string the token needed to create
+ * @return token value of Toekn Type
+*/
 Token create_token(const std::string& str) {
     Token token;
     size_t len = str.length();
@@ -186,6 +236,12 @@ Token create_token(const std::string& str) {
     return (token);
 }
 
+/**
+ * will return the value of the key of a json object
+ * {"key1" : "value1"} here value of the key is "key1"
+ * @param token in the format of string
+ * @return value of the key component
+*/
 std::string get_key(const Token& token) {
     if(token.type == TokenType::Element
         && !token.children.empty()) {
@@ -196,6 +252,11 @@ std::string get_key(const Token& token) {
     return ("");
 }
 
+/**
+ * remove surrounded '"' of a string, helper funtion
+ * @param string need to remove the '"' marks
+ * @return new string with out any '"' marks
+*/
 std::string remove_quotes(const std::string& str) {
     if(str.length() >= 2 && str.front() == '"' && str.back() == '"') {
         return (trim(str.substr(1, str.length() - 2)));
