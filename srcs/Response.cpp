@@ -1,8 +1,9 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
-std::string	getIMFFixdate();
+std::string	getImfFixdate();
 
 constexpr char const * const	CRLF = "\r\n";
 
@@ -34,10 +35,11 @@ public:
 
 private:
 
-	using stringMap = std::unordered_map<std::string, std::string>;
+	using strMap	= std::unordered_map<std::string, std::string>;
+	using strVecMap	= std::unordered_map<std::string, std::vector<std::string> >;
 
 	Request const	&_req;
-	stringMap		_fields;
+	strMap			_fields;
 	std::string		_startLine;
 	std::string		_headers;
 	std::string		_body;
@@ -59,7 +61,7 @@ Response::Response(Request const &req) : _req(req)
 			break;
 	}
 	_headers = std::string("Server: webserv") + CRLF;
-	_headers += "Date: " + getIMFFixdate() + CRLF;
+	_headers += "Date: " + getImfFixdate() + CRLF;
 	_headers += "Content-Length: " + std::to_string(_body.size()) + CRLF;
 	_headers += std::string("Content-Type: text/html") + CRLF;
 
