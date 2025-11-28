@@ -1,11 +1,20 @@
 #include "Utils.hpp"
+#include <algorithm>
 #include <cctype>
 #include <sstream>
 #include <chrono>
 #include <iomanip>
 #include <clocale>
+#include <filesystem>
+#include <vector>
+#include <algorithm>
 
-std::string	getIMFFixdate()
+/**
+ * The IMF fixdate is the preferred format for HTTP timestamps
+ *
+ * @return	String containing the current system time in IMF fixdate format
+ */
+std::string	getImfFixdate()
 {
 	auto const			now			= std::chrono::system_clock::now();
 	auto const			nowTimeT	= std::chrono::system_clock::to_time_t(now);
@@ -18,66 +27,161 @@ std::string	getIMFFixdate()
 }
 
 /**
+ * NOTE:	Creates empty members for cases where two delmiters are next to each other,
+ *			or when starting or ending with a delimiter
+ *
+ * @return	string vector containing the parts separated by delim
+ */
+std::vector<std::string>	split(std::string_view sv, std::string_view delim = " ")
+{
+	std::vector<std::string>	res		= {};
+	std::string					parse	= std::string(sv);
+	std::string					token	= "";
+	size_t						pos		= 0;
+
+	while (!parse.empty()) {
+		pos		= parse.find(delim);
+		token	= parse.substr(0, pos);
+
+		res.push_back(token);
+		if (pos == std::string::npos)
+			parse = "";
+		else
+			parse.erase(0, pos + delim.length());
+	}
+
+	if (sv.substr(sv.length() - delim.length()) == delim)
+			res.push_back("");
+
+	return res;
+}
+
+/**
+ * @return	string vector containing the url parts split by '/'
+ */
+std::vector<std::string>	splitUrl(std::string_view url)
+{
+	return split(url, "/");
+}
+
+/**
+ * Function checks if the string_view parameter contains a valid IPv4 address.
  * NOTE: Assuming that the input string is trimmed in advance
  */
-bool	isValidIPv4(std::string_view str)
+bool	isValidIPv4(std::string_view sv)
 {
-	if (str.empty())
+	if (sv.empty())
 		return false;
 
-	unsigned int	dots	= 0;
-	unsigned int	octets	= 0;
-	unsigned int	octet	= 0;
+	std::vector<std::string>	octets = split(sv, ".");
 
-	// Doing this to only go through the string once, and practice some old
-	// fashioned parsing
-	size_t	i = -1;
-	while (++i < str.size()) {
-		if (!(str[i] == '.' || isdigit(str[i])))
+	if (octets.size() != 4)
+		return false;
+
+	for (auto const &oct : octets) {
+		if (oct.empty())
 			return false;
-		if (str[i] == '.') {
-			++dots;
-			if (dots > 3)
-				return false;
-			// '.' can't be the first or last character and has to be followed by a digit
-			if (i == 0 || (i == str.size() - 1) || !isdigit(str[i + 1]))
-				return false;
-			continue;
-		}
-		++octets;
-		if (octets > 4)		// Can't have more than 4 octets in an IPv4
+		if (!std::all_of(oct.begin(), oct.end(), isdigit))
 			return false;
-		octet = 0;
-		while (i < str.size() && std::isdigit(str[i])) {	// Calculate & check size of resulting octet
-			octet = octet * 10 + str[i] - '0';
-			if (octet > 255)
-				return false;
-			++i;
+		try {
+			if (std::stoi(oct) > 255)
+			return false;
+		} catch (std::exception const &e) {
+			return false;
 		}
-		--i;	// Move back to the last number so that the while incrementation doesn't skip a character
 	}
-	if (dots != 3 || octets != 4)
-		return false;
 
 	return true;
+}
+
+/**
+ * Need a way to get the directory that our html content is saved at
+ * NOTE: Do we need to pass the whole server info or a specifically matched config?
+ */
+std::string	getRoot()
+{
+	return "/";
+}
+
+/**
+ * NOTE: Was there a boolean for the behaviour if we give the default index.html for a dir?
+ */
+bool	resourceExists(std::string_view url)
+{
+	if (url.empty())
+		return false;
+
+	std::string root = getRoot();	// Probably need to match server config to get root folder for content?
+	std::string	path;
+
+	if (url[0] == '/')
+		path = url.substr(1);
+	if (root.back() == '/')
+		root.pop_back();
+
+	path = root + "/" + path;
+
+	return std::filesystem::exists(path);
+}
+
+/**
+ * Function to determine if a URL contains forbidden symbols or is otherwise
+ * incorrectly written.
+ */
+bool	urlIsMisformed(std::string_view url)
+{
+	return false;
+}
+
+/**
+ * Check whether a correct URL tries to access files beyond root
+ *
+ * NOTE: Assumes valid url
+ *
+ * @return	true if the target is not above root, false otherwise
+ */
+bool	urlTargetAboveRoot(std::string_view url)
+{
+	std::vector<std::string>	parts	= splitUrl(url);
+	size_t						up		= 0;
+	size_t						down	= 0;
+
+	for (auto const &p : parts) {
+		if (p == "..") {
+			++up;
+		} else if (p == ".") {
+			;
+		} else if (!p.empty()) {
+			++down;
+		}
+	}
+
+	return (up > down);
 }
 
 #ifdef TEST
 
 #include <iostream>
+#include <cassert>
 
 int	main()
 {
-	std::cout << getIMFFixdate() << "\n";
-	std::cout << isValidIPv4("1.1.1.1") << "\n";
-	std::cout << isValidIPv4("1.1.1") << "\n";
-	std::cout << isValidIPv4("1.1.1.") << "\n";
-	std::cout << isValidIPv4(".1.1.1") << "\n";
-	std::cout << isValidIPv4("1.a.1.1") << "\n";
-	std::cout << isValidIPv4("255.255.255.255.255") << "\n";
-	std::cout << isValidIPv4("255.255.255.255") << "\n";
-	std::cout << isValidIPv4("256.255.255.255") << "\n";
-	std::cout << isValidIPv4("") << "\n";
+	std::cout << getImfFixdate() << "\n";
+	assert(isValidIPv4("1.1.1.1") == true);
+	assert(isValidIPv4("0.0.0.0") == true);
+	assert(isValidIPv4("255.255.255.255") == true);
+	assert(isValidIPv4("0.0.256.0") == false);
+	assert(isValidIPv4("-0.0.0.0") == false);
+	assert(isValidIPv4("1.1.1") == false);
+	assert(isValidIPv4("1.1.1.") == false);
+	assert(isValidIPv4(".1.1.1") == false);
+	assert(isValidIPv4("1.a.1.1") == false);
+	assert(isValidIPv4("255.255.255.255.255") == false);
+
+	auto	urlSplitTest = splitUrl("asdf//asdfsadfsadf");
+	for (auto const &e : urlSplitTest)
+		std::cout << "\"" << e << "\" ";
+	std::cout << "\n";
 	return 0;
 }
 
