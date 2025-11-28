@@ -1,5 +1,11 @@
 #include "../include/Request.hpp"
 
+/**
+ * First checks if received request is complete or partial (need to figure out the best
+ * way to handle that, now just a flag attribute). Validates and parses different
+ * sections of the request. After the last valid header line, all possibly remaining
+ * data will be stored in one body string.
+ */
 Request::Request(std::string buf) : _isValid(true), _isMissingData(false)
 {
 	size_t	end = buf.find_last_of("\r\n");
@@ -20,6 +26,10 @@ Request::Request(std::string buf) : _isValid(true), _isMissingData(false)
 	printData();
 }
 
+/**
+ * Splits the request line into tokens, recognises method, and validates target path
+ * and HTTP version.
+ */
 void	Request::parseRequestLine(std::istringstream& req)
 {
 	std::string method, target, httpVersion;
@@ -57,26 +67,85 @@ void	Request::parseRequestLine(std::istringstream& req)
 	}
 }
 
+/**
+ * Defines headers that can have only one value, and checks if any of them has more.
+ */
+bool	Request::isUniqueHeader(std::string const& key)
+{
+	std::unordered_set<std::string>	uniques = {
+		"accept-datetime",
+		"access-control-request-method",
+		"authorization",
+		"content-length",
+		"content-md5",
+		"date",
+		"from",
+		"host",
+		"http2-settings",
+		"if-modified-since",
+		"if-range",
+		"if-unmodified-since",
+		"max-forwards",
+		"origin",
+		"pragma",
+		"proxy-authorization",
+		"referer",
+		// "user-agent",
+	};
+	auto	it = uniques.find(key);
+	if (it != uniques.end())
+		return true ;
+	return false ;
+}
+
+/**
+ * Accepts as headers every line with ':' and stores each header as key and value to
+ * an unorderep map.
+ *
+ * Now requires only Host header as mandatory (requirement for HTTP/1.1). Need to check
+ * if we must require others. HTTP/1.0 does not require host either?
+ */
 void	Request::parseHeaders(std::istringstream& ss)
 {
 	std::string	line;
-	while (true)
-	{
+	while (true) {
 		getline(ss, line);
 		const size_t point = line.find_first_of(":");
-		if (point != std::string::npos)
-			_headers[line.substr(0, point)] = line.substr(point + 2);
+		if (point != std::string::npos) {
+			std::string	key = line.substr(0, point);
+			for (size_t i = 0; i < key.size(); i++)
+				key[i] = std::tolower((unsigned char)key[i]);
+			std::string value = line.substr(point + 2);
+			if (value.find(",") == std::string::npos)
+				_headers[key].push_back(value);
+			else {
+				std::istringstream	values(value);
+				std::string	oneValue;
+				while (getline(values, oneValue, ','))
+					_headers[key].push_back(oneValue);
+			}
+		}
 		else
 			break ;
 	}
-	if (_headers.empty())
-	{
+	if (_headers.empty()) {
 		_isValid = false;
 		return ;
 	}
-	//check for mandatory headers
+	auto	it = _headers.find("host");
+	if (it == _headers.end() || it->second.empty())
+		_isValid = false;
+	for (auto const& [key, values] : _headers) {
+		if (values.size() > 1 && isUniqueHeader(key)) {
+			_isValid = false;
+			return ;
+		}
+	}
 }
 
+/**
+ * Validates target path regarding characters.
+ */
 bool	Request::areValidChars(std::string& s)
 {
 	for (size_t i = 0; i < s.size(); i++)
@@ -89,11 +158,15 @@ bool	Request::areValidChars(std::string& s)
 }
 
 /**
- * If we don't handle OPTION method, will have to change not to accept a solo '*'
+ * If target path is only one character, it has to be '/'.
+ * If the target is given as absolute path, it has to be either of HTTP or HTTPS
+ * protocol.
+ *
+ * In case the URI includes '?', we use it as a separator to get the query.*
  */
 bool	Request::isTargetValid(std::string& target)
 {
-	if (target.size() == 1 && target != "/" && target != "*")
+	if (target.size() == 1 && target != "/")
 		return false ;
 	if (!areValidChars(target))
 		return false ;
@@ -115,6 +188,9 @@ bool	Request::isTargetValid(std::string& target)
 	return true ;
 }
 
+/**
+ * Only accepts HTTP/1.0 and HTTP/1.1 as valid versions on the request line.
+ */
 bool	Request::isHttpValid(std::string& httpVersion)
 {
 	if (!std::regex_match(httpVersion, std::regex("HTTP/1.([01])")))
@@ -130,8 +206,9 @@ void	Request::printData(void) const
 	if (_request.query.has_value())
 		std::cout << "Query: " << _request.query.value() << '\n';
 	std::cout << "----Headers----:\n";
-	for (auto it = _headers.begin(); it != _headers.end(); it++)
-		std::cout << it->first << ": " << it->second << '\n';
+	for (auto it = _headers.begin(); it != _headers.end(); it++) {
+		std::cout << "Key: " << it->first << '\n';
+	} //HOW TO PRINT THE VALUES?
 	if (!_body.empty())
 		std::cout << "----Body:----\n" << _body << '\n';
 }

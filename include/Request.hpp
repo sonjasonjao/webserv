@@ -9,7 +9,12 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <optional>
+#include <unordered_set>
 
+/**
+ * Mandatory methods required in the subject, do we want to add more? -> Will affect
+ * request parsing and possibly class member attributes.
+ */
 enum method
 {
 	GET,
@@ -27,7 +32,7 @@ struct requestLine
 
 class Request
 {
-	using stringMap = std::unordered_map<std::string, std::string>;
+	using stringMap = std::unordered_map<std::string, std::vector<std::string>>;
 
 	private:
 		struct requestLine	_request;
@@ -41,11 +46,12 @@ class Request
 		Request(std::string buf);
 		~Request();
 
-		void	parseRequestLine(std::istringstream& req);
-		void	parseHeaders(std::istringstream& ss);
-		void	printData(void) const;
-		bool	isTargetValid(std::string& target);
-		bool	areValidChars(std::string& target);
-		bool	isHttpValid(std::string& httpVersion);
-		bool	isValid(void) const;
+		void		parseRequestLine(std::istringstream& req);
+		void		parseHeaders(std::istringstream& ss);
+		void		printData(void) const;
+		bool		isUniqueHeader(std::string const& key);
+		bool		isTargetValid(std::string& target);
+		bool		areValidChars(std::string& target);
+		bool		isHttpValid(std::string& httpVersion);
+		bool		isValid(void) const;
 };
