@@ -3,5 +3,5 @@
 #include <string>
 #include <string_view>
 
-std::string	getIMFFixdate();
-bool		isValidIP(std::string_view str);
+std::string	getImfFixdate();
+bool		isValidIPv4(std::string_view str);
