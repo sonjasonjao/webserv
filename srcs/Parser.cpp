@@ -40,7 +40,7 @@ Parser::Parser(const std::string& file_name)
      * Sucessfully opening the file and tokenizing the content
      * all the toiken will be sacved into AST tree structure
     */
-    tokenize_file();
+    tokenizeFile();
 }
 
 Parser::~Parser() {
@@ -58,7 +58,7 @@ Parser::~Parser() {
  * @param void - class method will have access to all the class attributes
  * @return void - all the token will save to an internal container
 */
-void Parser::tokenize_file(void) {
+void Parser::tokenizeFile(void) {
     std::string line;
     std::string output;
     // read a line
@@ -75,15 +75,15 @@ void Parser::tokenize_file(void) {
         }
     }
     // create Token AST for validation
-    Token root = create_token(output);
+    Token root = createToken(output);
     // buliding configuration struct vector to holds all the configuration data
     for(const auto& node : root.children) {
-        if(get_key(node) == "server") {
+        if(getKey(node) == "server") {
             if(node.children.size() > 1) {
                 const Token& content = node.children[1];
                 if(!content.children.empty()) {
                     for(const auto& block : content.children) {
-                        config_t config = convert_to_server_data(block);
+                        Config config = convertToServerData(block);
                         _server_configs.emplace_back(config);
                     }
                 }
@@ -101,7 +101,7 @@ void Parser::tokenize_file(void) {
  * config struct data
  * @return const reference to the requested data structure
 */
-const config_t& Parser::getServerConfig(size_t index) {
+const Config& Parser::getServerConfig(size_t index) {
     return (_server_configs.at(index));
 }
 
@@ -119,10 +119,10 @@ size_t Parser::getNumberOfServerConfigs(void) {
  * @return value of the config create on the fly, will recreate the similar
  * data int the respective vector, temporary data so no reference
 */
-config_t Parser::convert_to_server_data(const Token& server) {
-    config_t config;
+Config Parser::convertToServerData(const Token& server) {
+    Config config;
     for(auto item : server.children) {
-        std::string key = get_key(item);
+        std::string key = getKey(item);
         if(key == "host") {
             if(item.children.size() > 1) {
                 config.host = item.children.at(1).value;

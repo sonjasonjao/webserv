@@ -7,6 +7,9 @@
 #include <algorithm>
 #include <vector>
 
+/**
+ * Pascal case to follow the modern c++ standards
+*/
 enum class TokenType {
     Object,
     Array,
@@ -22,18 +25,18 @@ struct Token {
     std::vector<Token>  children;
 };
 
-void print_token(const Token& root, int indent = 0);
+void printToken(const Token& root, int indent = 0);
 
-std::string type_to_string(TokenType type);
+std::string typeToString(TokenType type);
 std::string trim(std::string_view sv);
-std::string get_key(const Token& token);
-std::string remove_quotes(const std::string& str);
+std::string getKey(const Token& token);
+std::string removeQuotes(const std::string& str);
 
-std::vector<std::string> split_elements(const std::string& str);
+std::vector<std::string> splitElements(std::string_view sv);
 
-size_t unquoted_delimiter(std::string_view sv, const char c);
+size_t unquotedDelimiter(std::string_view sv, const char c);
 
-TokenType get_token_type(const std::string& str);
+TokenType getTokenType(const std::string& str);
 
-Token create_token(const std::string& str);
-Token create_token(const std::string& str, TokenType type);
+Token createToken(const std::string& str);
+Token createToken(const std::string& str, TokenType type);

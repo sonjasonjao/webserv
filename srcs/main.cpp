@@ -16,7 +16,7 @@ int	main(int argc, char **argv)
 	try
 	{
 		Parser	parser(argv[1]);
-		config_t config = parser.getServerConfig(0);
+		Config config = parser.getServerConfig(0);
 		std::cout << "Host	: " << config.host << "\n";
 		std::cout << "Host Name	: " << config.host_name << "\n";
 		std::cout << "Listen	: " << config.ports.at(0) << "\n";

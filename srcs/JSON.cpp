@@ -3,17 +3,17 @@
 /**
  * this function will print the AST recursively, pure debugging function
 */
-void print_token(const Token& root, int indent) {
+void printToken(const Token& root, int indent) {
     for(int i = 0; i < indent; ++i){
         std::cout << " ";
     }
-    std::cout << type_to_string(root.type);
+    std::cout << typeToString(root.type);
     if(!root.value.empty()) {
         std::cout << "(" << root.value << ")";
     }
     std::cout << "\n";
     for(size_t i = 0; i < root.children.size();++i) {
-        print_token(root.children[i], indent + 1);
+        printToken(root.children[i], indent + 1);
     }
 }
 
@@ -23,7 +23,7 @@ void print_token(const Token& root, int indent) {
  * @return corresponding string value, default or umatching will result
  * empty string
 */
-std::string type_to_string(TokenType type) {
+std::string typeToString(TokenType type) {
     switch (type)
     {
         case (TokenType::Array):
@@ -65,7 +65,7 @@ std::string trim(std::string_view sv) {
  * @param string and the character need to check
  * @return index of the first occuranece of the character in the string
 */
-size_t unquoted_delimiter(std::string_view sv, const char c) {
+size_t unquotedDelimiter(std::string_view sv, const char c) {
     size_t pos = std::string::npos;
     bool in_quote       = false;
     int curly_braces_depth    = 0;
@@ -104,21 +104,20 @@ size_t unquoted_delimiter(std::string_view sv, const char c) {
  * @param string need to check
  * @return TokenType enum value base on the format of the string
 */
-TokenType get_token_type(const std::string& str) {
+TokenType getTokenType(const std::string& str) {
     if(str.empty()) {
         return (TokenType::Null);
     }
-    size_t len = str.length();
-    if(str[0] == '{' && str[len - 1] == '}') {
+    if(str.front() == '{' && str.back() == '}') {
         return (TokenType::Object);
     }
-    if(str[0] == '[' && str[len - 1] == ']') {
+    if(str.front() == '[' && str.back() == ']') {
         return (TokenType::Array);
     }
-    if(unquoted_delimiter(str, ':') != std::string::npos) {
+    if(unquotedDelimiter(str, ':') != std::string::npos) {
         return (TokenType::Element);
     }
-    if(str[0] == '"' && str[len - 1] == '"') {
+    if(str.front() == '"' && str.back() == '"') {
         return (TokenType::Value);
     }
     return (TokenType::Identifier);
@@ -131,23 +130,23 @@ TokenType get_token_type(const std::string& str) {
  * @param string need to split
  * @return vector filled with tokens
 */
-std::vector<std::string> split_elements(const std::string& str) {
+std::vector<std::string> splitElements(std::string_view sv) {
 
     std::vector<std::string> tokens;
 
-    if(unquoted_delimiter(str, ',') != std::string::npos) {
-        std::string buffer(str);
-        size_t pos = unquoted_delimiter(buffer, ',');
+    if(unquotedDelimiter(sv, ',') != std::string::npos) {
+        std::string buffer(sv);
+        size_t pos = unquotedDelimiter(buffer, ',');
         while(!buffer.empty() && pos != std::string::npos) {
             tokens.emplace_back(buffer.substr(0, pos));
             buffer = buffer.substr(pos + 1);
-            pos = unquoted_delimiter(buffer, ',');
+            pos = unquotedDelimiter(buffer, ',');
         }
         if(!buffer.empty()){
             tokens.emplace_back(buffer);
         }
     } else {
-        tokens.emplace_back(str);
+        tokens.emplace_back(sv);
     }
     return (tokens);
 }
@@ -157,13 +156,13 @@ std::vector<std::string> split_elements(const std::string& str) {
  * @param string and type of the token needed to create
  * @return token value of Toekn Type
 */
-Token create_token(const std::string& str, TokenType type) {
+Token createToken(const std::string& str, TokenType type) {
     Token token;
     if(type == TokenType::Identifier || type == TokenType::Value) {
         token.type = type;
-        token.value = remove_quotes(str);
+        token.value = removeQuotes(str);
     } else {
-        token = create_token(str);
+        token = createToken(str);
     }
     return (token);
 }
@@ -177,21 +176,21 @@ Token create_token(const std::string& str, TokenType type) {
  * @param string the token needed to create
  * @return token value of Toekn Type
 */
-Token create_token(const std::string& str) {
+Token createToken(const std::string& str) {
     Token token;
     size_t len = str.length();
-    TokenType type = get_token_type(str);
+    TokenType type = getTokenType(str);
 
     if(type == TokenType::Object) {
         token.type = TokenType::Object;
         token.value = "";
-        std::vector<std::string> values = split_elements(
+        std::vector<std::string> values = splitElements(
             trim(std::string(str.substr(1, len - 2)))
         );
         for(auto it : values) {
             if(len > 2) {
                 token.children.emplace_back(
-                    create_token(trim(it))
+                    createToken(trim(it))
                 );
             }
         }
@@ -200,13 +199,13 @@ Token create_token(const std::string& str) {
     if(type == TokenType::Array) {
         token.type = TokenType::Array;
         token.value = "";
-        std::vector<std::string> values = split_elements(
+        std::vector<std::string> values = splitElements(
             trim(std::string(str.substr(1, len - 2)))
         );
         for(auto it : values) {
             if(len > 2) {
                 token.children.emplace_back(
-                    create_token(trim(it))
+                    createToken(trim(it))
                 );
             }
         }
@@ -215,22 +214,22 @@ Token create_token(const std::string& str) {
     if(type == TokenType::Element) {
 
         token.type = TokenType::Element;
-        size_t pos = unquoted_delimiter(str, ':');
+        size_t pos = unquotedDelimiter(str, ':');
 
         std::string left = trim(str.substr(0, pos));
         std::string right = trim(str.substr(pos + 1));
 
         token.children.emplace_back(
-            create_token(left, TokenType::Identifier)
+            createToken(left, TokenType::Identifier)
         );
         token.children.emplace_back(
-            create_token(right)
+            createToken(right)
         );
     }
 
     if(type == TokenType::Value) {
         token.type = TokenType::Value;
-        token.value = remove_quotes(str);
+        token.value = removeQuotes(str);
     }
 
     return (token);
@@ -242,14 +241,18 @@ Token create_token(const std::string& str) {
  * @param token in the format of string
  * @return value of the key component
 */
-std::string get_key(const Token& token) {
-    if(token.type == TokenType::Element
-        && !token.children.empty()) {
-            if(token.children.at(0).type == TokenType::Identifier) {
-                return (token.children.at(0).value);
-            }
+std::string getKey(const Token& token) {
+    if(token.type != TokenType::Element) {
+        return ("");
     }
-    return ("");
+    if(token.children.empty()) {
+        return ("");
+    }
+    const Token& child = token.children.at(0);
+    if(child.type != TokenType::Identifier){
+        return ("");
+    }
+    return (child.value);
 }
 
 /**
@@ -257,7 +260,7 @@ std::string get_key(const Token& token) {
  * @param string need to remove the '"' marks
  * @return new string with out any '"' marks
 */
-std::string remove_quotes(const std::string& str) {
+std::string removeQuotes(const std::string& str) {
     if(str.length() >= 2 && str.front() == '"' && str.back() == '"') {
         return (trim(str.substr(1, str.length() - 2)));
     }
