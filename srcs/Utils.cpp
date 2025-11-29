@@ -130,6 +130,7 @@ bool	resourceExists(std::string_view url)
  */
 bool	urlIsMisformed(std::string_view url)
 {
+	(void)url;
 	return false;
 }
 
