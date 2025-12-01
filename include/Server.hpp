@@ -14,9 +14,9 @@
 class Server
 {
 	private:
-		std::vector<config_t>				_configs;
+		std::vector<Config>				_configs;
 		std::vector<pollfd>					_pfds;
-		std::unordered_map<int, config_t>	_serverFds;
+		std::unordered_map<int, Config>	_serverFds;
 
 	public:
 		Server() = delete;
@@ -25,10 +25,10 @@ class Server
 		Server const&	operator=(Server const& other) = delete;
 		~Server();
 
-		std::vector<config_t> const&	getConfigs() const;
+		std::vector<Config> const&	getConfigs() const;
 
 		void	createServerSockets(void);
-		int		getServerSocket(config_t conf);
+		int		getServerSocket(Config conf);
 		void	run(void);
 		void	handleNewClient(int listener);
 		void	handleClientData(size_t& i);

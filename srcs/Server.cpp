@@ -16,8 +16,11 @@
  */
 Server::Server(Parser& parser)
 {
-	config_t tmp;
-	parser.getServerConfig("test", tmp);
+	/**
+	 * for matter of simplicity to start build upon, requested 0th element
+	 * from the parser, you can request any element
+	*/
+	Config tmp = parser.getServerConfig(0);
 	_configs.push_back(tmp);
 }
 
@@ -42,7 +45,7 @@ void	Server::closePfds(void)
  * Creates a server socket, binds it to correct address, and starts listening. Still
  * need to check all function call protections, and at which point fcntl() is called.
  */
-int	Server::getServerSocket(config_t conf)
+int	Server::getServerSocket(Config conf)
 {
 	int	listener;
 	int	yes = 1;
@@ -54,7 +57,7 @@ int	Server::getServerSocket(config_t conf)
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
-	ret = getaddrinfo(conf.host.c_str(), (std::to_string(conf.port)).c_str(),
+	ret = getaddrinfo(conf.host.c_str(), (std::to_string(conf.ports.at(0))).c_str(),
 		&hints, &servinfo);
 	if (ret != 0)
 	{
@@ -232,7 +235,7 @@ void	Server::handleConnections(void)
 	}
 }
 
-std::vector<config_t> const&	Server::getConfigs() const
+std::vector<Config> const&	Server::getConfigs() const
 {
 	return _configs;
 }
