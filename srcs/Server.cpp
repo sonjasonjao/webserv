@@ -1,4 +1,5 @@
 #include "../include/Server.hpp"
+#include "../include/Request.hpp"
 #include <iostream>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -28,7 +29,7 @@ Server::Server(Server const& obj)
 {
 	_configs = obj._configs;
 	_pfds = obj._pfds;
-	_serverFds = obj._serverFds;
+	_fdToConfig = obj._fdToConfig;
 }
 
 /**
@@ -109,7 +110,7 @@ int	Server::getServerSocket(Config conf)
 
 /**
  * Loops through server configurations and creates listener socket for each, stores
- * them into _pfds and stores the pair of fd and config into _serverFds.
+ * them into _pfds and stores the pair of fd and config into _fdToConfig.
  */
 void	Server::createServerSockets()
 {
@@ -117,7 +118,7 @@ void	Server::createServerSockets()
 	{
 		int sockfd = getServerSocket(*it);
 		_pfds.push_back({ sockfd, POLLIN, 0 });
-		_serverFds[sockfd] = *it; //making a copy of each config not really efficient
+		_fdToConfig[sockfd] = *it; //making a copy of each config not really efficient
 	}
 }
 
@@ -129,15 +130,16 @@ void	Server::run(void)
 	createServerSockets();
 	while (true)
 	{
-		int	pollCount = poll(&_pfds[0], _pfds.size(), -1); //timeout needs to be set
+		int	pollCount = poll(&_pfds[0], _pfds.size(), 1000); //timeout needs to be set
 		if (pollCount < 0)
 		{
 			closePfds();
 			ERROR_LOG("poll: " + std::string(strerror(errno)));
 			throw std::runtime_error("poll: " + std::string(strerror(errno)));
 		}
-		// DEBUG_LOG("pollCount: " + std::string(std::to_string(pollCount)));
+		DEBUG_LOG("pollCount: " + std::string(std::to_string(pollCount)));
 		handleConnections();
+		handleRequests();
 	}
 }
 
@@ -175,6 +177,19 @@ void	Server::handleNewClient(int listener)
 	INFO_LOG("Server accepted a new connection with " + std::to_string(clientFd));
 }
 
+std::optional<Config>	Server::matchConfig(std::string& host) {
+	auto it = _configs.begin();
+	while (it != _configs.end())
+	{
+		if ((*it).host == host)
+			break ;
+		it++;
+	}
+	if (it == _configs.end())
+		return std::nullopt;
+	return *it;
+}
+
 /**
  * Receives data from the client that poll() has recognized ready. Message (= request)
  * will be parsed and response formed.
@@ -208,9 +223,35 @@ void	Server::handleClientData(size_t& i)
 		buf[numBytes] = '\0';
 		INFO_LOG("Server received data from client " + std::to_string(_pfds[i].fd));
 		std::cout << buf << '\n';
-		Request req(buf);
-		//if (req.isValid()) //how do we communicate (and react) if request was in invalid format?
-		//Response(req);
+		bool	blankFd = true;
+		if (!_requestQueue.empty()) {
+			auto it = _requestQueue.begin();
+			while (it != _requestQueue.end()) {
+				if (it->getFd() == _pfds[i].fd)
+					break ;
+				it++;
+			}
+			if (it !=_requestQueue.end())
+				blankFd = false;
+		}
+		if (blankFd) {
+			Request req(_pfds[i].fd, buf);
+			if (!req.getIsValid()) {
+				ERROR_LOG("Invalid HTTP request");
+				return ;
+			}
+			if (req.getIsValid() && req.getIsMissingData())
+				INFO_LOG("Waiting for more data to complete partial request");
+			else
+				_requestQueue.push_back(req);
+			if (!req.getKeepAlive()) {
+				close(_pfds[i].fd);
+				if (_pfds.size() > (i + 1)) {
+					_pfds[i] = _pfds[_pfds.size() - 1];
+					i--;
+				}
+			}
+		}
 	}
 }
 
@@ -226,13 +267,23 @@ void	Server::handleConnections(void)
 	{
 		if (_pfds[i].revents & (POLLIN | POLLHUP))
 		{
-			auto pos = _serverFds.find(_pfds[i].fd);
-			if (pos != _serverFds.end())
+			auto pos = _fdToConfig.find(_pfds[i].fd);
+			if (pos != _fdToConfig.end())
 				handleNewClient(pos->first);
 			else
 				handleClientData(i);
 		}
 	}
+}
+
+void	Server::handleRequests(void)
+{
+	if (_requestQueue.empty())
+		return ;
+	auto	tmp = _requestQueue.begin();
+	// if (!tmp.getIsMissingData())
+		// Response(*tmp, matchConfig((*tmp).getHost()));
+	_requestQueue.erase(tmp);
 }
 
 std::vector<Config> const&	Server::getConfigs() const

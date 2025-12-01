@@ -6,8 +6,8 @@
  * sections of the request. After the last valid header line, all possibly remaining
  * data will be stored in one body string.
  */
-Request::Request(std::string buf) : _isValid(true), _isMissingData(false)
-{
+Request::Request(int fd, std::string buf) : _fd(fd), _keepAlive(false), _isValid(true),
+	_isMissingData(false) {
 	size_t	end = buf.find_last_of("\r\n");
 	if (buf[end + 1] || end == std::string::npos)
 		_isMissingData = true ;
@@ -30,8 +30,7 @@ Request::Request(std::string buf) : _isValid(true), _isMissingData(false)
  * Splits the request line into tokens, recognises method, and validates target path
  * and HTTP version.
  */
-void	Request::parseRequestLine(std::istringstream& req)
-{
+void	Request::parseRequestLine(std::istringstream& req) {
 	std::string method, target, httpVersion;
 	std::vector<std::string>	methods = { "GET", "POST", "DELETE "};
 	if (!(req >> method >> target >> httpVersion))
@@ -48,13 +47,13 @@ void	Request::parseRequestLine(std::istringstream& req)
 	switch (i)
 	{
 		case 0:
-			_request.method = GET;
+			_request.method = RequestMethod::Get;
 			break ;
 		case 1:
-			_request.method = POST;
+			_request.method = RequestMethod::Post;
 			break ;
 		case 2:
-			_request.method = DELETE;
+			_request.method = RequestMethod::Delete;
 			break ;
 		default:
 			_isValid = false;
@@ -70,8 +69,7 @@ void	Request::parseRequestLine(std::istringstream& req)
 /**
  * Defines headers that can have only one value, and checks if any of them has more.
  */
-bool	Request::isUniqueHeader(std::string const& key)
-{
+bool	Request::isUniqueHeader(std::string const& key) {
 	std::unordered_set<std::string>	uniques = {
 		"accept-datetime",
 		"access-control-request-method",
@@ -105,8 +103,7 @@ bool	Request::isUniqueHeader(std::string const& key)
  * Now requires only Host header as mandatory (requirement for HTTP/1.1). Need to check
  * if we must require others. HTTP/1.0 does not require host either?
  */
-void	Request::parseHeaders(std::istringstream& ss)
-{
+void	Request::parseHeaders(std::istringstream& ss) {
 	std::string	line;
 	while (true) {
 		getline(ss, line);
@@ -116,13 +113,15 @@ void	Request::parseHeaders(std::istringstream& ss)
 			for (size_t i = 0; i < key.size(); i++)
 				key[i] = std::tolower((unsigned char)key[i]);
 			std::string value = line.substr(point + 2);
-			if (value.find(",") == std::string::npos)
+			if (value.find(",") == std::string::npos) {
 				_headers[key].push_back(value);
+			}
 			else {
 				std::istringstream	values(value);
 				std::string	oneValue;
-				while (getline(values, oneValue, ','))
+				while (getline(values, oneValue, ',')) {
 					_headers[key].push_back(oneValue);
+				}
 			}
 		}
 		else
@@ -141,13 +140,21 @@ void	Request::parseHeaders(std::istringstream& ss)
 			return ;
 		}
 	}
+	it = _headers.find("connection");
+	if (it != _headers.end()) {
+		for (auto con = it->second.begin(); con != it->second.end(); con++) {
+			if (*con == "keep-alive\r") {
+				_keepAlive = true;
+				break ;
+			}
+		}
+	}
 }
 
 /**
  * Validates target path regarding characters.
  */
-bool	Request::areValidChars(std::string& s)
-{
+bool	Request::areValidChars(std::string& s) {
 	for (size_t i = 0; i < s.size(); i++)
 	{
 		if (s[i] < 32 || s[i] == 127 || s[i] == '<' || s[i] == '>'
@@ -164,8 +171,7 @@ bool	Request::areValidChars(std::string& s)
  *
  * In case the URI includes '?', we use it as a separator to get the query.*
  */
-bool	Request::isTargetValid(std::string& target)
-{
+bool	Request::isTargetValid(std::string& target) {
 	if (target.size() == 1 && target != "/")
 		return false ;
 	if (!areValidChars(target))
@@ -191,33 +197,67 @@ bool	Request::isTargetValid(std::string& target)
 /**
  * Only accepts HTTP/1.0 and HTTP/1.1 as valid versions on the request line.
  */
-bool	Request::isHttpValid(std::string& httpVersion)
-{
+bool	Request::isHttpValid(std::string& httpVersion) {
 	if (!std::regex_match(httpVersion, std::regex("HTTP/1.([01])")))
 		return false ;
 	_request.httpVersion = httpVersion;
 	return true ;
 }
 
-void	Request::printData(void) const
-{
-	std::cout << "----Request line:----\nMethod: " << _request.method << ", target: "
+void	Request::printData(void) const {
+	std::cout << "----Request line:----\nMethod: ";
+	switch(_request.method) {
+		case RequestMethod::Get:
+			std::cout << "Get\n";
+			break ;
+		case RequestMethod::Post:
+			std::cout << "Post\n";
+			break ;
+		case RequestMethod::Delete:
+			std::cout << "Delete\n";
+			break ;
+		default:
+			throw std::runtime_error("HTTP request method unknown\n");
+	}
+	std::cout << ", target: "
 		<< _request.target << ", HTTP version: " << _request.httpVersion << '\n';
 	if (_request.query.has_value())
 		std::cout << "Query: " << _request.query.value() << '\n';
-	std::cout << "----Headers----:\n";
-	for (auto it = _headers.begin(); it != _headers.end(); it++) {
-		std::cout << "Key: " << it->first << '\n';
-	} //HOW TO PRINT THE VALUES?
+	std::cout << "----Header keys----:\n";
+	for (auto it = _headers.begin(); it != _headers.end(); it++)
+		std::cout << it->first << '\n';
 	if (!_body.empty())
 		std::cout << "----Body:----\n" << _body << '\n';
+	std::cout << "----Keep alive?---- " << _keepAlive << '\n';
 }
 
-bool	Request::isValid(void) const
-{
+std::string	Request::getHost(void) {
+	std::string	host;
+	try
+	{
+		host = (_headers.at("host")).front();
+	}
+	catch(const std::exception& e)
+	{
+		ERROR_LOG("unexpected error in matching request host to configuration");
+	}
+	return host;
+}
+
+int	Request::getFd(void) const {
+	return _fd;
+}
+
+bool	Request::getKeepAlive(void) const {
+	return _keepAlive;
+}
+
+bool	Request::getIsValid(void) const {
 	return _isValid;
 }
 
-Request::~Request(void)
-{
+bool	Request::getIsMissingData(void) const {
+	return _isMissingData;
 }
+
+Request::~Request(void) {}
