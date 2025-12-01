@@ -2,6 +2,7 @@
 #include <chrono>
 #include <iostream>
 #include <iomanip>
+#include <sstream>
 #include <unistd.h>
 
 /* ------------------------------------------------------------------- colors */
@@ -39,32 +40,34 @@ void	Log::logTime(std::ostream *outputStream)
  * Helper function to unify log functionality. Checks message type and if
  * parameters are valid. file, function and line have default values in header.
  */
-void	Log::logMessage(logType type, std::string_view message,
+std::string	Log::logMessage(LogType type, std::string_view message,
 					std::string_view file, std::string_view function, int line)
 {
-	std::string		typeString;
-	std::string		color;
-	std::ostream	*outputStream = &std::cout;
+	std::string			typeString;
+	std::string			color;
+	std::string			returnString;
+	std::stringstream	strStream;
+	std::ostream		*outputStream = &std::cout;
 
 	switch (type) {
-		case INFO:
+		case LogType::Info:
 			typeString = "INFO: ";
 			color = CYA;
 			break;
-		case DEBUG:
+		case LogType::Debug:
 			typeString = "DEBUG: ";
 			color = YEL;
 			break;
-		case ERROR:
+		case LogType::Error:
 			typeString = "ERROR: ";
 			color = RED;
 			break;
 		default:
-			std::string	msg = "logMessage: unknown type " + std::to_string(type);
+			std::string	msg = "logMessage: unknown type";
 			throw std::runtime_error(msg);
 	};
 
-	if (type != INFO)
+	if (type != LogType::Info)
 		outputStream = &std::cerr;
 
 	if (_ofs.is_open())
@@ -72,44 +75,49 @@ void	Log::logMessage(logType type, std::string_view message,
 
 	Log::logTime(outputStream);
 
-	if (!_ofs.is_open() && ((type == INFO && isatty(STDOUT_FILENO))
-		|| (type != INFO && isatty(STDERR_FILENO))))
+	if (!_ofs.is_open() && ((type == LogType::Info && isatty(STDOUT_FILENO))
+		|| (type != LogType::Info && isatty(STDERR_FILENO))))
 		typeString = color + typeString + CLR;
 
-	*outputStream << std::setw(CATEGORY_WIDTH) << std::right << typeString;
+	strStream << std::setw(CATEGORY_WIDTH) << std::right << typeString;
 	if (!file.empty())
-		*outputStream << file << ": ";
+		strStream << file << ": ";
 	if (!function.empty())
-		*outputStream << function << ": ";
+		strStream << function << ": ";
 	if (line > 0)
-		*outputStream << line << ": ";
-	*outputStream << message << "\n";
+		strStream << line << ": ";
+	strStream << message << "\n";
+
+	returnString = strStream.str();
+	*outputStream << returnString;
+
+	return returnString;
 }
 
 /**
  * Error logging
  */
-void	Log::error(std::string_view file, std::string_view function,
+std::string	Log::error(std::string_view file, std::string_view function,
 				int line, std::string_view message)
 {
-	logMessage(ERROR, message, file, function, line);
+	return logMessage(LogType::Error, message, file, function, line);
 }
 
 /**
  * Debug logging
  */
-void	Log::debug(std::string_view file, std::string_view function,
+std::string	Log::debug(std::string_view file, std::string_view function,
 				int line, std::string_view message)
 {
-	logMessage(DEBUG, message, file, function, line);
+	return logMessage(LogType::Debug, message, file, function, line);
 }
 
 /**
  * Info logging
  */
-void	Log::info(std::string_view message)
+std::string	Log::info(std::string_view message)
 {
-	logMessage(INFO, message);
+	return logMessage(LogType::Info, message);
 }
 
 /**
