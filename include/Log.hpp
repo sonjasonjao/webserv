@@ -11,10 +11,10 @@
 #define TIMESTAMP_WIDTH	23
 #define CATEGORY_WIDTH	20
 
-enum logType : int {
-	INFO,
-	DEBUG,
-	ERROR,
+enum class LogType {
+	Info,
+	Debug,
+	Error,
 };
 
 class Log {
@@ -25,19 +25,22 @@ public:
 	Log &operator=(Log const &other) = delete;
 	~Log() = delete;
 
-	static void	error(std::string_view file, std::string_view function,
-				   int line, std::string_view message);
-	static void	info(std::string_view message);
-	static void	debug(std::string_view file, std::string_view function,
-				   int line, std::string_view message);
+	static std::string	error(std::string_view file, std::string_view function,
+						int line, std::string_view message);
+	static std::string	info(std::string_view message);
+	static std::string	debug(std::string_view file, std::string_view function,
+						int line, std::string_view message);
+
 	static void	setOutputFile(std::string_view outputFileName);
 
 private:
 	static void	logTime(std::ostream *outputStream);
-	static void	logMessage(logType type, std::string_view message,
-					std::string_view file = "",
-					std::string_view function = "",
-					int line = 0);
+	static std::string	logMessage(
+							LogType type,
+							std::string_view message,
+							std::string_view file = "",
+							std::string_view function = "",
+							int line = 0);
 
 	static std::ofstream	_ofs;
 };
