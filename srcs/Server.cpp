@@ -137,9 +137,9 @@ void	Server::run(void)
 			ERROR_LOG("poll: " + std::string(strerror(errno)));
 			throw std::runtime_error("poll: " + std::string(strerror(errno)));
 		}
-		DEBUG_LOG("pollCount: " + std::string(std::to_string(pollCount)));
+		// DEBUG_LOG("pollCount: " + std::string(std::to_string(pollCount)));
 		handleConnections();
-		handleRequests();
+		// handleRequests();
 	}
 }
 
@@ -174,6 +174,8 @@ void	Server::handleNewClient(int listener)
 		throw std::runtime_error("fcntl: " + std::string(strerror(errno)));
 	}
 	_pfds.push_back({ clientFd, POLLIN, 0 });
+	Request	req(clientFd);
+	_clients.push_back(req);
 	INFO_LOG("Server accepted a new connection with " + std::to_string(clientFd));
 }
 
@@ -223,32 +225,30 @@ void	Server::handleClientData(size_t& i)
 		buf[numBytes] = '\0';
 		INFO_LOG("Server received data from client " + std::to_string(_pfds[i].fd));
 		std::cout << buf << '\n';
-		bool	blankFd = true;
-		if (!_requestQueue.empty()) {
-			auto it = _requestQueue.begin();
-			while (it != _requestQueue.end()) {
+		if (!_clients.empty()) {
+			auto it = _clients.begin();
+			while (it != _clients.end()) {
 				if (it->getFd() == _pfds[i].fd)
 					break ;
 				it++;
 			}
-			if (it !=_requestQueue.end())
-				blankFd = false;
-		}
-		if (blankFd) {
-			Request req(_pfds[i].fd, buf);
-			if (!req.getIsValid()) {
-				ERROR_LOG("Invalid HTTP request");
-				return ;
-			}
-			if (req.getIsValid() && req.getIsMissingData())
+			if (it ==_clients.end())
+				throw std::runtime_error("Unexpected error in finding client");
+			(*it).saveDataRequest(std::string(buf));
+			if ((*it).getIsMissingData())
 				INFO_LOG("Waiting for more data to complete partial request");
-			else
-				_requestQueue.push_back(req);
-			if (!req.getKeepAlive()) {
-				close(_pfds[i].fd);
-				if (_pfds.size() > (i + 1)) {
-					_pfds[i] = _pfds[_pfds.size() - 1];
-					i--;
+			else {
+				(*it).parseRequest();
+				if (!(*it).getIsValid()) {
+					ERROR_LOG("Invalid HTTP request");
+					return ;
+				}
+				if (!(*it).getKeepAlive()) {
+					close(_pfds[i].fd);
+					if (_pfds.size() > (i + 1)) {
+						_pfds[i] = _pfds[_pfds.size() - 1];
+						i--;
+					}
 				}
 			}
 		}
@@ -278,12 +278,12 @@ void	Server::handleConnections(void)
 
 void	Server::handleRequests(void)
 {
-	if (_requestQueue.empty())
+	if (_clients.empty())
 		return ;
-	auto	tmp = _requestQueue.begin();
+	auto	tmp = _clients.begin();
 	// if (!tmp.getIsMissingData())
 		// Response(*tmp, matchConfig((*tmp).getHost()));
-	_requestQueue.erase(tmp);
+	_clients.erase(tmp);
 }
 
 std::vector<Config> const&	Server::getConfigs() const

@@ -19,7 +19,7 @@ class Server
 		std::vector<Config>				_configs;
 		std::vector<pollfd>				_pfds;
 		std::unordered_map<int, Config>	_fdToConfig;
-		std::vector<Request>			_requestQueue;
+		std::vector<Request>			_clients;
 
 	public:
 		Server() = delete;

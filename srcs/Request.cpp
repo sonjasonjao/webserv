@@ -1,18 +1,25 @@
 #include "../include/Request.hpp"
 
+Request::Request(int fd) : _fd(fd), _keepAlive(false), _isValid(true),
+	_isMissingData(false) {
+}
+
+void	Request::saveDataRequest(std::string buf) {
+	_buffer += buf;
+	size_t	end = _buffer.find_last_of("\r\n");
+	if (buf[end + 1] || end == std::string::npos)
+		_isMissingData = true;
+}
+
 /**
  * First checks if received request is complete or partial (need to figure out the best
  * way to handle that, now just a flag attribute). Validates and parses different
  * sections of the request. After the last valid header line, all possibly remaining
  * data will be stored in one body string.
  */
-Request::Request(int fd, std::string buf) : _fd(fd), _keepAlive(false), _isValid(true),
-	_isMissingData(false) {
-	size_t	end = buf.find_last_of("\r\n");
-	if (buf[end + 1] || end == std::string::npos)
-		_isMissingData = true ;
+void	Request::parseRequest(void) {
 	std::string			line;
-	std::istringstream	ss(buf);
+	std::istringstream	ss(_buffer);
 	getline(ss, line);
 	std::istringstream	req(line);
 	parseRequestLine(req);

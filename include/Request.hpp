@@ -38,6 +38,7 @@ class Request
 
 	private:
 		int					_fd;
+		std::string			_buffer;
 		struct RequestLine	_request;
 		stringMap			_headers;
 		std::string			_body;
@@ -47,9 +48,11 @@ class Request
 
 	public:
 		Request() = delete;
-		Request(int fd, std::string buf);
+		Request(int fd);
 		~Request();
 
+		void			saveDataRequest(std::string buf);
+		void			parseRequest(void);
 		void			parseRequestLine(std::istringstream& req);
 		void			parseHeaders(std::istringstream& ss);
 		void			printData(void) const;
