@@ -10,7 +10,6 @@
 #include <poll.h>
 #include <fcntl.h>
 #include <cstring>
-#include <sys/epoll.h>
 
 /**
  * At construction, _configs will be fetched from parser.
@@ -139,7 +138,7 @@ void	Server::run(void)
 		}
 		// DEBUG_LOG("pollCount: " + std::string(std::to_string(pollCount)));
 		handleConnections();
-		// handleRequests();
+		// handleRequest();
 	}
 }
 
@@ -179,6 +178,10 @@ void	Server::handleNewClient(int listener)
 	INFO_LOG("Server accepted a new connection with " + std::to_string(clientFd));
 }
 
+
+/**
+ * Fetches the matching config with the host. Do we need this anywhere?
+ *
 std::optional<Config>	Server::matchConfig(std::string& host) {
 	auto it = _configs.begin();
 	while (it != _configs.end())
@@ -190,17 +193,15 @@ std::optional<Config>	Server::matchConfig(std::string& host) {
 	if (it == _configs.end())
 		return std::nullopt;
 	return *it;
-}
+}*/
 
 /**
  * Receives data from the client that poll() has recognized ready. Message (= request)
  * will be parsed and response formed.
  *
- * Still missing handling of partial request - need to store data in tmp buffer and
- * join two or more received data blocks from separate poll rounds. How to catch if a
- * request is not complete?
- *
- * Erasing a disconnect client doesn't seem to work properly yet.
+ * Still missing construction and sending of response, and then erasing the request?
+ * Do we "empty" the request object of the client in case of keep-alive, or just
+ * erase it altogether?
  */
 void	Server::handleClientData(size_t& i)
 {
@@ -259,7 +260,8 @@ void	Server::handleClientData(size_t& i)
  * Loops through _pfds, finding which fd triggered poll, and whether it's new client or
  * incoming request.
  *
- * (Could POLLIN and POLLHUP(closed connection) be already distinguished here?)
+ * (Could POLLIN and POLLHUP(closed connection) be already distinguished here? / Need
+ * to understand better which flags are needed)
  */
 void	Server::handleConnections(void)
 {
@@ -274,16 +276,6 @@ void	Server::handleConnections(void)
 				handleClientData(i);
 		}
 	}
-}
-
-void	Server::handleRequests(void)
-{
-	if (_clients.empty())
-		return ;
-	auto	tmp = _clients.begin();
-	// if (!tmp.getIsMissingData())
-		// Response(*tmp, matchConfig((*tmp).getHost()));
-	_clients.erase(tmp);
 }
 
 std::vector<Config> const&	Server::getConfigs() const

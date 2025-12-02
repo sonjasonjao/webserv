@@ -4,18 +4,24 @@ Request::Request(int fd) : _fd(fd), _keepAlive(false), _isValid(true),
 	_isMissingData(false) {
 }
 
+/**
+ * Saves the current buffer filled by recv into the combined buffer of this client.
+ * Checks if the request is now complete or still missing something. Atm it only
+ * checks if there is "\r\n\r\n" present in the buffer (end of headers), but need to
+ * also account for excess data after headers, if request has no body (no
+ * content-length or transfer-encodind: chunked header) or in general if request does
+ * not end with \r\n.
+ */
 void	Request::saveDataRequest(std::string buf) {
 	_buffer += buf;
-	size_t	end = _buffer.find_last_of("\r\n");
-	if (buf[end + 1] || end == std::string::npos)
+	size_t	end = _buffer.find("\r\n\r\n");
+	if (end == std::string::npos)
 		_isMissingData = true;
 }
 
 /**
- * First checks if received request is complete or partial (need to figure out the best
- * way to handle that, now just a flag attribute). Validates and parses different
- * sections of the request. After the last valid header line, all possibly remaining
- * data will be stored in one body string.
+ * Validates and parses different sections of the request. After the last valid
+ * header line, all possibly remaining data will for now be stored in one body string.
  */
 void	Request::parseRequest(void) {
 	std::string			line;
@@ -109,6 +115,13 @@ bool	Request::isUniqueHeader(std::string const& key) {
  *
  * Now requires only Host header as mandatory (requirement for HTTP/1.1). Need to check
  * if we must require others. HTTP/1.0 does not require host either?
+ *
+ * Which headers do we actually use? Right now, it splits header values by comma, but
+ * some of them actually are separated e.g. by semicolon. Do we have to differentiate
+ * these, or do we just have special handling for those we need to use (if any?)?
+ *
+ * Might be useful to check and add flags if headers include content-length or
+ * transfer-encoding: chunked, for recognizing partial/complete request.
  */
 void	Request::parseHeaders(std::istringstream& ss) {
 	std::string	line;
