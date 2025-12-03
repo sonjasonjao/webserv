@@ -49,23 +49,19 @@ std::string	trimWhitespace(std::string_view	sv)
 std::vector<std::string>	splitStringView(std::string_view sv, std::string_view delim)
 {
 	std::vector<std::string>	res		= {};
-	std::string					parse	= std::string(sv);
-	std::string					token	= "";
+	std::string_view			orig	= sv;
 	size_t						pos		= 0;
 
-	while (!parse.empty()) {
-		pos		= parse.find(delim);
-		token	= parse.substr(0, pos);
-
-		res.push_back(token);
+	while (!sv.empty()) {
+		pos = sv.find(delim);
+		res.emplace_back(sv.substr(0, pos));
 		if (pos == std::string::npos)
-			parse = "";
-		else
-			parse.erase(0, pos + delim.length());
+			break;
+		sv = sv.substr(pos + delim.length());
 	}
 
-	if (sv.length() >= delim.length()
-		&& sv.substr(sv.length() - delim.length()) == delim)
+	if (orig.length() >= delim.length()
+		&& orig.substr(orig.length() - delim.length()) == delim)
 			res.push_back("");
 
 	return res;
