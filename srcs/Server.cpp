@@ -225,6 +225,10 @@ void	Server::handleClientData(size_t& i)
 			if (it ==_clients.end())
 				ERROR_LOG("Unexpected error in finding client fd"); //bad messaging
 			(*it).saveDataRequest(std::string(buf));
+			if ((*it).getIsMissingData()) {
+				INFO_LOG("Waiting for more data to complete partial request");
+				return ;
+			}
 			(*it).parseRequest();
 			if ((*it).getIsMissingData()) {
 				INFO_LOG("Waiting for more data to complete partial request");

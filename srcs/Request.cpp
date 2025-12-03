@@ -2,6 +2,7 @@
 
 Request::Request(int fd) : _fd(fd), _keepAlive(false), _chunked(false), _isValid(true),
 	_isMissingData(false) {
+	_request.method = RequestMethod::Unknown;
 }
 
 /**
@@ -15,13 +16,12 @@ Request::Request(int fd) : _fd(fd), _keepAlive(false), _chunked(false), _isValid
  * header is already completely received (= only possible body missing).
  */
 void	Request::saveDataRequest(std::string buf) {
+	size_t	end = buf.find("\r\n\r\n");
+	if (end == std::string::npos && _request.method == RequestMethod::Unknown)
+		_isMissingData = true;
+	else
+		_isMissingData = false;
 	_buffer += buf;
-	_isMissingData = false;
-	// size_t	end = _buffer.find("\r\n\r\n");
-	// if (end == std::string::npos)
-	// 	_isMissingData = true;
-	// else
-	// 	_isMissingData = false;
 }
 
 /**
@@ -114,7 +114,7 @@ void	Request::parseHeaders(std::string& str) {
  * What if body ends up exceeding content-length?
  */
 void	Request::parseRequest(void) {
-	if (_request.target.empty()) {
+	if (_request.method == RequestMethod::Unknown) {
 		std::string	reqLine = splitReqLine(_buffer, "\r\n");
 		std::istringstream	req(reqLine);
 		parseRequestLine(req);

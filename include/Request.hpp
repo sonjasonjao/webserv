@@ -21,7 +21,8 @@ enum class RequestMethod
 {
 	Get,
 	Post,
-	Delete
+	Delete,
+	Unknown
 };
 
 struct RequestLine
