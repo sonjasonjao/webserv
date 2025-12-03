@@ -17,7 +17,7 @@ std::string	getImfFixdate()
 	auto const			nowTimeT	= std::chrono::system_clock::to_time_t(now);
 	std::stringstream	timeStream;
 
-	std::setlocale(LC_ALL, "C");
+	timeStream.imbue(std::locale::classic());
 	timeStream << std::put_time(std::gmtime(&nowTimeT), "%a, %d %b %Y %H:%M:%S GMT");
 
 	return timeStream.str();
@@ -29,9 +29,9 @@ std::string	getImfFixdate()
  */
 std::string	trimWhitespace(std::string_view	sv)
 {
-	while (std::isspace(sv[0]))
+	while (!sv.empty() && std::isspace(sv[0]))
 		sv = sv.substr(1);
-	while (std::isspace(sv[sv.length() - 1]))
+	while (!sv.empty() && std::isspace(sv[sv.length() - 1]))
 		sv = sv.substr(0, sv.length() - 1);
 
 	return std::string(sv);
@@ -99,7 +99,7 @@ bool	isValidIPv4(std::string_view sv)
 			return false;
 		try {
 			if (std::stoi(oct) > 255)
-			return false;
+				return false;
 		} catch (std::exception const &e) {
 			return false;
 		}
@@ -157,7 +157,7 @@ bool	uriFormatOk(std::string_view uri)
 }
 
 /**
- * Check whether a give URI tries to access files beyond root
+ * Check whether a given URI tries to access files beyond root
  *
  * NOTE: Assumes valid URI format
  *
