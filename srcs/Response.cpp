@@ -51,7 +51,7 @@ Response::Response(Request const &req) : _req(req)
 	//	form request that is correct for the error type
 
 	// Validate request
-	//	date, fields, lenghts
+	//	date, fields, lengths, delimiters
 
 	// Match request type
 	//	if ok
@@ -77,7 +77,7 @@ Response::Response(Request const &req) : _req(req)
 	_headerSection += "Content-Length: " + std::to_string(_body.size()) + CRLF;
 	_headerSection += std::string("Content-Type: text/html") + CRLF;
 
-	_content = _startLine + _headerSection + CRLF + _body;
+	_content = _startLine + _headerSection + CRLF + _body + CRLF;
 }
 
 Response::Response(Response const &other) : _req(other._req) {}
