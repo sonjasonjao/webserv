@@ -24,6 +24,9 @@ Server::Server(Parser& parser)
 	_configs.push_back(tmp);
 }
 
+/**
+ * Do we need this?
+ */
 Server::Server(Server const& obj)
 {
 	_configs = obj._configs;
@@ -178,23 +181,6 @@ void	Server::handleNewClient(int listener)
 	INFO_LOG("Server accepted a new connection with " + std::to_string(clientFd));
 }
 
-
-/**
- * Fetches the matching config with the host. Do we need this anywhere?
- *
-std::optional<Config>	Server::matchConfig(std::string& host) {
-	auto it = _configs.begin();
-	while (it != _configs.end())
-	{
-		if ((*it).host == host)
-			break ;
-		it++;
-	}
-	if (it == _configs.end())
-		return std::nullopt;
-	return *it;
-}*/
-
 /**
  * Receives data from the client that poll() has recognized ready. Message (= request)
  * will be parsed and response formed.
@@ -202,6 +188,9 @@ std::optional<Config>	Server::matchConfig(std::string& host) {
  * Still missing construction and sending of response, and then erasing the request?
  * Do we "empty" the request object of the client in case of keep-alive, or just
  * erase it altogether?
+ *
+ * The logic here is far from optimal and done, will get back to this. Need to solve
+ * how to check partial request in all possible cases.
  */
 void	Server::handleClientData(size_t& i)
 {
@@ -234,22 +223,22 @@ void	Server::handleClientData(size_t& i)
 				it++;
 			}
 			if (it ==_clients.end())
-				throw std::runtime_error("Unexpected error in finding client");
+				ERROR_LOG("Unexpected error in finding client fd"); //bad messaging
 			(*it).saveDataRequest(std::string(buf));
-			if ((*it).getIsMissingData())
+			(*it).parseRequest();
+			if ((*it).getIsMissingData()) {
 				INFO_LOG("Waiting for more data to complete partial request");
-			else {
-				(*it).parseRequest();
-				if (!(*it).getIsValid()) {
-					ERROR_LOG("Invalid HTTP request");
-					return ;
-				}
-				if (!(*it).getKeepAlive()) {
-					close(_pfds[i].fd);
-					if (_pfds.size() > (i + 1)) {
-						_pfds[i] = _pfds[_pfds.size() - 1];
-						i--;
-					}
+				return ;
+			}
+			if (!(*it).getIsValid()) {
+				ERROR_LOG("Invalid HTTP request");
+				return ;
+			}
+			if (!(*it).getKeepAlive()) {
+				close(_pfds[i].fd);
+				if (_pfds.size() > (i + 1)) {
+					_pfds[i] = _pfds[_pfds.size() - 1];
+					i--;
 				}
 			}
 		}

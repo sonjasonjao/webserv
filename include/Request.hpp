@@ -37,14 +37,16 @@ class Request
 	using stringMap = std::unordered_map<std::string, std::vector<std::string>>;
 
 	private:
-		int					_fd;
-		std::string			_buffer;
-		struct RequestLine	_request;
-		stringMap			_headers;
-		std::string			_body;
-		bool				_keepAlive;
-		bool				_isValid;
-		bool				_isMissingData;
+		int						_fd;
+		std::string				_buffer;
+		struct RequestLine		_request;
+		stringMap				_headers;
+		std::string				_body;
+		std::optional<size_t>	_contentLen;
+		bool					_keepAlive;
+		bool					_chunked;
+		bool					_isValid;
+		bool					_isMissingData;
 
 	public:
 		Request() = delete;
@@ -54,7 +56,7 @@ class Request
 		void			saveDataRequest(std::string buf);
 		void			parseRequest(void);
 		void			parseRequestLine(std::istringstream& req);
-		void			parseHeaders(std::istringstream& ss);
+		void			parseHeaders(std::string& str);
 		void			printData(void) const;
 		bool			isUniqueHeader(std::string const& key);
 		bool			isTargetValid(std::string& target);

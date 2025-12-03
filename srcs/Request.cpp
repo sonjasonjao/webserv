@@ -1,41 +1,138 @@
 #include "../include/Request.hpp"
 
-Request::Request(int fd) : _fd(fd), _keepAlive(false), _isValid(true),
+Request::Request(int fd) : _fd(fd), _keepAlive(false), _chunked(false), _isValid(true),
 	_isMissingData(false) {
 }
 
 /**
  * Saves the current buffer filled by recv into the combined buffer of this client.
- * Checks if the request is now complete or still missing something. Atm it only
- * checks if there is "\r\n\r\n" present in the buffer (end of headers), but need to
- * also account for excess data after headers, if request has no body (no
- * content-length or transfer-encodind: chunked header) or in general if request does
- * not end with \r\n.
+ *
+ * Commented out earlier check if the request is now complete or still missing
+ * something. That only checked if there is "\r\n\r\n" present in the buffer
+ * (end of headers), but need to also account for excess data after headers, if
+ * request has no body (no content-length or transfer-encodind: chunked header) or
+ * in general if request does not end with \r\n. Might need to add a flag for whether
+ * header is already completely received (= only possible body missing).
  */
 void	Request::saveDataRequest(std::string buf) {
 	_buffer += buf;
-	size_t	end = _buffer.find("\r\n\r\n");
-	if (end == std::string::npos)
-		_isMissingData = true;
+	_isMissingData = false;
+	// size_t	end = _buffer.find("\r\n\r\n");
+	// if (end == std::string::npos)
+	// 	_isMissingData = true;
+	// else
+	// 	_isMissingData = false;
+}
+
+/**
+ * Helper to split the buffer with delimiter ("\r\n"). Returns the current line until
+ * the delimiter and updates _buffer by removing that extracted string.
+ */
+std::string	splitReqLine(std::string& orig, std::string delim)
+{
+	auto it = orig.find_first_of(delim);
+	std::string tmp;
+	if (it != std::string::npos)
+	{
+		tmp = orig.substr(0, it);
+		if (orig.size() > it + 2)
+			orig = orig.substr(it + 2);
+		else
+			orig.erase();
+	}
+	return tmp;
+}
+
+/**
+ * Accepts as headers every line with ':' and stores each header as key and value to
+ * an unordered map.
+ *
+ * Now requires only Host header as mandatory (requirement for HTTP/1.1). Need to check
+ * if we must require others. HTTP/1.0 does not require host either?
+ *
+ * Which headers do we actually use? Right now, it splits header values by comma, but
+ * some of them actually are separated e.g. by semicolon. Do we have to differentiate
+ * these, or do we just have special handling for those we need to use (if any?)?
+ */
+void	Request::parseHeaders(std::string& str) {
+	std::string	line;
+	while (!str.empty()) {
+		line = splitReqLine(str, "\r\n");
+		const size_t point = line.find_first_of(":");
+		if (point != std::string::npos) {
+			std::string	key = line.substr(0, point);
+			for (size_t i = 0; i < key.size(); i++)
+				key[i] = std::tolower((unsigned char)key[i]);
+			std::string value = line.substr(point + 2, line.size() - (point + 2));
+			if (value.find(",") == std::string::npos)
+				_headers[key].push_back(value);
+			else {
+				std::istringstream	values(value);
+				std::string	oneValue;
+				while (getline(values, oneValue, ',')) {
+					_headers[key].push_back(oneValue);
+				}
+			}
+		}
+		else
+			break ;
+	}
+	if (_headers.empty()) {
+		_isValid = false;
+		return ;
+	}
+	auto	it = _headers.find("host");
+	if (it == _headers.end() || it->second.empty())
+		_isValid = false;
+	for (auto const& [key, values] : _headers) {
+		if (values.size() > 1 && isUniqueHeader(key)) {
+			_isValid = false;
+			return ;
+		}
+	}
+	it = _headers.find("connection");
+	if (it != _headers.end()) {
+		for (auto con = it->second.begin(); con != it->second.end(); con++) {
+			if (*con == "keep-alive") {
+				_keepAlive = true;
+				break ;
+			}
+		}
+	}
+	it = _headers.find("content-length");
+	if (it != _headers.end())
+		_contentLen = std::stoi(it->second.front());
+	it = _headers.find("transfer-encoding");
+	if (it != _headers.end() && it->second.front() == "chunked")
+		_chunked = true;
 }
 
 /**
  * Validates and parses different sections of the request. After the last valid
  * header line, all possibly remaining data will for now be stored in one body string.
+ *
+ * What if body ends up exceeding content-length?
  */
 void	Request::parseRequest(void) {
-	std::string			line;
-	std::istringstream	ss(_buffer);
-	getline(ss, line);
-	std::istringstream	req(line);
-	parseRequestLine(req);
+	if (_request.target.empty()) {
+		std::string	reqLine = splitReqLine(_buffer, "\r\n");
+		std::istringstream	req(reqLine);
+		parseRequestLine(req);
+		if (!_isValid)
+			return ;
+	}
+	if (_headers.empty())
+		parseHeaders(_buffer);
 	if (!_isValid)
 		return ;
-	parseHeaders(ss);
-	if (!_isValid)
-		return ;
-	while (getline(ss, line))
-		_body += line;
+	if (!_buffer.empty() && ((_contentLen.has_value() && _body.size() < _contentLen.value())
+		|| _chunked)) {
+		_body += _buffer;
+	}
+	if (_contentLen.has_value() && _body.size() < _contentLen.value())
+		_isMissingData = true;
+	if (_contentLen.has_value() && _body.size() == _contentLen.value())
+		_isMissingData = false;
 	printData();
 }
 
@@ -81,6 +178,8 @@ void	Request::parseRequestLine(std::istringstream& req) {
 
 /**
  * Defines headers that can have only one value, and checks if any of them has more.
+ *
+ * Need to double-check these.
  */
 bool	Request::isUniqueHeader(std::string const& key) {
 	std::unordered_set<std::string>	uniques = {
@@ -107,68 +206,6 @@ bool	Request::isUniqueHeader(std::string const& key) {
 	if (it != uniques.end())
 		return true ;
 	return false ;
-}
-
-/**
- * Accepts as headers every line with ':' and stores each header as key and value to
- * an unorderep map.
- *
- * Now requires only Host header as mandatory (requirement for HTTP/1.1). Need to check
- * if we must require others. HTTP/1.0 does not require host either?
- *
- * Which headers do we actually use? Right now, it splits header values by comma, but
- * some of them actually are separated e.g. by semicolon. Do we have to differentiate
- * these, or do we just have special handling for those we need to use (if any?)?
- *
- * Might be useful to check and add flags if headers include content-length or
- * transfer-encoding: chunked, for recognizing partial/complete request.
- */
-void	Request::parseHeaders(std::istringstream& ss) {
-	std::string	line;
-	while (true) {
-		getline(ss, line);
-		const size_t point = line.find_first_of(":");
-		if (point != std::string::npos) {
-			std::string	key = line.substr(0, point);
-			for (size_t i = 0; i < key.size(); i++)
-				key[i] = std::tolower((unsigned char)key[i]);
-			std::string value = line.substr(point + 2);
-			if (value.find(",") == std::string::npos) {
-				_headers[key].push_back(value);
-			}
-			else {
-				std::istringstream	values(value);
-				std::string	oneValue;
-				while (getline(values, oneValue, ',')) {
-					_headers[key].push_back(oneValue);
-				}
-			}
-		}
-		else
-			break ;
-	}
-	if (_headers.empty()) {
-		_isValid = false;
-		return ;
-	}
-	auto	it = _headers.find("host");
-	if (it == _headers.end() || it->second.empty())
-		_isValid = false;
-	for (auto const& [key, values] : _headers) {
-		if (values.size() > 1 && isUniqueHeader(key)) {
-			_isValid = false;
-			return ;
-		}
-	}
-	it = _headers.find("connection");
-	if (it != _headers.end()) {
-		for (auto con = it->second.begin(); con != it->second.end(); con++) {
-			if (*con == "keep-alive\r") {
-				_keepAlive = true;
-				break ;
-			}
-		}
-	}
 }
 
 /**
@@ -224,17 +261,21 @@ bool	Request::isHttpValid(std::string& httpVersion) {
 	return true ;
 }
 
+
+/**
+ * Prints parsed data just for debugging for now.
+ */
 void	Request::printData(void) const {
 	std::cout << "----Request line:----\nMethod: ";
 	switch(_request.method) {
 		case RequestMethod::Get:
-			std::cout << "Get\n";
+			std::cout << "Get";
 			break ;
 		case RequestMethod::Post:
-			std::cout << "Post\n";
+			std::cout << "Post";
 			break ;
 		case RequestMethod::Delete:
-			std::cout << "Delete\n";
+			std::cout << "Delete";
 			break ;
 		default:
 			throw std::runtime_error("HTTP request method unknown\n");
@@ -249,6 +290,7 @@ void	Request::printData(void) const {
 	if (!_body.empty())
 		std::cout << "----Body:----\n" << _body << '\n';
 	std::cout << "----Keep alive?---- " << _keepAlive << '\n';
+	std::cout << "----Missing data?---- " << _isMissingData << '\n';
 }
 
 std::string	Request::getHost(void) {
