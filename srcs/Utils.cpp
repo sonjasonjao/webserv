@@ -1,12 +1,9 @@
 #include "Utils.hpp"
-#include <algorithm>
-#include <cctype>
 #include <sstream>
 #include <chrono>
 #include <iomanip>
 #include <clocale>
 #include <filesystem>
-#include <vector>
 #include <algorithm>
 
 /**
@@ -27,12 +24,29 @@ std::string	getImfFixdate()
 }
 
 /**
- * NOTE:	Creates empty members for cases where two delmiters are next to each other,
+ * @return	std::string with all characters that satisfy std::isspace removed
+ *			from the front and back of the string view input
+ */
+std::string	trimWhitespace(std::string_view	sv)
+{
+	while (std::isspace(sv[0]))
+		sv = sv.substr(1);
+	while (std::isspace(sv[sv.length() - 1]))
+		sv = sv.substr(0, sv.length() - 1);
+
+	return std::string(sv);
+}
+
+/**
+ * Splitting function for URI and IP validation, doesn't perform trimming.
+ * Default delimiter is a single space.
+ *
+ * NOTE:	Creates empty members for cases where two delimiters are next to each other,
  *			or when starting or ending with a delimiter
  *
  * @return	string vector containing the parts separated by delim
  */
-std::vector<std::string>	split(std::string_view sv, std::string_view delim = " ")
+std::vector<std::string>	splitStringView(std::string_view sv, std::string_view delim)
 {
 	std::vector<std::string>	res		= {};
 	std::string					parse	= std::string(sv);
@@ -50,30 +64,34 @@ std::vector<std::string>	split(std::string_view sv, std::string_view delim = " "
 			parse.erase(0, pos + delim.length());
 	}
 
-	if (sv.substr(sv.length() - delim.length()) == delim)
+	if (sv.length() >= delim.length()
+		&& sv.substr(sv.length() - delim.length()) == delim)
 			res.push_back("");
 
 	return res;
 }
 
 /**
- * @return	string vector containing the url parts split by '/'
+ * @return	string vector containing the URI parts split by '/'
  */
-std::vector<std::string>	splitUrl(std::string_view url)
+std::vector<std::string>	splitUri(std::string_view uri)
 {
-	return split(url, "/");
+	return splitStringView(uri, "/");
 }
 
 /**
  * Function checks if the string_view parameter contains a valid IPv4 address.
+ *
  * NOTE: Assuming that the input string is trimmed in advance
+ *
+ * @return	true if IPv4 in sv is valid, false if not
  */
 bool	isValidIPv4(std::string_view sv)
 {
 	if (sv.empty())
 		return false;
 
-	std::vector<std::string>	octets = split(sv, ".");
+	std::vector<std::string>	octets = splitStringView(sv, ".");
 
 	if (octets.size() != 4)
 		return false;
@@ -95,55 +113,63 @@ bool	isValidIPv4(std::string_view sv)
 }
 
 /**
- * Need a way to get the directory that our html content is saved at
- * NOTE: Do we need to pass the whole server info or a specifically matched config?
+ * @return	true if resource can be found in the given directory, false if not
  */
-std::string	getRoot()
+bool	resourceExists(std::string_view uri, std::string searchDir)
 {
-	return "/";
-}
-
-/**
- * NOTE: Was there a boolean for the behaviour if we give the default index.html for a dir?
- */
-bool	resourceExists(std::string_view url)
-{
-	if (url.empty())
+	if (uri.empty())
 		return false;
 
-	std::string root = getRoot();	// Probably need to match server config to get root folder for content?
+	if (searchDir.empty())
+		searchDir = std::filesystem::current_path();
+
 	std::string	path;
 
-	if (url[0] == '/')
-		path = url.substr(1);
-	if (root.back() == '/')
-		root.pop_back();
+	if (uri[0] == '/')
+		path = uri.substr(1);
+	if (searchDir.back() == '/')
+		searchDir.pop_back();
 
-	path = root + "/" + path;
+	path = searchDir + "/" + path;
 
 	return std::filesystem::exists(path);
 }
 
 /**
- * Function to determine if a URL contains forbidden symbols or is otherwise
- * incorrectly written.
+ * Validation is still very minimal, empty URIs and empty fields in URIs
+ * currently invalidate the format, no invalid characters yet.
+ *
+ * @return	true if there are no empty fields, false if there are
  */
-bool	urlIsMisformed(std::string_view url)
+bool	uriFormatOk(std::string_view uri)
 {
-	(void)url;
-	return false;
+	auto	split = splitStringView(uri, "/");
+
+	if (split.empty())
+		return false;
+	if (split[0].empty())
+		split.erase(split.begin());
+	if (split[split.size() - 1].empty())
+		split.pop_back();
+
+	for (auto const &s : split) {
+		if (s.empty())
+			return false;	// NOTE: add validation for invalid characters
+	}
+
+	return true;
 }
 
 /**
- * Check whether a correct URL tries to access files beyond root
+ * Check whether a give URI tries to access files beyond root
  *
- * NOTE: Assumes valid url
+ * NOTE: Assumes valid URI format
  *
  * @return	true if the target is not above root, false otherwise
  */
-bool	urlTargetAboveRoot(std::string_view url)
+bool	uriTargetAboveRoot(std::string_view uri)
 {
-	std::vector<std::string>	parts	= splitUrl(url);
+	std::vector<std::string>	parts	= splitUri(uri);
 	size_t						up		= 0;
 	size_t						down	= 0;
 
@@ -160,6 +186,7 @@ bool	urlTargetAboveRoot(std::string_view url)
 	return (up > down);
 }
 
+//#define TEST
 #ifdef TEST
 
 #include <iostream>
@@ -179,10 +206,17 @@ int	main()
 	assert(isValidIPv4("1.a.1.1") == false);
 	assert(isValidIPv4("255.255.255.255.255") == false);
 
-	auto	urlSplitTest = splitUrl("asdf//asdfsadfsadf");
-	for (auto const &e : urlSplitTest)
+	auto	uriSplitTest = splitUri("asdf//asdfsadfsadf");
+	for (auto const &e : uriSplitTest)
 		std::cout << "\"" << e << "\" ";
 	std::cout << "\n";
+
+	assert(uriFormatOk("/abc/") == true);
+	assert(uriFormatOk("/") == true);
+	assert(uriFormatOk("abc/") == true);
+	assert(uriFormatOk("abc") == true);
+	assert(uriFormatOk("") == false);
+	assert(uriFormatOk("//") == false);
 	return 0;
 }
 
