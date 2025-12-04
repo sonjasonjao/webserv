@@ -1,4 +1,9 @@
 #include "../include/Request.hpp"
+#include "../include/Log.hpp"
+#include <regex>
+#include <sstream>
+#include <iostream>
+#include <unordered_set>
 
 Request::Request(int fd) : _fd(fd), _keepAlive(false), _chunked(false), _isValid(true),
 	_isMissingData(false) {
@@ -293,7 +298,7 @@ void	Request::printData(void) const {
 	std::cout << "----Missing data?---- " << _isMissingData << '\n';
 }
 
-std::string	Request::getHost(void) {
+std::string	Request::getHost(void) const {
 	std::string	host;
 	try
 	{
@@ -322,4 +327,18 @@ bool	Request::getIsMissingData(void) const {
 	return _isMissingData;
 }
 
-Request::~Request(void) {}
+RequestMethod	Request::getRequestMethod() const {
+	return _request.method;
+}
+
+std::string const	&Request::getBody() const {
+	return _body;
+}
+
+std::string const	&Request::getHttpVersion() const {
+	return _request.httpVersion;
+}
+
+std::string const	&Request::getTarget() const {
+	return _request.target;
+}
