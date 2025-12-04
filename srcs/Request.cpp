@@ -1,4 +1,9 @@
 #include "../include/Request.hpp"
+#include "../include/Log.hpp"
+#include <regex>
+#include <sstream>
+#include <iostream>
+#include <unordered_set>
 
 /**
  * Probably more intuitive to initialize _isValid to false and _isMissingData to true.
@@ -385,7 +390,7 @@ void	Request::printData(void) const {
 	std::cout << "----Valid?----" << _isValid << '\n';
 }
 
-std::string	Request::getHost(void) {
+std::string	Request::getHost(void) const {
 	std::string	host;
 	try
 	{
@@ -418,4 +423,20 @@ bool	Request::isBufferEmpty(void) {
 	if (_buffer.empty())
 		return true;
 	return false;
+}
+
+RequestMethod	Request::getRequestMethod() const {
+	return _request.method;
+}
+
+std::string const	&Request::getBody() const {
+	return _body;
+}
+
+std::string const	&Request::getHttpVersion() const {
+	return _request.httpVersion;
+}
+
+std::string const	&Request::getTarget() const {
+	return _request.target;
 }

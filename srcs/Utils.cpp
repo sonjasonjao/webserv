@@ -1,10 +1,12 @@
 #include "Utils.hpp"
+#include "Log.hpp"
 #include <sstream>
 #include <chrono>
 #include <iomanip>
 #include <clocale>
 #include <filesystem>
 #include <algorithm>
+#include <fstream>
 
 /**
  * The IMF fixdate is the preferred format for HTTP timestamps
@@ -180,6 +182,19 @@ bool	uriTargetAboveRoot(std::string_view uri)
 	}
 
 	return (up > down);
+}
+
+std::string	getFileAsString(std::string const &fileName)
+{
+	std::ifstream		fileStream(fileName);
+	std::stringstream	buf;
+
+	if (fileStream.fail()) {
+		ERROR_LOG("Couldn't open " + fileName);
+		return "";
+	}
+	buf << fileStream.rdbuf();
+	return buf.str();
 }
 
 //#define TEST

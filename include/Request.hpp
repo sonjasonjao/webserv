@@ -1,17 +1,8 @@
 #pragma once
-#include <iostream>
-#include <sstream>
 #include <unordered_map>
 #include <vector>
 #include <string>
-#include <cstring>
-#include <algorithm>
-#include <regex>
-#include <fcntl.h>
-#include <unistd.h>
 #include <optional>
-#include <unordered_set>
-#include "../include/Log.hpp"
 
 /**
  * Mandatory methods required in the subject, do we want to add more? -> Will affect
@@ -73,4 +64,10 @@ class Request
 		bool			getIsMissingData(void) const;
 		bool			isBufferEmpty(void);
 		void			reset(void);
+
+		RequestMethod		getRequestMethod(void) const;
+		std::string const	&getHttpVersion(void) const;
+		std::string const	&getBody(void) const;
+		std::string const	&getTarget(void) const;
+		std::optional<std::vector<std::string> const *>	getHeader(std::string const &key) const;
 };

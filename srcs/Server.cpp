@@ -1,5 +1,6 @@
 #include "../include/Server.hpp"
 #include "../include/Request.hpp"
+#include "Response.hpp"
 #include <iostream>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -202,6 +203,8 @@ void	Server::handleNewClient(int listener)
 	Request	req(clientFd);
 	_clients.push_back(req);
 	INFO_LOG("Server accepted a new connection with " + std::to_string(clientFd));
+
+	Response	rep(req);
 }
 
 /**
