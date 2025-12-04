@@ -1,4 +1,5 @@
 #include "../include/Server.hpp"
+#include "../include/Request.hpp"
 #include <iostream>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -9,7 +10,6 @@
 #include <poll.h>
 #include <fcntl.h>
 #include <cstring>
-#include <sys/epoll.h>
 
 /**
  * At construction, _configs will be fetched from parser.
@@ -24,11 +24,14 @@ Server::Server(Parser& parser)
 	_configs.push_back(tmp);
 }
 
+/**
+ * Do we need this?
+ */
 Server::Server(Server const& obj)
 {
 	_configs = obj._configs;
 	_pfds = obj._pfds;
-	_serverFds = obj._serverFds;
+	_fdToConfig = obj._fdToConfig;
 }
 
 /**
@@ -109,7 +112,7 @@ int	Server::getServerSocket(Config conf)
 
 /**
  * Loops through server configurations and creates listener socket for each, stores
- * them into _pfds and stores the pair of fd and config into _serverFds.
+ * them into _pfds and stores the pair of fd and config into _fdToConfig.
  */
 void	Server::createServerSockets()
 {
@@ -117,7 +120,7 @@ void	Server::createServerSockets()
 	{
 		int sockfd = getServerSocket(*it);
 		_pfds.push_back({ sockfd, POLLIN, 0 });
-		_serverFds[sockfd] = *it; //making a copy of each config not really efficient
+		_fdToConfig[sockfd] = *it; //making a copy of each config not really efficient
 	}
 }
 
@@ -129,15 +132,16 @@ void	Server::run(void)
 	createServerSockets();
 	while (true)
 	{
-		int	pollCount = poll(&_pfds[0], _pfds.size(), -1); //timeout needs to be set
+		int	pollCount = poll(&_pfds[0], _pfds.size(), 1000); //timeout needs to be set
 		if (pollCount < 0)
 		{
 			closePfds();
 			ERROR_LOG("poll: " + std::string(strerror(errno)));
 			throw std::runtime_error("poll: " + std::string(strerror(errno)));
 		}
-		DEBUG_LOG("pollCount: " + std::string(std::to_string(pollCount)));
+		// DEBUG_LOG("pollCount: " + std::string(std::to_string(pollCount)));
 		handleConnections();
+		// handleRequest();
 	}
 }
 
@@ -172,6 +176,8 @@ void	Server::handleNewClient(int listener)
 		throw std::runtime_error("fcntl: " + std::string(strerror(errno)));
 	}
 	_pfds.push_back({ clientFd, POLLIN, 0 });
+	Request	req(clientFd);
+	_clients.push_back(req);
 	INFO_LOG("Server accepted a new connection with " + std::to_string(clientFd));
 }
 
@@ -179,11 +185,12 @@ void	Server::handleNewClient(int listener)
  * Receives data from the client that poll() has recognized ready. Message (= request)
  * will be parsed and response formed.
  *
- * Still missing handling of partial request - need to store data in tmp buffer and
- * join two or more received data blocks from separate poll rounds. How to catch if a
- * request is not complete?
+ * Still missing construction and sending of response, and then erasing the request?
+ * Do we "empty" the request object of the client in case of keep-alive, or just
+ * erase it altogether?
  *
- * Erasing a disconnect client doesn't seem to work properly yet.
+ * The logic here is far from optimal and done, will get back to this. Need to solve
+ * how to check partial request in all possible cases.
  */
 void	Server::handleClientData(size_t& i)
 {
@@ -208,8 +215,37 @@ void	Server::handleClientData(size_t& i)
 		buf[numBytes] = '\0';
 		INFO_LOG("Server received data from client " + std::to_string(_pfds[i].fd));
 		std::cout << buf << '\n';
-		//Request const& req = parseRequest(buf);
-		//prepareResponse(req);
+		if (!_clients.empty()) {
+			auto it = _clients.begin();
+			while (it != _clients.end()) {
+				if (it->getFd() == _pfds[i].fd)
+					break ;
+				it++;
+			}
+			if (it ==_clients.end())
+				ERROR_LOG("Unexpected error in finding client fd"); //bad messaging
+			(*it).saveDataRequest(std::string(buf));
+			if ((*it).getIsMissingData()) {
+				INFO_LOG("Waiting for more data to complete partial request");
+				return ;
+			}
+			(*it).parseRequest();
+			if ((*it).getIsMissingData()) {
+				INFO_LOG("Waiting for more data to complete partial request");
+				return ;
+			}
+			if (!(*it).getIsValid()) {
+				ERROR_LOG("Invalid HTTP request");
+				return ;
+			}
+			if (!(*it).getKeepAlive()) {
+				close(_pfds[i].fd);
+				if (_pfds.size() > (i + 1)) {
+					_pfds[i] = _pfds[_pfds.size() - 1];
+					i--;
+				}
+			}
+		}
 	}
 }
 
@@ -217,7 +253,8 @@ void	Server::handleClientData(size_t& i)
  * Loops through _pfds, finding which fd triggered poll, and whether it's new client or
  * incoming request.
  *
- * (Could POLLIN and POLLHUP(closed connection) be already distinguished here?)
+ * (Could POLLIN and POLLHUP(closed connection) be already distinguished here? / Need
+ * to understand better which flags are needed)
  */
 void	Server::handleConnections(void)
 {
@@ -225,8 +262,8 @@ void	Server::handleConnections(void)
 	{
 		if (_pfds[i].revents & (POLLIN | POLLHUP))
 		{
-			auto pos = _serverFds.find(_pfds[i].fd);
-			if (pos != _serverFds.end())
+			auto pos = _fdToConfig.find(_pfds[i].fd);
+			if (pos != _fdToConfig.end())
 				handleNewClient(pos->first);
 			else
 				handleClientData(i);
