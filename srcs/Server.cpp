@@ -203,8 +203,6 @@ void	Server::handleNewClient(int listener)
 	Request	req(clientFd);
 	_clients.push_back(req);
 	INFO_LOG("Server accepted a new connection with " + std::to_string(clientFd));
-
-	Response	rep(req);
 }
 
 /**
@@ -260,6 +258,7 @@ void	Server::handleClientData(size_t& i)
 				(*it).reset();
 				//build and send response
 			}
+			Response	res(*it);
 			if (!(*it).getKeepAlive()) {
 				close(_pfds[i].fd);
 				if (_pfds.size() > (i + 1)) {

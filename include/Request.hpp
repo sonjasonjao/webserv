@@ -65,9 +65,9 @@ class Request
 		bool			isBufferEmpty(void);
 		void			reset(void);
 
-		RequestMethod		getRequestMethod(void) const;
-		std::string const	&getHttpVersion(void) const;
-		std::string const	&getBody(void) const;
-		std::string const	&getTarget(void) const;
-		std::optional<std::vector<std::string> const *>	getHeader(std::string const &key) const;
+		RequestMethod						getRequestMethod(void) const;
+		std::string const					&getHttpVersion(void) const;
+		std::string const					&getBody(void) const;
+		std::string const					&getTarget(void) const;
+		std::vector<std::string> const *	getHeader(std::string const &key) const;
 };

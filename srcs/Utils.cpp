@@ -7,6 +7,8 @@
 #include <filesystem>
 #include <algorithm>
 #include <fstream>
+#include <cerrno>
+#include <cstring>
 
 /**
  * The IMF fixdate is the preferred format for HTTP timestamps
@@ -184,15 +186,20 @@ bool	uriTargetAboveRoot(std::string_view uri)
 	return (up > down);
 }
 
-std::string	getFileAsString(std::string const &fileName)
+std::string	getFileAsString(std::string const &fileName, std::string searchDir)
 {
-	std::ifstream		fileStream(fileName);
+	if (searchDir.empty())
+		searchDir = std::filesystem::current_path();
+	if (searchDir.back() == '/')
+		searchDir.pop_back();
+
+	std::ifstream		fileStream(searchDir + "/" + fileName);
+
+	if (fileStream.fail())
+		throw std::runtime_error(ERROR_LOG("Couldn't open " + fileName + ": " + strerror(errno)));
+
 	std::stringstream	buf;
 
-	if (fileStream.fail()) {
-		ERROR_LOG("Couldn't open " + fileName);
-		return "";
-	}
 	buf << fileStream.rdbuf();
 	return buf.str();
 }

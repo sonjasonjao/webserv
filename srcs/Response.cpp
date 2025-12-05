@@ -1,10 +1,10 @@
 #include "Response.hpp"
 #include "Log.hpp"
 #include "Utils.hpp"
-#include <optional>
 #include <string>
 #include <vector>
 #include <iostream>
+#include <filesystem>
 
 std::string	getImfFixdate();
 
@@ -17,14 +17,14 @@ Response::Response(Request const &req) : _req(req)
 	_headerSection	 = std::string("Server: ") + req.getHost() + CRLF;
 	_headerSection	+= "Date: " + getImfFixdate() + CRLF;
 
-	_body = "<DOCTYPE! html><html><head></head><body>Placeholder page</body></html>";
+	_body = "<!DOCTYPE html><html><head></head><body>Placeholder page</body></html>";
 
 	if (!req.getIsValid()) {
 		// Why isn't it valid? -> Find out!
 
 		// Assume bad request for now?
 		_startLine	+= " 400 Bad Request";
-		_code		 = BadRequest;
+		_statusCode	 = BadRequest;
 		_body		 = "";
 	}
 
@@ -38,44 +38,58 @@ Response::Response(Request const &req) : _req(req)
 	//			from file or from memory?
 	//			What if the content is huge? Chunking time?
 
+	std::string	target = req.getTarget();
+
+	if (std::filesystem::is_directory(target)) {
+		if (target.back() == '/')
+			target.pop_back();
+		target = target + "/" + "index.html";	// NOTE: this could be toggled by an option in the config
+	}
+
 	// NOTE:	Replace all current body functionality with content getter functions
 	//			that either read from a file or fetch a buffer from memory
+
 	switch (req.getRequestMethod()) {
 		case RequestMethod::Get:
-			if (!resourceExists(req.getTarget())) {
-				INFO_LOG("Resource " + req.getTarget() + " could not be found");
+			if (!resourceExists(target)) {
+				INFO_LOG("Resource " + target + " could not be found");
 				_startLine	+= " 404 Not Found";
-				_code		 = NotFound;
-				_body		 = "<DOCTYPE! html><html><head></head><body>404: resource not found</body></html>";
+				_statusCode	 = NotFound;
+				_headerSection 	+= std::string("Content-Type: text/html") + CRLF;
+				_body		 = "<!DOCTYPE html><html><head></head><body>404: resource not found</body></html>";
 				break;
 			}
 			_startLine		+= " 200 OK";
-			_code			 = OK;
+			_statusCode		 = OK;
 			_headerSection 	+= std::string("Content-Type: text/html") + CRLF;
-			_body			 = getFileAsString(req.getTarget());
+			_body			 = getFileAsString(target);
 		break;
 		case RequestMethod::Post:
 			_startLine		+= " 200 OK";
-			_code			 = OK;
+			_statusCode		 = OK;
 			_headerSection 	+= std::string("Content-Type: text/html") + CRLF;
-			_body			 = "<DOCTYPE! html><html><head></head><body>200: POST OK page</body></html>";
+			_body			 = "<!DOCTYPE html><html><head></head><body>200: POST OK page</body></html>";
 		break;
 		case RequestMethod::Delete:
-			if (!resourceExists(req.getTarget())) {
-				INFO_LOG("Response: Resource " + req.getTarget() + " could not be found");
+			if (!resourceExists(target)) {
+				INFO_LOG("Response: Resource " + target + " could not be found");
 				_startLine	+= " 404 Not Found";
-				_code		 = NotFound;
-				_body		 = "<DOCTYPE! html><html><head></head><body>404: resource not found</body></html>";
+				_statusCode	 = NotFound;
+				_headerSection 	+= std::string("Content-Type: text/html") + CRLF;
+				_body		 = "<!DOCTYPE html><html><head></head><body>404: resource not found</body></html>";
 				break;
 			}
 			_startLine		+= "204 No Content";
-			_code			 = NoContent;
-			_body			 = "<DOCTYPE! html><html><head></head><body>204: no content</body></html>";
+			_statusCode		 = NoContent;
+			_headerSection 	+= std::string("Content-Type: text/html") + CRLF;
+			_body			 = "<!DOCTYPE html><html><head></head><body>204: no content</body></html>";
 		break;
 		default:
+			INFO_LOG("Bad request");
 			_startLine	= " 400 Bad Request";
-			_code		= BadRequest;
-			_body		 = "<DOCTYPE! html><html><head></head><body>400: bad request</body></html>";
+			_statusCode	= BadRequest;
+			_headerSection 	+= std::string("Content-Type: text/html") + CRLF;
+			_body		 = "<!DOCTYPE html><html><head></head><body>400: bad request</body></html>";
 		break;
 	}
 	_headerSection 	+= "Content-Length: " + std::to_string(_body.length()) + CRLF;
@@ -93,20 +107,13 @@ std::string const	&Response::getContent()
 }
 
 /**
- * NOTE:	The const pointer return type is a compromise, because std::optional
- *			doesn't support references. Of course it would be possible to create
- *			a new vector, but that would create duplicates in memory. The current
- *			way does also create the issue of a possible use after destroy though
- *			if the pointer stays in scope for longer than the underlying object.
  */
-std::optional<std::vector<std::string> const *>	Response::getHeader(std::string const &key)
+std::vector<std::string> const *	Response::getHeader(std::string const &key)
 {
 	try {
-		auto	value = _headers.at(key);
-
-		return &value;
+		return &_headers.at(key);
 	} catch (std::exception const &e) {
-		return std::nullopt;
+		return nullptr;
 	}
 }
 

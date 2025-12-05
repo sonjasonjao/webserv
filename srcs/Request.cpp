@@ -429,14 +429,23 @@ RequestMethod	Request::getRequestMethod() const {
 	return _request.method;
 }
 
-std::string const	&Request::getBody() const {
-	return _body;
-}
-
 std::string const	&Request::getHttpVersion() const {
 	return _request.httpVersion;
 }
 
+std::string const	&Request::getBody() const {
+	return _body;
+}
+
 std::string const	&Request::getTarget() const {
 	return _request.target;
+}
+
+std::vector<std::string> const *	Request::getHeader(std::string const &key) const
+{
+	try {
+		return &_headers.at(key);
+	} catch (std::exception const &e) {
+		return nullptr;
+	}
 }
