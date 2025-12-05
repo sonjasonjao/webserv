@@ -173,15 +173,12 @@ void	Server::handleNewClient(int listener)
 	{
 		close(clientFd);
 		closePfds();
-		ERROR_LOG("fcntl: " + std::string(strerror(errno)));
-		throw std::runtime_error("fcntl: " + std::string(strerror(errno)));
+		throw std::runtime_error(ERROR_LOG("fcntl: " + std::string(strerror(errno))));
 	}
 	_pfds.push_back({ clientFd, POLLIN, 0 });
 	Request	req(clientFd);
 	_clients.push_back(req);
 	INFO_LOG("Server accepted a new connection with " + std::to_string(clientFd));
-
-	Response	rep(req);
 }
 
 /**
@@ -241,6 +238,7 @@ void	Server::handleClientData(size_t& i)
 				ERROR_LOG("Invalid HTTP request");
 				return ;
 			}
+			Response	res(*it);
 			if (!(*it).getKeepAlive()) {
 				close(_pfds[i].fd);
 				if (_pfds.size() > (i + 1)) {

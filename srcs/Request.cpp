@@ -63,24 +63,28 @@ void	Request::parseHeaders(std::string& str) {
 	std::string	line;
 	while (!str.empty()) {
 		line = splitReqLine(str, "\r\n");
-		const size_t point = line.find_first_of(":");
-		if (point != std::string::npos) {
-			std::string	key = line.substr(0, point);
-			for (size_t i = 0; i < key.size(); i++)
-				key[i] = std::tolower((unsigned char)key[i]);
-			std::string value = line.substr(point + 2, line.size() - (point + 2));
-			if (value.find(",") == std::string::npos)
-				_headers[key].push_back(value);
-			else {
-				std::istringstream	values(value);
-				std::string	oneValue;
-				while (getline(values, oneValue, ',')) {
-					_headers[key].push_back(oneValue);
-				}
-			}
+
+		const size_t	point = line.find_first_of(":");
+
+		if (point == std::string::npos)
+			break;
+
+		std::string	key = line.substr(0, point);
+
+		for (size_t i = 0; i < key.size(); i++)
+			key[i] = std::tolower((unsigned char)key[i]);
+
+		std::string	value = line.substr(point + 2, line.size() - (point + 2));
+
+		if (value.find(",") == std::string::npos)
+			_headers[key].push_back(value);
+		else {
+			std::istringstream	values(value);
+			std::string			oneValue;
+
+			while (getline(values, oneValue, ','))
+				_headers[key].push_back(oneValue);
 		}
-		else
-			break ;
 	}
 	if (_headers.empty()) {
 		_isValid = false;
@@ -331,14 +335,23 @@ RequestMethod	Request::getRequestMethod() const {
 	return _request.method;
 }
 
-std::string const	&Request::getBody() const {
-	return _body;
-}
-
 std::string const	&Request::getHttpVersion() const {
 	return _request.httpVersion;
 }
 
+std::string const	&Request::getBody() const {
+	return _body;
+}
+
 std::string const	&Request::getTarget() const {
 	return _request.target;
+}
+
+std::vector<std::string> const *	Request::getHeader(std::string const &key) const
+{
+	try {
+		return &_headers.at(key);
+	} catch (std::exception const &e) {
+		return nullptr;
+	}
 }

@@ -60,9 +60,9 @@ class Request
 		bool				getIsValid(void) const;
 		bool				getIsMissingData(void) const;
 
-		RequestMethod		getRequestMethod(void) const;
-		std::string const	&getHttpVersion(void) const;
-		std::string const	&getBody(void) const;
-		std::string const	&getTarget(void) const;
-		std::optional<std::vector<std::string> const *>	getHeader(std::string const &key) const;
+		RequestMethod						getRequestMethod(void) const;
+		std::string const					&getHttpVersion(void) const;
+		std::string const					&getBody(void) const;
+		std::string const					&getTarget(void) const;
+		std::vector<std::string> const *	getHeader(std::string const &key) const;
 };

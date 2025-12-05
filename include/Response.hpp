@@ -2,7 +2,6 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
-#include <optional>
 #include "Request.hpp"
 
 enum ResponseCode : int {
@@ -21,9 +20,9 @@ public:
 	Response(Response const &other);
 	~Response() = default;
 
-	std::string const								&getContent();
-	std::optional<std::vector<std::string> const *>	getHeader(std::string const &key);
-	RequestMethod									getRequestMethod();
+	std::string const				&getContent();
+	std::vector<std::string> const	*getHeader(std::string const &key);
+	RequestMethod					getRequestMethod();
 
 private:
 
@@ -35,5 +34,5 @@ private:
 	std::string		_headerSection;
 	std::string		_body;
 	std::string		_content;
-	ResponseCode	_code = Unassigned;
+	ResponseCode	_statusCode = Unassigned;
 };

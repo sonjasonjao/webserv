@@ -13,4 +13,4 @@ bool						resourceExists(std::string_view uri, std::string searchDir = "");
 bool						uriFormatOk(std::string_view uri);
 bool						uriTargetAboveRoot(std::string_view uri);
 
-std::string					getFileAsString(std::string const &fileName);
+std::string					getFileAsString(std::string const &fileName, std::string searchDir = "");
