@@ -1,5 +1,9 @@
 #include "../include/Request.hpp"
 
+/**
+ * Probably more intuitive to initialize _isValid to false and _isMissingData to true.
+ * Will need to make the whole logic support this.
+ */
 Request::Request(int fd) : _fd(fd), _keepAlive(false), _chunked(false), _isValid(true),
 	_isMissingData(false) {
 	_request.method = RequestMethod::Unknown;
@@ -16,12 +20,12 @@ Request::Request(int fd) : _fd(fd), _keepAlive(false), _chunked(false), _isValid
  * header is already completely received (= only possible body missing).
  */
 void	Request::saveDataRequest(std::string buf) {
-	size_t	end = buf.find("\r\n\r\n");
-	if (end == std::string::npos && _request.method == RequestMethod::Unknown)
+	_buffer += buf;
+	if (_buffer.find("\r\n\r\n") == std::string::npos)
 		_isMissingData = true;
 	else
 		_isMissingData = false;
-	_buffer += buf;
+	parseRequest();
 }
 
 /**
@@ -43,52 +47,13 @@ std::string	splitReqLine(std::string& orig, std::string delim)
 	return tmp;
 }
 
-/**
- * Accepts as headers every line with ':' and stores each header as key and value to
- * an unordered map.
- *
- * Now requires only Host header as mandatory (requirement for HTTP/1.1). Need to check
- * if we must require others. HTTP/1.0 does not require host either?
- *
- * Which headers do we actually use? Right now, it splits header values by comma, but
- * some of them actually are separated e.g. by semicolon. Do we have to differentiate
- * these, or do we just have special handling for those we need to use (if any?)?
- */
-void	Request::parseHeaders(std::string& str) {
-	std::string	line;
-	while (!str.empty()) {
-		line = splitReqLine(str, "\r\n");
-		const size_t point = line.find_first_of(":");
-		if (point != std::string::npos) {
-			std::string	key = line.substr(0, point);
-			for (size_t i = 0; i < key.size(); i++)
-				key[i] = std::tolower((unsigned char)key[i]);
-			std::string value = line.substr(point + 2, line.size() - (point + 2));
-			if (value.find(",") == std::string::npos)
-				_headers[key].push_back(value);
-			else {
-				std::istringstream	values(value);
-				std::string	oneValue;
-				while (getline(values, oneValue, ',')) {
-					_headers[key].push_back(oneValue);
-				}
-			}
-		}
-		else
-			break ;
-	}
-	if (_headers.empty()) {
-		_isValid = false;
-		return ;
-	}
+bool	Request::validateHeaders(void) {
 	auto	it = _headers.find("host");
 	if (it == _headers.end() || it->second.empty())
-		_isValid = false;
+		return false;
 	for (auto const& [key, values] : _headers) {
-		if (values.size() > 1 && isUniqueHeader(key)) {
-			_isValid = false;
-			return ;
-		}
+		if (values.size() > 1 && isUniqueHeader(key))
+			return false;
 	}
 	it = _headers.find("connection");
 	if (it != _headers.end()) {
@@ -105,6 +70,55 @@ void	Request::parseHeaders(std::string& str) {
 	it = _headers.find("transfer-encoding");
 	if (it != _headers.end() && it->second.front() == "chunked")
 		_chunked = true;
+	return true;
+}
+
+bool	isNeededHeader(std::string& key)
+{
+	if (key == "host" || key == "content-length" || key == "content-type" || key == "connection"
+		|| key == "transfer-encoding")
+		return true;
+	return false;
+}
+
+/**
+ * Accepts as headers every line with ':' and stores each header as key and value to
+ * an unordered map.
+ *
+ * Now requires only Host header as mandatory (requirement for HTTP/1.1). Need to check
+ * if we must require others. HTTP/1.0 does not require host either?
+ *
+ * Which headers do we actually use? Right now, it splits header values by comma, but
+ * some of them actually are separated e.g. by semicolon. Do we have to differentiate
+ * these, or do we just have special handling for those we need to use (if any?)?
+ */
+void	Request::parseHeaders(std::string& str) {
+	std::string	line;
+	while (!str.empty()) {
+		line = splitReqLine(str, "\r\n");
+		const size_t point = line.find_first_of(":");
+		if (point == std::string::npos)
+			break ;
+		std::string	key = line.substr(0, point);
+		for (size_t i = 0; i < key.size(); i++)
+			key[i] = std::tolower((unsigned char)key[i]);
+		std::string value = line.substr(point + 2, line.size() - (point + 2));
+		if (isNeededHeader(key)) {
+			if (value.find(",") == std::string::npos)
+				_headers[key].push_back(value);
+			else {
+				std::istringstream	values(value);
+				std::string	oneValue;
+				while (getline(values, oneValue, ',')) {
+					_headers[key].push_back(oneValue);
+				}
+			}
+		}
+	}
+	if (_headers.empty() || !validateHeaders()) {
+		_isValid = false;
+		return ;
+	}
 }
 
 /**
@@ -127,7 +141,14 @@ void	Request::parseRequest(void) {
 		return ;
 	if (!_buffer.empty() && ((_contentLen.has_value() && _body.size() < _contentLen.value())
 		|| _chunked)) {
-		_body += _buffer;
+		size_t	missingLen = _contentLen.value() - _body.size();
+		if (missingLen < _buffer.size()) {
+			std::string	toAdd = _buffer.substr(0, missingLen);
+			_body += toAdd;
+			_buffer = _buffer.substr(missingLen + 1);
+		}
+		else
+			_body += _buffer;
 	}
 	if (_contentLen.has_value() && _body.size() < _contentLen.value())
 		_isMissingData = true;
@@ -214,7 +235,7 @@ bool	Request::isUniqueHeader(std::string const& key) {
 bool	Request::areValidChars(std::string& s) {
 	for (size_t i = 0; i < s.size(); i++)
 	{
-		if (s[i] < 32 || s[i] == 127 || s[i] == '<' || s[i] == '>'
+		if (s[i] < 32 || s[i] >= 127 || s[i] == '<' || s[i] == '>'
 			|| s[i] == '"' || s[i] == '\\')
 			return false ;
 	}
@@ -260,7 +281,6 @@ bool	Request::isHttpValid(std::string& httpVersion) {
 	_request.httpVersion = httpVersion;
 	return true ;
 }
-
 
 /**
  * Prints parsed data just for debugging for now.
@@ -321,5 +341,3 @@ bool	Request::getIsValid(void) const {
 bool	Request::getIsMissingData(void) const {
 	return _isMissingData;
 }
-
-Request::~Request(void) {}

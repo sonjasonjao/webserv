@@ -52,12 +52,13 @@ class Request
 	public:
 		Request() = delete;
 		Request(int fd);
-		~Request();
+		~Request() = default;
 
 		void			saveDataRequest(std::string buf);
 		void			parseRequest(void);
 		void			parseRequestLine(std::istringstream& req);
 		void			parseHeaders(std::string& str);
+		bool			validateHeaders(void);
 		void			printData(void) const;
 		bool			isUniqueHeader(std::string const& key);
 		bool			isTargetValid(std::string& target);
