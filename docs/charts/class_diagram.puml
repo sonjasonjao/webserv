@@ -1,0 +1,55 @@
+@startuml
+title Class Diagram for Webserv project
+
+class CustomException {
+    -std::string            _error_message
+
+    +const char* what() const noexcept
+}
+
+class Log {
+    -static std::ofstream   _ofs;
+
+    -static void logTime(std::ostream *outputStream);
+	-static std::string logMessage(LogType type,std::string_view message,std::string_view file,std::string_view function,int line);
+
+    +static std::string error(std::string_view file, std::string_view function,int line, std::string_view message);
+	+static std::string info(std::string_view message);
+	+static std::string debug(std::string_view file, std::string_view function,int line, std::string_view message);
+	+static void setOutputFile(std::string_view outputFileName);
+}
+
+class Parser {
+    -std::string const       _file_name;
+    -std::ifstream           _file;
+    -std::vector<Config>     _server_configs;
+
+    +void tokenizeFile(void)
+    +const Config& getServerConfig(size_t index)
+    +size_t getNumberOfServerConfigs(void)
+    +Config convertToServerData(const Token& server)
+}
+
+class Server{
+    -std::vector<Config>				_configs
+	-std::vector<pollfd>				_pfds
+	-std::unordered_map<int, Config>	_serverFds
+
+    +std::vector<Config> const&	getConfigs() const
+    +void createServerSockets(void)
+	+int  getServerSocket(Config conf)
+	+void run(void)
+	+void handleNewClient(int listener)
+	+void handleClientData(size_t& i)
+	+void handleConnections(void)
+	+void closePfds(void)
+}
+
+class ParserException <<struct>> {
+    +ParserException(const std::string& str)
+}
+
+CustomException <|-- ParserException
+Parser +-- ParserException
+
+@enduml
