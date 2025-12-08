@@ -41,6 +41,7 @@ void	Request::reset(void) {
 	_body.clear();
 	_contentLen.reset();
 	_isMissingData = false;
+	_chunked = false;
 }
 
 /**
@@ -118,6 +119,8 @@ void	Request::parseHeaders(std::string& str) {
 		for (size_t i = 0; i < key.size(); i++)
 			key[i] = std::tolower((unsigned char)key[i]);
 		std::string value = line.substr(point + 2, line.size() - (point + 2));
+		for (size_t i = 0; i < value.size(); i++)
+			value[i] = std::tolower((unsigned char)value[i]);
 		if (isNeededHeader(key)) {
 			if (value.find(",") == std::string::npos)
 				_headers[key].push_back(value);
@@ -154,8 +157,7 @@ void	Request::parseRequest(void) {
 		parseHeaders(_buffer);
 	if (!_isValid)
 		return ;
-	if (!_buffer.empty() && ((_contentLen.has_value() && _body.size() < _contentLen.value())
-		|| _chunked)) {
+	if (!_buffer.empty() && (_contentLen.has_value() && _body.size() < _contentLen.value())) {
 		size_t	missingLen = _contentLen.value() - _body.size();
 		if (missingLen < _buffer.size()) {
 			std::string	toAdd = _buffer.substr(0, missingLen);
@@ -166,11 +168,24 @@ void	Request::parseRequest(void) {
 			_body += _buffer;
 			_buffer.clear();
 		}
+		if (_contentLen.has_value() && _body.size() < _contentLen.value())
+			_isMissingData = true;
+		if (_contentLen.has_value() && _body.size() == _contentLen.value())
+			_isMissingData = false;
 	}
-	if (_contentLen.has_value() && _body.size() < _contentLen.value())
-		_isMissingData = true;
-	if (_contentLen.has_value() && _body.size() == _contentLen.value())
-		_isMissingData = false;
+	else if (_chunked) {
+		auto pos = _buffer.find("0\r\n\r\n");
+		if (pos != std::string::npos) {
+			_body += _buffer.substr(0, pos + 4);
+			_buffer = _buffer.substr(pos + 4);
+			_isMissingData = false;
+		}
+		else {
+			_body += _buffer;
+			_buffer.clear();
+			_isMissingData = true;
+		}
+	}
 	printData();
 }
 
@@ -328,6 +343,8 @@ void	Request::printData(void) const {
 		std::cout << "----Body:----\n" << _body << '\n';
 	std::cout << "----Keep alive?---- " << _keepAlive << '\n';
 	std::cout << "----Missing data?---- " << _isMissingData << '\n';
+	std::cout << "----Chunked?---- " << _chunked << '\n';
+	std::cout << "----Valid?----" << _isValid << '\n';
 }
 
 std::string	Request::getHost(void) {
