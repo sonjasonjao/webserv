@@ -54,7 +54,8 @@ class Request
 		Request(int fd);
 		~Request() = default;
 
-		void			saveDataRequest(std::string buf);
+		void			saveRequest(std::string buf);
+		void			handleRequest(void);
 		void			parseRequest(void);
 		void			parseRequestLine(std::istringstream& req);
 		void			parseHeaders(std::string& str);
@@ -69,4 +70,6 @@ class Request
 		bool			getKeepAlive(void) const;
 		bool			getIsValid(void) const;
 		bool			getIsMissingData(void) const;
+		bool			isBufferEmpty(void);
+		void			reset(void);
 };

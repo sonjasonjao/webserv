@@ -242,17 +242,20 @@ void	Server::handleClientData(size_t& i)
 			}
 			if (it ==_clients.end())
 				ERROR_LOG("Unexpected error in finding client fd"); //bad messaging
-			(*it).saveDataRequest(std::string(buf));
-			if ((*it).getIsMissingData()) {
-				INFO_LOG("Waiting for more data to complete partial request");
-				return ;
+			(*it).saveRequest(std::string(buf));
+			while (!(*it).isBufferEmpty()) {
+				(*it).handleRequest();
+				if ((*it).getIsMissingData()) {
+					INFO_LOG("Waiting for more data to complete partial request");
+					return ;
+				}
+				if (!(*it).getIsValid()) {
+					ERROR_LOG("Invalid HTTP request");
+					return ;
+				}
+				(*it).reset();
+				//build and send response
 			}
-			if (!(*it).getIsValid()) {
-				ERROR_LOG("Invalid HTTP request");
-				return ;
-			}
-			//build and send response
-			//check if there's something in the buffer - set isMissingData back on?
 			if (!(*it).getKeepAlive()) {
 				close(_pfds[i].fd);
 				if (_pfds.size() > (i + 1)) {

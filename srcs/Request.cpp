@@ -19,13 +19,28 @@ Request::Request(int fd) : _fd(fd), _keepAlive(false), _chunked(false), _isValid
  * in general if request does not end with \r\n. Might need to add a flag for whether
  * header is already completely received (= only possible body missing).
  */
-void	Request::saveDataRequest(std::string buf) {
+void	Request::saveRequest(std::string buf) {
 	_buffer += buf;
+}
+
+void	Request::handleRequest(void) {
 	if (_buffer.find("\r\n\r\n") == std::string::npos)
 		_isMissingData = true;
-	else
+	else {
 		_isMissingData = false;
-	parseRequest();
+		parseRequest();
+	}
+}
+
+void	Request::reset(void) {
+	_request.target.clear();
+	_request.method = RequestMethod::Unknown;
+	_request.httpVersion.clear();
+	_request.query.reset();
+	_headers.clear();
+	_body.clear();
+	_contentLen.reset();
+	_isMissingData = false;
 }
 
 /**
@@ -145,10 +160,12 @@ void	Request::parseRequest(void) {
 		if (missingLen < _buffer.size()) {
 			std::string	toAdd = _buffer.substr(0, missingLen);
 			_body += toAdd;
-			_buffer = _buffer.substr(missingLen + 1);
+			_buffer = _buffer.substr(missingLen);
 		}
-		else
+		else {
 			_body += _buffer;
+			_buffer.clear();
+		}
 	}
 	if (_contentLen.has_value() && _body.size() < _contentLen.value())
 		_isMissingData = true;
@@ -340,4 +357,10 @@ bool	Request::getIsValid(void) const {
 
 bool	Request::getIsMissingData(void) const {
 	return _isMissingData;
+}
+
+bool	Request::isBufferEmpty(void) {
+	if (_buffer.empty())
+		return true;
+	return false;
 }
