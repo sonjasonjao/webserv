@@ -45,13 +45,17 @@ int main(int argc, char **argv)
 		break ;
 	}
 	freeaddrinfo(res);
-	char msg[76] =
-	"GET / HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-encoding: Chunked\r\n\r\n9This is b\r\n";
-	char msg2[6] =
-	"0\r\n\r\n";
+	char msg[78] =
+	"GET / HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-encoding: Chunked\r\n\r\n9\r\nThis is b\r\n";
+	char msg2[27] =
+	"10\r\nThis is another\r\n0\r\n\r\n";
+	// char msg3[6] =
+	// ";
 	send(sockfd, msg, sizeof(msg), 0);
 	usleep(1000);
 	send(sockfd, msg2, sizeof(msg2), 0);
+	// usleep(1000);
+	// send(sockfd, msg3, sizeof(msg3), 0);
 	close(sockfd);
 
 	return 0;

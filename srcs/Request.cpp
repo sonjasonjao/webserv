@@ -24,7 +24,7 @@ void	Request::saveRequest(std::string buf) {
 }
 
 void	Request::handleRequest(void) {
-	if (_buffer.find("\r\n\r\n") == std::string::npos)
+	if (_buffer.find("\r\n\r\n") == std::string::npos && _headers.empty())
 		_isMissingData = true;
 	else {
 		_isMissingData = false;
@@ -50,13 +50,13 @@ void	Request::reset(void) {
  */
 std::string	splitReqLine(std::string& orig, std::string delim)
 {
-	auto it = orig.find_first_of(delim);
+	auto it = orig.find(delim);
 	std::string tmp;
 	if (it != std::string::npos)
 	{
 		tmp = orig.substr(0, it);
-		if (orig.size() > it + 2)
-			orig = orig.substr(it + 2);
+		if (orig.size() > it + delim.size())
+			orig = orig.substr(it + delim.size());
 		else
 			orig.erase();
 	}
@@ -176,14 +176,21 @@ void	Request::parseRequest(void) {
 	else if (_chunked) {
 		auto pos = _buffer.find("0\r\n\r\n");
 		if (pos != std::string::npos) {
-			_body += _buffer.substr(0, pos + 4);
-			_buffer = _buffer.substr(pos + 4);
+			_body += splitReqLine(_buffer, "0\r\n\r\n");
+			// _body += _buffer.substr(0, pos);
+			// _buffer = _buffer.substr(pos + 4);
 			_isMissingData = false;
 		}
 		else {
-			_body += _buffer;
-			_buffer.clear();
-			_isMissingData = true;
+			auto pos = _buffer.find("\r\n");
+			while (pos != std::string::npos) {
+				size_t	len = std::stoi(_buffer.substr(0, pos), 0, 16);
+				std::cout << "len is " << len << '\n';
+				_buffer = _buffer.substr(pos + 2);
+				_body += splitReqLine(_buffer, "\r\n");
+				_isMissingData = true;
+				pos = _buffer.find("\r\n");
+			}
 		}
 	}
 	printData();
