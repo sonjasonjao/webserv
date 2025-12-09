@@ -14,3 +14,4 @@ bool						uriFormatOk(std::string_view uri);
 bool						uriTargetAboveRoot(std::string_view uri);
 
 std::string					getFileAsString(std::string const &fileName, std::string searchDir = "");
+std::string					getAbsPath(std::string const &fileName, std::string searchDir = "");

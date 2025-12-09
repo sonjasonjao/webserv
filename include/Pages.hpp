@@ -8,6 +8,7 @@
 class Pages {
 
 public:
+	static bool					isCached(std::string const &key);
 	static std::string const	&getPageContent(std::string const &key);
 	static void					clearCache();
 	static void					loadDefaults();		// NOTE: Would be nice if this function would know the config parser's context

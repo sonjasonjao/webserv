@@ -1,23 +1,17 @@
 #include "Response.hpp"
 #include "Log.hpp"
 #include "Utils.hpp"
+#include "Pages.hpp"
 #include <string>
 #include <vector>
 #include <iostream>
 #include <filesystem>
 
-std::string	getImfFixdate();
-
 constexpr char const * const	CRLF = "\r\n";
 
 Response::Response(Request const &req) : _req(req)
 {
-	_startLine = req.getHttpVersion();
-
-	_headerSection	 = std::string("Server: ") + req.getHost() + CRLF;
-	_headerSection	+= "Date: " + getImfFixdate() + CRLF;
-
-	_body = "<!DOCTYPE html><html><head></head><body>Placeholder page</body></html>";
+	static std::string	currentDir = std::filesystem::current_path();
 
 	if (!req.getIsValid()) {
 		// Why isn't it valid? -> Find out!
@@ -25,7 +19,8 @@ Response::Response(Request const &req) : _req(req)
 		// Assume bad request for now?
 		_startLine	+= " 400 Bad Request";
 		_statusCode	 = BadRequest;
-		_body		 = "";
+		_body		 = Pages::getPageContent("default400");
+		return;
 	}
 
 	// Validate request
@@ -38,12 +33,12 @@ Response::Response(Request const &req) : _req(req)
 	//			from file or from memory?
 	//			What if the content is huge? Chunking time?
 
-	std::string	target = req.getTarget();
+	_target = req.getTarget();
 
-	if (std::filesystem::is_directory(target)) {
-		if (target.back() == '/')
-			target.pop_back();
-		target = target + "/" + "index.html";	// NOTE: this could be toggled by an option in the config
+	if (std::filesystem::is_directory(_target)) {
+		if (_target.back() == '/')
+			_target.pop_back();
+		_target = _target + "/" + "index.html";	// NOTE: this could be toggled by an option in the config
 	}
 
 	// NOTE:	Replace all current body functionality with content getter functions
@@ -51,64 +46,53 @@ Response::Response(Request const &req) : _req(req)
 
 	switch (req.getRequestMethod()) {
 		case RequestMethod::Get:
-			if (!resourceExists(target)) {
-				INFO_LOG("Resource " + target + " could not be found");
-				_startLine	+= " 404 Not Found";
-				_statusCode	 = NotFound;
-				_headerSection 	+= std::string("Content-Type: text/html") + CRLF;
-				_body		 = "<!DOCTYPE html><html><head></head><body>404: resource not found</body></html>";
+			if (!Pages::isCached(getAbsPath(_target)) && !resourceExists(_target, currentDir)) {
+				INFO_LOG("Resource " + _target + " could not be found");
+				_statusCode = NotFound;
 				break;
 			}
-			_startLine		+= " 200 OK";
-			_statusCode		 = OK;
-			_headerSection 	+= std::string("Content-Type: text/html") + CRLF;
-			_body			 = getFileAsString(target);
+			INFO_LOG("Resource " + _target + " found");
+			_statusCode = OK;
 		break;
 		case RequestMethod::Post:
-			_startLine		+= " 200 OK";
-			_statusCode		 = OK;
-			_headerSection 	+= std::string("Content-Type: text/html") + CRLF;
-			_body			 = "<!DOCTYPE html><html><head></head><body>200: POST OK page</body></html>";
+			INFO_LOG("Responding to POST request with target " + _target);
+			_statusCode = OK;
 		break;
 		case RequestMethod::Delete:
-			if (!resourceExists(target)) {
-				INFO_LOG("Response: Resource " + target + " could not be found");
-				_startLine	+= " 404 Not Found";
-				_statusCode	 = NotFound;
-				_headerSection 	+= std::string("Content-Type: text/html") + CRLF;
-				_body		 = "<!DOCTYPE html><html><head></head><body>404: resource not found</body></html>";
+			if (!resourceExists(_target, currentDir)) {
+				INFO_LOG("Response: Resource " + _target + " could not be found");
+				_statusCode		 = NotFound;
 				break;
 			}
-			_startLine		+= "204 No Content";
+			INFO_LOG("Resource " + _target + " deleted (not really but in the future)");
 			_statusCode		 = NoContent;
-			_headerSection 	+= std::string("Content-Type: text/html") + CRLF;
-			_body			 = "<!DOCTYPE html><html><head></head><body>204: no content</body></html>";
 		break;
 		default:
 			INFO_LOG("Bad request");
-			_startLine	= " 400 Bad Request";
-			_statusCode	= BadRequest;
-			_headerSection 	+= std::string("Content-Type: text/html") + CRLF;
-			_body		 = "<!DOCTYPE html><html><head></head><body>400: bad request</body></html>";
+			_statusCode		 = BadRequest;
 		break;
 	}
-	_headerSection 	+= "Content-Length: " + std::to_string(_body.length()) + CRLF;
 
-	_content = _startLine + CRLF + _headerSection + CRLF + _body + CRLF;
+	formResponse();
 
 	std::cout << "\nResponse content:\n" << _content << "\n";
 }
 
 Response::Response(Response const &other) : _req(other._req) {}
 
-std::string const	&Response::getContent()
+std::string const	&Response::getContent() const
 {
 	return _content;
 }
 
+std::string const	&Response::getStartLine() const
+{
+	return _startLine;
+}
+
 /**
  */
-std::vector<std::string> const *	Response::getHeader(std::string const &key)
+std::vector<std::string> const	*Response::getHeader(std::string const &key) const
 {
 	try {
 		return &_headers.at(key);
@@ -117,7 +101,45 @@ std::vector<std::string> const *	Response::getHeader(std::string const &key)
 	}
 }
 
-RequestMethod	Response::getRequestMethod()
+RequestMethod	Response::getRequestMethod() const
 {
 	return _req.getRequestMethod();
+}
+
+void	Response::formResponse()
+{
+	_headerSection =	std::string("Server: ") + _req.getHost() + CRLF;
+	_headerSection +=	"Date: " + getImfFixdate() + CRLF;
+	_headerSection +=	"Content-Type: text/html" + std::string(CRLF);
+
+	_body = "<!DOCTYPE html><html><head></head><body>Placeholder page</body></html>";
+
+	switch (_statusCode) {
+		case 200:
+			_startLine	= _req.getHttpVersion() + " 200 OK";
+			if (!_target.empty())
+				_body	= Pages::getPageContent(getAbsPath(_target));
+			else
+				_body	= Pages::getPageContent("default200");
+		break;
+		case 204:
+			_startLine	= _req.getHttpVersion() + " 204 No Content";
+			_body		= Pages::getPageContent("default204");
+		break;
+		case 400:
+			_startLine	= _req.getHttpVersion() + " 400 Bad Request";
+			_body		= Pages::getPageContent("default400");
+		break;
+		case 404:
+			_startLine	= _req.getHttpVersion() + " 404 Not Found";
+			_body		= Pages::getPageContent("default404");
+		break;
+		default:
+			_startLine = _req.getHttpVersion() + " 400 Bad Request";
+			_body		= Pages::getPageContent("default400");
+	}
+
+	_headerSection += "Content-Length: " + std::to_string(_body.length()) + CRLF;
+
+	_content = _startLine + CRLF + _headerSection + CRLF + _body;
 }
