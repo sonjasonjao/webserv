@@ -17,6 +17,7 @@ SRC	:=	$(SRC_DIR)/main.cpp				\
 		$(SRC_DIR)/JSON.cpp				\
 		$(SRC_DIR)/Request.cpp			\
 		$(SRC_DIR)/Response.cpp			\
+		$(SRC_DIR)/Pages.cpp			\
 		$(SRC_DIR)/Utils.cpp
 
 OBJ	:=	$(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRC))

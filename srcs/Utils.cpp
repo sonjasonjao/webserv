@@ -117,11 +117,13 @@ bool	isValidIPv4(std::string_view sv)
  */
 bool	resourceExists(std::string_view uri, std::string searchDir)
 {
+	static std::string const	currentDir = std::filesystem::current_path();
+
 	if (uri.empty())
 		return false;
 
 	if (searchDir.empty())
-		searchDir = std::filesystem::current_path();
+		searchDir = currentDir;
 
 	std::string	path{uri};
 
@@ -188,8 +190,10 @@ bool	uriTargetAboveRoot(std::string_view uri)
 
 std::string	getFileAsString(std::string const &fileName, std::string searchDir)
 {
+	static std::string const	currentDir = std::filesystem::current_path();
+
 	if (searchDir.empty())
-		searchDir = std::filesystem::current_path();
+		searchDir = currentDir;
 	if (searchDir.back() == '/')
 		searchDir.pop_back();
 
@@ -202,6 +206,18 @@ std::string	getFileAsString(std::string const &fileName, std::string searchDir)
 
 	buf << fileStream.rdbuf();
 	return buf.str();
+}
+
+std::string	getAbsPath(std::string const &fileName, std::string searchDir)
+{
+	static std::string const	currentDir = std::filesystem::current_path();
+
+	if (searchDir.empty())
+		searchDir = currentDir;
+	if (searchDir.back() == '/')
+		searchDir.pop_back();
+
+	return searchDir + "/" + fileName;
 }
 
 //#define TEST

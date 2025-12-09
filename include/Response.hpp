@@ -20,16 +20,20 @@ public:
 	Response(Response const &other);
 	~Response() = default;
 
-	std::string const				&getContent();
-	std::vector<std::string> const	*getHeader(std::string const &key);
-	RequestMethod					getRequestMethod();
+	std::string const				&getContent() const;
+	std::string const				&getStartLine() const;
+	std::vector<std::string> const	*getHeader(std::string const &key) const;
+	RequestMethod					getRequestMethod() const;
 
 private:
 
 	using strVecMap	= std::unordered_map<std::string, std::vector<std::string> >;
 
+	void	formResponse();
+
 	Request const	&_req;
 	strVecMap		_headers;
+	std::string		_target;
 	std::string		_startLine;
 	std::string		_headerSection;
 	std::string		_body;

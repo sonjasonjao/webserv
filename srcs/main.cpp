@@ -1,4 +1,5 @@
 #include "../include/Server.hpp"
+#include "Pages.hpp"
 
 /**
  * Main loop: instantiating Parser to parse config file, then creating Server object
@@ -21,6 +22,7 @@ int	main(int argc, char **argv)
 		std::cout << "Host Name	: " << config.host_name << "\n";
 		std::cout << "Listen	: " << config.ports.at(0) << "\n";
 		Server	server(parser);
+		Pages::loadDefaults();
 		server.run();
 	}
 	catch(const std::exception& e) {
