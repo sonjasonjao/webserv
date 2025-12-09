@@ -60,6 +60,7 @@ class Request
 		void			parseRequestLine(std::istringstream& req);
 		void			parseHeaders(std::string& str);
 		bool			validateHeaders(void);
+		void			parseChunked(void);
 		void			printData(void) const;
 		bool			isUniqueHeader(std::string const& key);
 		bool			isTargetValid(std::string& target);

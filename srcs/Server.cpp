@@ -14,7 +14,8 @@
 /**
  * At construction, _configs will be fetched from parser.
  *
- * For now, we manually fetch the three configs that test.json has.
+ * For now, we manually fetch the three configs that test.json/servergrups.json has, and move on
+ * to group the configs.
  */
 Server::Server(Parser& parser)
 {
@@ -51,6 +52,10 @@ bool	Server::findGroupMember(Config& conf)
 	return false;
 }
 
+/**
+ * Groups configs so that all configs in one group have the same IP and the same port.
+ * Each listenergroup will then have one server (listener) socket.
+ */
 void	Server::groupConfigs(void)
 {
 	for (auto it = _configs.begin(); it != _configs.end(); it++)
@@ -203,12 +208,8 @@ void	Server::handleNewClient(int listener)
  * Receives data from the client that poll() has recognized ready. Message (= request)
  * will be parsed and response formed.
  *
- * Still missing construction and sending of response, and then erasing the request?
- * Do we "empty" the request object of the client in case of keep-alive, or just
- * erase it altogether?
- *
- * The logic here is far from optimal and done, will get back to this. Need to solve
- * how to check partial request in all possible cases.
+ * Probably will need to differentiate _isValid and _kickClient, so if e.g. a chunked request
+ * has hex size that does not match the actual size, the client must be disconnected altogether.
  */
 void	Server::handleClientData(size_t& i)
 {
@@ -269,10 +270,9 @@ void	Server::handleClientData(size_t& i)
 
 /**
  * Loops through _pfds, finding which fd triggered poll, and whether it's new client or
- * incoming request.
- *
- * (Could POLLIN and POLLHUP(closed connection) be already distinguished here? / Need
- * to understand better which flags are needed)
+ * incoming request. If the fd that had a new event is one of the server fds, it's a new client
+ * wanting to connect to that server. If it's not a server fd, it is an existing client that has
+ * sent data.
  */
 void	Server::handleConnections(void)
 {
