@@ -47,6 +47,7 @@ class Request
 		bool					_keepAlive;
 		bool					_chunked;
 		bool					_isValid;
+		bool					_kickMe;
 		bool					_isMissingData;
 
 	public:
@@ -71,6 +72,7 @@ class Request
 		bool			getKeepAlive(void) const;
 		bool			getIsValid(void) const;
 		bool			getIsMissingData(void) const;
+		bool			getKickMe(void) const;
 		bool			isBufferEmpty(void);
 		void			reset(void);
 };

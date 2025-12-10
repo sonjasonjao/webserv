@@ -226,7 +226,12 @@ void	Server::handleClientData(size_t& i)
 		close(_pfds[i].fd);
 		if (_pfds.size() > (i + 1)) {
 			_pfds[i] = _pfds[_pfds.size() - 1];
+			_pfds.pop_back(); //Does this logic work in general at all?
 			i--;
+		}
+		else {
+			_pfds.pop_back();
+			i--; //OR NO??
 		}
 	}
 	else
@@ -246,6 +251,8 @@ void	Server::handleClientData(size_t& i)
 			(*it).saveRequest(std::string(buf));
 			while (!(*it).isBufferEmpty()) {
 				(*it).handleRequest();
+				if ((*it).getKickMe())
+					break ;
 				if ((*it).getIsMissingData()) {
 					INFO_LOG("Waiting for more data to complete partial request");
 					return ;
@@ -254,14 +261,21 @@ void	Server::handleClientData(size_t& i)
 					ERROR_LOG("Invalid HTTP request");
 					return ;
 				}
-				(*it).reset();
 				//build and send response
+				(*it).reset();
 			}
 			if (!(*it).getKeepAlive()) {
+				INFO_LOG("Closing fd " + std::to_string(_pfds[i].fd));
+				_clients.erase(it);
 				close(_pfds[i].fd);
 				if (_pfds.size() > (i + 1)) {
 					_pfds[i] = _pfds[_pfds.size() - 1];
+					_pfds.pop_back(); //Does this logic work in general at all?
 					i--;
+				}
+				else {
+					_pfds.pop_back();
+					i--; //OR NO??
 				}
 			}
 		}

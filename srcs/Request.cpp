@@ -1,11 +1,13 @@
 #include "../include/Request.hpp"
 
+constexpr char const * const	CRLF = "\r\n";
+
 /**
  * Probably more intuitive to initialize _isValid to false and _isMissingData to true.
  * Will need to make the whole logic support this.
  */
 Request::Request(int fd) : _fd(fd), _keepAlive(false), _chunked(false), _isValid(true),
-	_isMissingData(false) {
+	_kickMe(false), _isMissingData(false) {
 	_request.method = RequestMethod::Unknown;
 }
 
@@ -87,7 +89,7 @@ bool	isNeededHeader(std::string& key)
  */
 void	Request::parseRequest(void) {
 	if (_request.method == RequestMethod::Unknown) {
-		std::string	reqLine = splitReqLine(_buffer, "\r\n");
+		std::string	reqLine = splitReqLine(_buffer, CRLF);
 		std::istringstream	req(reqLine);
 		parseRequestLine(req);
 		if (!_isValid)
@@ -95,7 +97,7 @@ void	Request::parseRequest(void) {
 	}
 	if (_headers.empty())
 		parseHeaders(_buffer);
-	if (!_isValid)
+	if (!_isValid || _kickMe)
 		return ;
 	if (!_buffer.empty() && (_contentLen.has_value() && _body.size() < _contentLen.value())) {
 		size_t	missingLen = _contentLen.value() - _body.size();
@@ -167,10 +169,16 @@ void	Request::parseRequestLine(std::istringstream& req) {
 void	Request::parseHeaders(std::string& str) {
 	std::string	line;
 	while (!str.empty()) {
-		line = splitReqLine(str, "\r\n");
-		const size_t point = line.find(":");
-		if (point == std::string::npos)
+		if (str.substr(0, 2) == CRLF) {
+			str = str.substr(2);
 			break ;
+		}
+		line = splitReqLine(str, CRLF);
+		const size_t point = line.find(":");
+		if (point == std::string::npos) {
+			_kickMe = true;
+			return ;
+		}
 		std::string	key = line.substr(0, point);
 		for (size_t i = 0; i < key.size(); i++)
 			key[i] = std::tolower(static_cast<unsigned char>(key[i]));
@@ -201,19 +209,19 @@ void	Request::parseHeaders(std::string& str) {
  */
 void	Request::parseChunked(void) {
 	while (!_buffer.empty()) {
-		auto	pos = _buffer.find("\r\n");
+		auto	pos = _buffer.find(CRLF);
 		auto	finder = _buffer.find("0\r\n\r\n");
 		if (finder == std::string::npos && pos != std::string::npos) {
 			while (pos != std::string::npos) {
 				size_t	len = std::stoi(_buffer.substr(0, pos), 0, 16);
 				_buffer = _buffer.substr(pos + 2);
-				std::string	tmp = splitReqLine(_buffer, "\r\n");
+				std::string	tmp = splitReqLine(_buffer, CRLF);
 				if (tmp.size() != len) {
 					_isValid = false;
 					return;
 				}
 				_body += tmp;
-				pos = _buffer.find("\r\n");
+				pos = _buffer.find(CRLF);
 			}
 			_isMissingData = true;
 		}
@@ -221,13 +229,13 @@ void	Request::parseChunked(void) {
 			while (_buffer.substr(pos - 1, 5) != "0\r\n\r\n") {
 				size_t	len = std::stoi(_buffer.substr(0, pos), 0, 16);
 				_buffer = _buffer.substr(pos + 2);
-				std::string	tmp = splitReqLine(_buffer, "\r\n");
+				std::string	tmp = splitReqLine(_buffer, CRLF);
 				if (tmp.size() != len) {
 					_isValid = false;
 					return;
 				}
 				_body += tmp;
-				pos = _buffer.find("\r\n");
+				pos = _buffer.find(CRLF);
 			}
 			_body += splitReqLine(_buffer, "0\r\n\r\n");
 			_isMissingData = false;
@@ -412,6 +420,10 @@ bool	Request::getIsValid(void) const {
 
 bool	Request::getIsMissingData(void) const {
 	return _isMissingData;
+}
+
+bool	Request::getKickMe(void) const {
+	return _kickMe;
 }
 
 bool	Request::isBufferEmpty(void) {
