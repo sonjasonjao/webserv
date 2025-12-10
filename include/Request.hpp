@@ -54,7 +54,7 @@ class Request
 		Request(int fd);
 		~Request() = default;
 
-		void			saveRequest(std::string buf);
+		void			saveRequest(std::string const& buf);
 		void			handleRequest(void);
 		void			parseRequest(void);
 		void			parseRequestLine(std::istringstream& req);

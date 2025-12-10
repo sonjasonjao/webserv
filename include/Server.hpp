@@ -13,7 +13,7 @@ class Request;
 #define MAX_PENDING 20 //to be decided
 #define RECV_BUF_SIZE 4096 //to be decided
 
-struct listenerGroup
+struct ListenerGroup
 {
 	int					fd;
 	std::vector<Config>	configs;
@@ -25,12 +25,12 @@ class Server
 	private:
 		std::vector<Config>			_configs;
 		std::vector<pollfd>			_pfds;
-		std::vector<listenerGroup>	_serverGroups;
+		std::vector<ListenerGroup>	_serverGroups;
 		std::vector<Request>		_clients;
 
 	public:
 		Server() = delete;
-		Server(Parser& parser);	//will be Parser const& later when parser is ready
+		Server(Parser& parser);
 		Server(Server const& obj);
 		Server const&	operator=(Server const& other) = delete;
 		~Server();
@@ -45,5 +45,5 @@ class Server
 		void	handleConnections(void);
 		void	closePfds(void);
 		void	groupConfigs(void);
-		bool	findGroupMember(Config& conf);
+		bool	isGroupMember(Config& conf);
 };

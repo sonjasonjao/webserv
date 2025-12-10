@@ -39,7 +39,7 @@ Server::Server(Server const& obj)
 	_serverGroups = obj._serverGroups;
 }
 
-bool	Server::findGroupMember(Config& conf)
+bool	Server::isGroupMember(Config& conf)
 {
 	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++)
 	{
@@ -60,8 +60,8 @@ void	Server::groupConfigs(void)
 {
 	for (auto it = _configs.begin(); it != _configs.end(); it++)
 	{
-		if (_serverGroups.empty() || !findGroupMember(*it)) {
-			listenerGroup		newServGroup;
+		if (_serverGroups.empty() || !isGroupMember(*it)) {
+			ListenerGroup	newServGroup;
 			newServGroup.fd = -1;
 			newServGroup.configs.push_back(*it);
 			newServGroup.defaultConf = &(*it);

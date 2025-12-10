@@ -12,7 +12,7 @@ Request::Request(int fd) : _fd(fd), _keepAlive(false), _chunked(false), _isValid
 /**
  * Saves the current buffer filled by recv into the combined buffer of this client.
  */
-void	Request::saveRequest(std::string buf) {
+void	Request::saveRequest(std::string const& buf) {
 	_buffer += buf;
 }
 
@@ -108,9 +108,9 @@ void	Request::parseRequest(void) {
 			_body += _buffer;
 			_buffer.clear();
 		}
-		if (_contentLen.has_value() && _body.size() < _contentLen.value())
+		if (_body.size() < _contentLen.value())
 			_isMissingData = true;
-		if (_contentLen.has_value() && _body.size() == _contentLen.value())
+		else if (_body.size() == _contentLen.value())
 			_isMissingData = false;
 	}
 	else if (_chunked)
@@ -173,20 +173,19 @@ void	Request::parseHeaders(std::string& str) {
 			break ;
 		std::string	key = line.substr(0, point);
 		for (size_t i = 0; i < key.size(); i++)
-			key[i] = std::tolower((unsigned char)key[i]);
+			key[i] = std::tolower(static_cast<unsigned char>(key[i]));
 		std::string value = line.substr(point + 2, line.size() - (point + 2));
 		for (size_t i = 0; i < value.size(); i++)
-			value[i] = std::tolower((unsigned char)value[i]);
+			value[i] = std::tolower(static_cast<unsigned char>(value[i]));
 		if (isNeededHeader(key)) {
-			if (value.find(",") == std::string::npos)
+			if (value.find(",") == std::string::npos) {
 				_headers[key].push_back(value);
-			else {
-				std::istringstream	values(value);
-				std::string	oneValue;
-				while (getline(values, oneValue, ',')) {
-					_headers[key].push_back(oneValue);
-				}
+				continue;
 			}
+			std::istringstream	values(value);
+			std::string	oneValue;
+			while (getline(values, oneValue, ','))
+				_headers[key].push_back(oneValue);
 		}
 	}
 	if (_headers.empty() || !validateHeaders()) {
