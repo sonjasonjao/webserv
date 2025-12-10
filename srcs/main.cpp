@@ -16,6 +16,7 @@ int	main(int argc, char **argv)
 
 	try
 	{
+		// Log::setOutputFile("webserv.log");
 		Parser	parser(argv[1]);
 		Config config = parser.getServerConfig(0);
 		std::cout << "Host	: " << config.host << "\n";

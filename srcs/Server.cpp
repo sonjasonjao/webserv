@@ -227,6 +227,11 @@ void	Server::handleClientData(size_t& i)
 		close(_pfds[i].fd);
 		if (_pfds.size() > (i + 1)) {
 			_pfds[i] = _pfds[_pfds.size() - 1];
+			_pfds.pop_back();
+			i--;
+		} else {
+			DEBUG_LOG("Ummmm something something");
+			_pfds.pop_back();
 			i--;
 		}
 	}
@@ -255,15 +260,27 @@ void	Server::handleClientData(size_t& i)
 					ERROR_LOG("Invalid HTTP request");
 					return ;
 				}
-				(*it).reset();
+
 				//build and send response
+				Response	res(*it);
+
+				(*it).reset();
 			}
-			Response	res(*it);
+			DEBUG_LOG("Keep alive status: " + std::to_string((*it).getKeepAlive()));
 			if (!(*it).getKeepAlive()) {
+				DEBUG_LOG("Closing fd " + std::to_string(_pfds[i].fd));
+				DEBUG_LOG("_pfds.size(): " + std::to_string(_pfds.size()));
 				close(_pfds[i].fd);
+				_clients.erase(it);
 				if (_pfds.size() > (i + 1)) {
+					DEBUG_LOG("Overwriting index " + std::to_string(i) + " with " + std::to_string(_pfds.size() - 1));
 					_pfds[i] = _pfds[_pfds.size() - 1];
+					_pfds.pop_back();
 					i--;
+					DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
+				} else {
+					DEBUG_LOG("Last client, goodbye!");
+					_pfds.pop_back();
 				}
 			}
 		}
@@ -287,10 +304,14 @@ void	Server::handleConnections(void)
 					break ;
 				it++;
 			}
-			if (it != _serverGroups.end())
+			if (it != _serverGroups.end()) {
+				DEBUG_LOG("Handling new client connecting on fd " + std::to_string(it->fd));
 				handleNewClient(it->fd);
-			else
+			}
+			else {
+				DEBUG_LOG("Handling client data from index " + std::to_string(i));
 				handleClientData(i);
+			}
 		}
 	}
 }
