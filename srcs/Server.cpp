@@ -13,15 +13,20 @@
 
 /**
  * At construction, _configs will be fetched from parser.
+ *
+ * For now, we manually fetch the three configs that test.json/servergrups.json has, and move on
+ * to group the configs.
  */
 Server::Server(Parser& parser)
 {
-	/**
-	 * for matter of simplicity to start build upon, requested 0th element
-	 * from the parser, you can request any element
-	*/
+	//_configs = parser.getConfigs();
 	Config tmp = parser.getServerConfig(0);
 	_configs.push_back(tmp);
+	tmp = parser.getServerConfig(1);
+	_configs.push_back(tmp);
+	tmp = parser.getServerConfig(2);
+	_configs.push_back(tmp);
+	groupConfigs();
 }
 
 /**
@@ -31,7 +36,38 @@ Server::Server(Server const& obj)
 {
 	_configs = obj._configs;
 	_pfds = obj._pfds;
-	_fdToConfig = obj._fdToConfig;
+	_serverGroups = obj._serverGroups;
+}
+
+bool	Server::isGroupMember(Config& conf)
+{
+	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++)
+	{
+		if (it->defaultConf->host == conf.host
+			&& it->defaultConf->ports.front() == conf.ports.front()) {
+			it->configs.push_back(conf);
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * Groups configs so that all configs in one group have the same IP and the same port.
+ * Each listenergroup will then have one server (listener) socket.
+ */
+void	Server::groupConfigs(void)
+{
+	for (auto it = _configs.begin(); it != _configs.end(); it++)
+	{
+		if (_serverGroups.empty() || !isGroupMember(*it)) {
+			ListenerGroup	newServGroup;
+			newServGroup.fd = -1;
+			newServGroup.configs.push_back(*it);
+			newServGroup.defaultConf = &(*it);
+			_serverGroups.push_back(newServGroup);
+		}
+	}
 }
 
 /**
@@ -63,10 +99,7 @@ int	Server::getServerSocket(Config conf)
 	ret = getaddrinfo(conf.host.c_str(), (std::to_string(conf.ports.at(0))).c_str(),
 		&hints, &servinfo);
 	if (ret != 0)
-	{
-		ERROR_LOG("getaddrinfo: " + std::string(gai_strerror(ret)));
-		throw std::runtime_error("getaddrinfo: " + std::string(gai_strerror(ret)));
-	}
+		throw std::runtime_error(ERROR_LOG("getaddrinfo: " + std::string(gai_strerror(ret))));
 
 	for (p = servinfo; p != NULL; p = p->ai_next)
 	{
@@ -92,18 +125,12 @@ int	Server::getServerSocket(Config conf)
 		break;
 	}
 	if (p == NULL)
-	{
-		ERROR_LOG("could not create server socket(s)");
-		throw std::runtime_error("could not create server socket(s)");
-	}
+		throw std::runtime_error(ERROR_LOG("could not create server socket(s)"));
 
 	freeaddrinfo(servinfo);
 
 	if (listen(listener, MAX_PENDING) < 0)
-	{
-		ERROR_LOG("listen: " + std::string(strerror(errno)));
-		throw std::runtime_error("listen: " + std::string(strerror(errno)));
-	}
+		throw std::runtime_error(ERROR_LOG("listen: " + std::string(strerror(errno))));
 
 	INFO_LOG("Server listening on " + std::to_string(listener));
 
@@ -116,11 +143,11 @@ int	Server::getServerSocket(Config conf)
  */
 void	Server::createServerSockets()
 {
-	for (auto it = _configs.begin(); it != _configs.end(); it++)
+	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++)
 	{
-		int sockfd = getServerSocket(*it);
+		int sockfd = getServerSocket(*(it->defaultConf));
 		_pfds.push_back({ sockfd, POLLIN, 0 });
-		_fdToConfig[sockfd] = *it; //making a copy of each config not really efficient
+		it->fd = sockfd; //making a copy of each config not really efficient
 	}
 }
 
@@ -136,12 +163,10 @@ void	Server::run(void)
 		if (pollCount < 0)
 		{
 			closePfds();
-			ERROR_LOG("poll: " + std::string(strerror(errno)));
-			throw std::runtime_error("poll: " + std::string(strerror(errno)));
+			throw std::runtime_error(ERROR_LOG("poll: " + std::string(strerror(errno))));
 		}
 		// DEBUG_LOG("pollCount: " + std::string(std::to_string(pollCount)));
 		handleConnections();
-		// handleRequest();
 	}
 }
 
@@ -165,15 +190,13 @@ void	Server::handleNewClient(int listener)
 	if (clientFd < 0)
 	{
 		closePfds();
-		ERROR_LOG("accept: " + std::string(strerror(errno)));
-		throw std::runtime_error("accept: " + std::string(strerror(errno)));
+		throw std::runtime_error(ERROR_LOG("accept: " + std::string(strerror(errno))));
 	}
 	if (fcntl(clientFd, F_SETFL, O_NONBLOCK) < 0)
 	{
 		close(clientFd);
 		closePfds();
-		ERROR_LOG("fcntl: " + std::string(strerror(errno)));
-		throw std::runtime_error("fcntl: " + std::string(strerror(errno)));
+		throw std::runtime_error(ERROR_LOG("fcntl: " + std::string(strerror(errno))));
 	}
 	_pfds.push_back({ clientFd, POLLIN, 0 });
 	Request	req(clientFd);
@@ -185,12 +208,8 @@ void	Server::handleNewClient(int listener)
  * Receives data from the client that poll() has recognized ready. Message (= request)
  * will be parsed and response formed.
  *
- * Still missing construction and sending of response, and then erasing the request?
- * Do we "empty" the request object of the client in case of keep-alive, or just
- * erase it altogether?
- *
- * The logic here is far from optimal and done, will get back to this. Need to solve
- * how to check partial request in all possible cases.
+ * Probably will need to differentiate _isValid and _kickClient, so if e.g. a chunked request
+ * has hex size that does not match the actual size, the client must be disconnected altogether.
  */
 void	Server::handleClientData(size_t& i)
 {
@@ -224,19 +243,19 @@ void	Server::handleClientData(size_t& i)
 			}
 			if (it ==_clients.end())
 				ERROR_LOG("Unexpected error in finding client fd"); //bad messaging
-			(*it).saveDataRequest(std::string(buf));
-			if ((*it).getIsMissingData()) {
-				INFO_LOG("Waiting for more data to complete partial request");
-				return ;
-			}
-			(*it).parseRequest();
-			if ((*it).getIsMissingData()) {
-				INFO_LOG("Waiting for more data to complete partial request");
-				return ;
-			}
-			if (!(*it).getIsValid()) {
-				ERROR_LOG("Invalid HTTP request");
-				return ;
+			(*it).saveRequest(std::string(buf));
+			while (!(*it).isBufferEmpty()) {
+				(*it).handleRequest();
+				if ((*it).getIsMissingData()) {
+					INFO_LOG("Waiting for more data to complete partial request");
+					return ;
+				}
+				if (!(*it).getIsValid()) {
+					ERROR_LOG("Invalid HTTP request");
+					return ;
+				}
+				(*it).reset();
+				//build and send response
 			}
 			if (!(*it).getKeepAlive()) {
 				close(_pfds[i].fd);
@@ -251,20 +270,23 @@ void	Server::handleClientData(size_t& i)
 
 /**
  * Loops through _pfds, finding which fd triggered poll, and whether it's new client or
- * incoming request.
- *
- * (Could POLLIN and POLLHUP(closed connection) be already distinguished here? / Need
- * to understand better which flags are needed)
+ * incoming request. If the fd that had a new event is one of the server fds, it's a new client
+ * wanting to connect to that server. If it's not a server fd, it is an existing client that has
+ * sent data.
  */
 void	Server::handleConnections(void)
 {
 	for (size_t i = 0; i < _pfds.size(); i++)
 	{
-		if (_pfds[i].revents & (POLLIN | POLLHUP))
-		{
-			auto pos = _fdToConfig.find(_pfds[i].fd);
-			if (pos != _fdToConfig.end())
-				handleNewClient(pos->first);
+		if (_pfds[i].revents & (POLLIN | POLLHUP)) {
+			auto	it = _serverGroups.begin();
+			while (it != _serverGroups.end()) {
+				if (it->fd == _pfds[i].fd)
+					break ;
+				it++;
+			}
+			if (it != _serverGroups.end())
+				handleNewClient(it->fd);
 			else
 				handleClientData(i);
 		}

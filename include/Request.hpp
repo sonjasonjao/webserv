@@ -52,12 +52,15 @@ class Request
 	public:
 		Request() = delete;
 		Request(int fd);
-		~Request();
+		~Request() = default;
 
-		void			saveDataRequest(std::string buf);
+		void			saveRequest(std::string const& buf);
+		void			handleRequest(void);
 		void			parseRequest(void);
 		void			parseRequestLine(std::istringstream& req);
 		void			parseHeaders(std::string& str);
+		bool			validateHeaders(void);
+		void			parseChunked(void);
 		void			printData(void) const;
 		bool			isUniqueHeader(std::string const& key);
 		bool			isTargetValid(std::string& target);
@@ -68,4 +71,6 @@ class Request
 		bool			getKeepAlive(void) const;
 		bool			getIsValid(void) const;
 		bool			getIsMissingData(void) const;
+		bool			isBufferEmpty(void);
+		void			reset(void);
 };
