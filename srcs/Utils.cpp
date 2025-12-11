@@ -216,7 +216,8 @@ std::string	getAbsPath(std::string const &fileName, std::string searchDir)
 		searchDir = currentDir;
 	if (searchDir.back() == '/')
 		searchDir.pop_back();
-
+	if (fileName.front() == '/')
+		return searchDir + fileName;
 	return searchDir + "/" + fileName;
 }
 

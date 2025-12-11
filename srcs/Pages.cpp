@@ -111,7 +111,7 @@ bool	Pages::isCached(std::string const &key)
  */
 std::string const	&Pages::getPageContent(std::string const &key)
 {
-	INFO_LOG("Retrieving " + key + " as page content");
+	INFO_LOG("Retrieving " + key);
 	try {
 		return cache.at(key);
 	} catch (std::out_of_range const &e) {}
