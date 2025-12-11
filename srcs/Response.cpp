@@ -75,7 +75,7 @@ Response::Response(Request const &req) : _req(req)
 
 	formResponse();
 
-	std::cout << "\nResponse content:\n" << _content << "\n";
+	std::cout << "\n---- Response content ----\n" << _content << "\n";
 }
 
 Response::Response(Response const &other) : _req(other._req) {}

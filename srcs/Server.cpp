@@ -133,7 +133,7 @@ int	Server::getServerSocket(Config conf)
 	if (listen(listener, MAX_PENDING) < 0)
 		throw std::runtime_error(ERROR_LOG("listen: " + std::string(strerror(errno))));
 
-	INFO_LOG("Server listening on " + std::to_string(listener));
+	INFO_LOG("Server listening on fd " + std::to_string(listener));
 
 	return listener;
 }
@@ -202,7 +202,7 @@ void	Server::handleNewClient(int listener)
 	_pfds.push_back({ clientFd, POLLIN, 0 });
 	Request	req(clientFd);
 	_clients.push_back(req);
-	INFO_LOG("Server accepted a new connection with " + std::to_string(clientFd));
+	INFO_LOG("New client accepted, assigned fd " + std::to_string(clientFd));
 }
 
 /**
@@ -220,26 +220,30 @@ void	Server::handleClientData(size_t& i)
 	if (numBytes <= 0)
 	{
 		if (numBytes == 0)
-			INFO_LOG("Connection closed with " + std::to_string(_pfds[i].fd));
+			INFO_LOG("Client disconnected on fd " + std::to_string(_pfds[i].fd));
 		else
 			ERROR_LOG("recv: " + std::string(strerror(errno)));
-		DEBUG_LOG("Closing fd " + std::to_string(_pfds[i].fd));
+		INFO_LOG("Closing fd " + std::to_string(_pfds[i].fd));
 		close(_pfds[i].fd);
 		if (_pfds.size() > (i + 1)) {
+			DEBUG_LOG("Replacing fd " + std::to_string(_pfds[i].fd) + " with fd " + std::to_string(_pfds[_pfds.size() - 1].fd));
+			INFO_LOG("Removing client fd " + std::to_string(_pfds[i].fd) + " from poll list");
 			_pfds[i] = _pfds[_pfds.size() - 1];
 			_pfds.pop_back();
 			i--;
+			DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
 		} else {
-			DEBUG_LOG("Ummmm something something");
+			INFO_LOG("Removing client fd " + std::to_string(_pfds.back().fd) + ", last client");
 			_pfds.pop_back();
 			i--;
+			DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
 		}
 	}
 	else
 	{
 		buf[numBytes] = '\0';
-		INFO_LOG("Server received data from client " + std::to_string(_pfds[i].fd));
-		std::cout << "\n//////////\n// DATA //\n//////////\n" << buf << '\n';
+		INFO_LOG("Received client data from fd " + std::to_string(_pfds[i].fd));
+		std::cout << "\n---- Request data ----\n" << buf << '\n';
 		if (!_clients.empty()) {
 			auto it = _clients.begin();
 			while (it != _clients.end()) {
@@ -264,23 +268,28 @@ void	Server::handleClientData(size_t& i)
 				//build and send response
 				Response	res(*it);
 
+				send(_pfds[i].fd, res.getContent().c_str(), res.getContent().size(), MSG_DONTWAIT);
+
 				(*it).reset();
 			}
 			DEBUG_LOG("Keep alive status: " + std::to_string((*it).getKeepAlive()));
 			if (!(*it).getKeepAlive()) {
-				DEBUG_LOG("Closing fd " + std::to_string(_pfds[i].fd));
-				DEBUG_LOG("_pfds.size(): " + std::to_string(_pfds.size()));
+				INFO_LOG("Closing fd " + std::to_string(_pfds[i].fd));
 				close(_pfds[i].fd);
+				INFO_LOG("Erasing fd " + std::to_string(_pfds[i].fd) + " from clients list");
 				_clients.erase(it);
 				if (_pfds.size() > (i + 1)) {
 					DEBUG_LOG("Overwriting index " + std::to_string(i) + " with " + std::to_string(_pfds.size() - 1));
+					INFO_LOG("Removing client fd " + std::to_string(_pfds[i].fd) + " from poll list");
 					_pfds[i] = _pfds[_pfds.size() - 1];
 					_pfds.pop_back();
 					i--;
 					DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
 				} else {
-					DEBUG_LOG("Last client, goodbye!");
+					INFO_LOG("Removing client fd " + std::to_string(_pfds.back().fd) + ", last client");
 					_pfds.pop_back();
+					i--;
+					DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
 				}
 			}
 		}
@@ -305,11 +314,11 @@ void	Server::handleConnections(void)
 				it++;
 			}
 			if (it != _serverGroups.end()) {
-				DEBUG_LOG("Handling new client connecting on fd " + std::to_string(it->fd));
+				INFO_LOG("Handling new client connecting on fd " + std::to_string(it->fd));
 				handleNewClient(it->fd);
 			}
 			else {
-				DEBUG_LOG("Handling client data from index " + std::to_string(i));
+				INFO_LOG("Handling client data from fd " + std::to_string(_pfds[i].fd));
 				handleClientData(i);
 			}
 		}

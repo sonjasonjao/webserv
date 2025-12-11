@@ -361,7 +361,7 @@ bool	Request::isHttpValid(std::string& httpVersion) {
  * Prints parsed data just for debugging for now.
  */
 void	Request::printData(void) const {
-	std::cout << "----Request line:----\nMethod: ";
+	std::cout << "---- Request line ----\nMethod: ";
 	switch(_request.method) {
 		case RequestMethod::Get:
 			std::cout << "Get";
@@ -376,18 +376,19 @@ void	Request::printData(void) const {
 			throw std::runtime_error("HTTP request method unknown\n");
 	}
 	std::cout << ", target: "
-		<< _request.target << ", HTTP version: " << _request.httpVersion << '\n';
+		<< _request.target << ", HTTP version: " << _request.httpVersion << "\n\n";
 	if (_request.query.has_value())
 		std::cout << "Query: " << _request.query.value() << '\n';
-	std::cout << "----Header keys----:\n";
+	std::cout << "---- Header keys ----\n";
 	for (auto it = _headers.begin(); it != _headers.end(); it++)
 		std::cout << it->first << '\n';
+	std::cout << "\n";
 	if (!_body.empty())
 		std::cout << "----Body:----\n" << _body << '\n';
-	std::cout << "----Keep alive?---- " << _keepAlive << '\n';
-	std::cout << "----Missing data?---- " << _isMissingData << '\n';
-	std::cout << "----Chunked?---- " << _chunked << '\n';
-	std::cout << "----Valid?----" << _isValid << '\n';
+	std::cout << "	Keep alive?	" << _keepAlive << '\n';
+	std::cout << "	Missing data?	" << _isMissingData << '\n';
+	std::cout << "	Chunked?	" << _chunked << '\n';
+	std::cout << "	Valid?		" << _isValid << "\n\n";
 }
 
 std::string	Request::getHost(void) const {
