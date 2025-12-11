@@ -1,4 +1,9 @@
 #include "../include/Request.hpp"
+#include "../include/Log.hpp"
+#include <regex>
+#include <sstream>
+#include <iostream>
+#include <unordered_set>
 
 /**
  * Probably more intuitive to initialize _isValid to false and _isMissingData to true.
@@ -356,7 +361,7 @@ bool	Request::isHttpValid(std::string& httpVersion) {
  * Prints parsed data just for debugging for now.
  */
 void	Request::printData(void) const {
-	std::cout << "----Request line:----\nMethod: ";
+	std::cout << "---- Request line ----\nMethod: ";
 	switch(_request.method) {
 		case RequestMethod::Get:
 			std::cout << "Get";
@@ -371,21 +376,22 @@ void	Request::printData(void) const {
 			throw std::runtime_error("HTTP request method unknown\n");
 	}
 	std::cout << ", target: "
-		<< _request.target << ", HTTP version: " << _request.httpVersion << '\n';
+		<< _request.target << ", HTTP version: " << _request.httpVersion << "\n\n";
 	if (_request.query.has_value())
 		std::cout << "Query: " << _request.query.value() << '\n';
-	std::cout << "----Header keys----:\n";
+	std::cout << "---- Header keys ----\n";
 	for (auto it = _headers.begin(); it != _headers.end(); it++)
 		std::cout << it->first << '\n';
+	std::cout << "\n";
 	if (!_body.empty())
 		std::cout << "----Body:----\n" << _body << '\n';
-	std::cout << "----Keep alive?---- " << _keepAlive << '\n';
-	std::cout << "----Missing data?---- " << _isMissingData << '\n';
-	std::cout << "----Chunked?---- " << _chunked << '\n';
-	std::cout << "----Valid?----" << _isValid << '\n';
+	std::cout << "	Keep alive?	" << _keepAlive << '\n';
+	std::cout << "	Missing data?	" << _isMissingData << '\n';
+	std::cout << "	Chunked?	" << _chunked << '\n';
+	std::cout << "	Valid?		" << _isValid << "\n\n";
 }
 
-std::string	Request::getHost(void) {
+std::string	Request::getHost(void) const {
 	std::string	host;
 	try
 	{
@@ -418,4 +424,29 @@ bool	Request::isBufferEmpty(void) {
 	if (_buffer.empty())
 		return true;
 	return false;
+}
+
+RequestMethod	Request::getRequestMethod() const {
+	return _request.method;
+}
+
+std::string const	&Request::getHttpVersion() const {
+	return _request.httpVersion;
+}
+
+std::string const	&Request::getBody() const {
+	return _body;
+}
+
+std::string const	&Request::getTarget() const {
+	return _request.target;
+}
+
+std::vector<std::string> const *	Request::getHeader(std::string const &key) const
+{
+	try {
+		return &_headers.at(key);
+	} catch (std::exception const &e) {
+		return nullptr;
+	}
 }
