@@ -20,6 +20,9 @@ Response::Response(Request const &req) : _req(req)
 		_startLine	+= " 400 Bad Request";
 		_statusCode	 = BadRequest;
 		_body		 = Pages::getPageContent("default400");
+
+		formResponse();
+
 		return;
 	}
 
@@ -78,7 +81,16 @@ Response::Response(Request const &req) : _req(req)
 	std::cout << "\n---- Response content ----\n" << _content << "\n";
 }
 
-Response::Response(Response const &other) : _req(other._req) {}
+Response::Response(Response const &other)
+	:	_req(other._req),
+		_headers(other._headers),
+		_target(other._target),
+		_startLine(other._startLine),
+		_headerSection(other._headerSection),
+		_body(other._body),
+		_content(other._content),
+		_statusCode(other._statusCode)
+{}
 
 std::string const	&Response::getContent() const
 {
