@@ -124,8 +124,6 @@ void	Response::formResponse()
 	_headerSection +=	"Date: " + getImfFixdate() + CRLF;
 	_headerSection +=	"Content-Type: text/html" + std::string(CRLF);
 
-	_body = "<!DOCTYPE html><html><head></head><body>Placeholder page</body></html>";
-
 	switch (_statusCode) {
 		case 200:
 			_startLine	= _req.getHttpVersion() + " 200 OK";
