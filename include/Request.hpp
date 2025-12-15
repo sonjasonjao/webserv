@@ -49,6 +49,7 @@ class Request
 		void		saveRequest(std::string const& buf);
 		void		handleRequest(void);
 		void		parseRequest(void);
+		void		fillHost(void);
 		void		parseRequestLine(std::istringstream& req);
 		void		parseHeaders(std::string& str);
 		bool		validateHeaders(void);
@@ -61,6 +62,7 @@ class Request
 		std::string	getHost(void) const;
 		int			getFd(void) const;
 		bool		getKeepAlive(void) const;
+		bool		getKickMe(void) const;
 		bool		getIsValid(void) const;
 		bool		getIsMissingData(void) const;
 		bool		isBufferEmpty(void);

@@ -53,6 +53,7 @@ void	Request::reset(void) {
 	_contentLen.reset();
 	_isMissingData = false;
 	_chunked = false;
+	std::cout << "NOW IN BUFFER '" << _buffer << "'\n";
 }
 
 /**
@@ -126,6 +127,22 @@ void	Request::parseRequest(void) {
 }
 
 /**
+ * In case of invalid request flagged before header parsing, host is searched from the buffer in order
+ * to store it for forming a 400 Bad request response.
+ */
+void	Request::fillHost(void) {
+	auto	pos = _buffer.find("Host: ");
+	if (pos == std::string::npos)
+		pos = _buffer.find("host: ");
+	if (pos != std::string::npos) {
+		std::string	key = _buffer.substr(0, pos);
+		std::string	value = _buffer.substr(pos + 2, _buffer.size() - (pos + 2));
+		_headers[key].push_back(value);
+	}
+	//if Host header is not found, what will we do with the response?
+}
+
+/**
  * Splits the request line into tokens, recognises method, and validates target path
  * and HTTP version.
  */
@@ -135,6 +152,7 @@ void	Request::parseRequestLine(std::istringstream& req) {
 	if (!(req >> method >> target >> httpVersion))
 	{
 		_isValid = false;
+		fillHost();
 		return ;
 	}
 	size_t i ;
@@ -156,11 +174,13 @@ void	Request::parseRequestLine(std::istringstream& req) {
 			break ;
 		default:
 			_isValid = false;
+			fillHost();
 			return ;
 	}
 	if (!isTargetValid(target) || !isHttpValid(httpVersion))
 	{
 		_isValid = false;
+		fillHost();
 		return ;
 	}
 }
@@ -168,8 +188,6 @@ void	Request::parseRequestLine(std::istringstream& req) {
 /**
  * Accepts as headers every line with ':' and stores each header as key and value to
  * an unordered map. For now, only stores the needed headers and skips the rest.
- *
- * IMPLEMENT CHECK IF HEADERS END WITH \r\n\r\n, OTHERWISE INVALID!
  */
 void	Request::parseHeaders(std::string& str) {
 	std::string	line;
@@ -182,6 +200,7 @@ void	Request::parseHeaders(std::string& str) {
 		const size_t point = line.find(":");
 		if (point == std::string::npos) {
 			_kickMe = true;
+			_keepAlive = false;
 			return ;
 		}
 		std::string	key = line.substr(0, point);
@@ -209,8 +228,7 @@ void	Request::parseHeaders(std::string& str) {
 
 /**
  * In the case of a chunked request, attempts to check the size of each chunk and split the
- * string accordingly to store that chunk into body. Still need to consider what happens if the
- * given size of chunk differs from the actual size.
+ * string accordingly to store that chunk into body.
  */
 void	Request::parseChunked(void) {
 	while (!_buffer.empty()) {

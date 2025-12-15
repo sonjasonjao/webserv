@@ -38,8 +38,13 @@ Server::Server(Server const& obj)
 	_configs = obj._configs;
 	_pfds = obj._pfds;
 	_serverGroups = obj._serverGroups;
+	_clients = obj._clients;
 }
 
+/**
+ * Looks through existing serverGroups and checks whether any of them shares the same
+ * IP and port with this current config.
+ */
 bool	Server::isGroupMember(Config& conf)
 {
 	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++)
@@ -55,14 +60,14 @@ bool	Server::isGroupMember(Config& conf)
 
 /**
  * Groups configs so that all configs in one group have the same IP and the same port.
- * Each listenergroup will then have one server (listener) socket.
+ * Each serverGroup will then have one server (listener) socket.
  */
 void	Server::groupConfigs(void)
 {
 	for (auto it = _configs.begin(); it != _configs.end(); it++)
 	{
 		if (_serverGroups.empty() || !isGroupMember(*it)) {
-			ListenerGroup	newServGroup;
+			ServerGroup	newServGroup;
 			newServGroup.fd = -1;
 			newServGroup.configs.push_back(*it);
 			newServGroup.defaultConf = &(*it);
@@ -82,8 +87,7 @@ void	Server::closePfds(void)
 }
 
 /**
- * Creates a server socket, binds it to correct address, and starts listening. Still
- * need to check all function call protections, and at which point fcntl() is called.
+ * Creates a server socket, binds it to correct address, and starts listening.
  */
 int	Server::getServerSocket(Config conf)
 {
@@ -110,7 +114,12 @@ int	Server::getServerSocket(Config conf)
 			ERROR_LOG("socket: " + std::string(strerror(errno)));
 			continue;
 		}
-		setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+		if (setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) < 0)
+		{
+			ERROR_LOG("setsockopt: " + std::string(strerror(errno)));
+			close(listener);
+			continue;
+		}
 		if (bind(listener, p->ai_addr, p->ai_addrlen) < 0)
 		{
 			ERROR_LOG("bind: " + std::string(strerror(errno)));
@@ -139,8 +148,8 @@ int	Server::getServerSocket(Config conf)
 }
 
 /**
- * Loops through server configurations and creates listener socket for each, stores
- * them into _pfds and stores the pair of fd and config into _fdToConfig.
+ * Loops through serverGroups and creates listener socket for each, stores
+ * them into _pfds and stores the fd of the created socket into that serverGroup.
  */
 void	Server::createServerSockets()
 {
@@ -148,7 +157,7 @@ void	Server::createServerSockets()
 	{
 		int sockfd = getServerSocket(*(it->defaultConf));
 		_pfds.push_back({ sockfd, POLLIN, 0 });
-		it->fd = sockfd; //making a copy of each config not really efficient
+		it->fd = sockfd;
 	}
 }
 
@@ -181,13 +190,6 @@ void	Server::handleNewClient(int listener)
 	socklen_t				addrLen = sizeof(newClient);
 	int						clientFd;
 
-	// if (_pfds.size() == MAX_CLIENTS) //where do we get this from? ERROR or INFO_LOG?
-	// {
-	// 	ERROR_LOG("failed to accept new client connection - max clients reached");
-	// 	std::cout << "Failed to accept new connection - max clients reached\n";
-	// 	return;
-	// }
-
 	clientFd = accept(listener, (struct sockaddr*)&newClient, &addrLen);
 	if (clientFd < 0)
 	{
@@ -211,9 +213,6 @@ void	Server::handleNewClient(int listener)
 /**
  * Receives data from the client that poll() has recognized ready. Message (= request)
  * will be parsed and response formed.
- *
- * Probably will need to differentiate _isValid and _kickClient, so if e.g. a chunked request
- * has hex size that does not match the actual size, the client must be disconnected altogether.
  */
 void	Server::handleClientData(size_t& i)
 {
@@ -274,6 +273,13 @@ void	Server::handleClientData(size_t& i)
 		{
 			(*it).handleRequest();
 
+			if ((*it).getKickMe())
+			{
+				ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd) + "connection dropped: suspicious request");
+
+				break ;
+			}
+
 			if ((*it).getIsMissingData())
 			{
 				INFO_LOG("Waiting for more data to complete partial request");
@@ -281,21 +287,13 @@ void	Server::handleClientData(size_t& i)
 				return ;
 			}
 
-			if (!(*it).getIsValid())
-			{
-				ERROR_LOG("Invalid HTTP request");
-
-				return ;
-			}
-
-			//build and send response
 			INFO_LOG("Building response to client fd " + std::to_string(_pfds[i].fd));
 			Response	res(*it);
 
 			INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
 			send(_pfds[i].fd, res.getContent().c_str(), res.getContent().size(), MSG_DONTWAIT);
 
-			(*it).reset();
+			(*it).reset();	//IN CASE OF INVALID, BUFFER MIGHT NOT BE EMPTY (TEST WITH CURRENT CLIENT)
 		}
 
 		DEBUG_LOG("Keep alive status: " + std::to_string((*it).getKeepAlive()));
@@ -328,7 +326,7 @@ void	Server::handleClientData(size_t& i)
 }
 
 /**
- * Loops through _pfds, finding which fd triggered poll, and whether it's new client or
+ * Loops through _pfds, finding which fd had an event, and whether it's new client or
  * incoming request. If the fd that had a new event is one of the server fds, it's a new client
  * wanting to connect to that server. If it's not a server fd, it is an existing client that has
  * sent data.

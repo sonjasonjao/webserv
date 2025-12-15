@@ -13,7 +13,7 @@ class Request;
 #define MAX_PENDING 20 //to be decided
 #define RECV_BUF_SIZE 4096 //to be decided
 
-struct ListenerGroup
+struct ServerGroup
 {
 	int					fd;
 	std::vector<Config>	configs;
@@ -25,7 +25,7 @@ class Server
 	private:
 		std::vector<Config>			_configs;
 		std::vector<pollfd>			_pfds;
-		std::vector<ListenerGroup>	_serverGroups;
+		std::vector<ServerGroup>	_serverGroups;
 		std::vector<Request>		_clients;
 
 	public:
