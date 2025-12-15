@@ -213,7 +213,16 @@ void	Request::parseChunked(void) {
 		auto	finder = _buffer.find("0\r\n\r\n");
 		if (finder == std::string::npos && pos != std::string::npos) {
 			while (pos != std::string::npos) {
-				size_t	len = std::stoi(_buffer.substr(0, pos), 0, 16);
+				size_t	len;
+				try
+				{
+					len = std::stoi(_buffer.substr(0, pos), 0, 16);
+				}
+				catch (const std::exception& e)
+				{
+					_isValid = false;
+					return;
+				}
 				_buffer = _buffer.substr(pos + 2);
 				std::string	tmp = splitReqLine(_buffer, CRLF);
 				if (tmp.size() != len) {
@@ -227,7 +236,16 @@ void	Request::parseChunked(void) {
 		}
 		else if (finder != std::string::npos) {
 			while (_buffer.substr(pos - 1, 5) != "0\r\n\r\n") {
-				size_t	len = std::stoi(_buffer.substr(0, pos), 0, 16);
+				size_t	len;
+				try
+				{
+					len = std::stoi(_buffer.substr(0, pos), 0, 16);
+				}
+				catch (const std::exception& e)
+				{
+					_isValid = false;
+					return;
+				}
 				_buffer = _buffer.substr(pos + 2);
 				std::string	tmp = splitReqLine(_buffer, CRLF);
 				if (tmp.size() != len) {
@@ -267,8 +285,16 @@ bool	Request::validateHeaders(void) {
 		}
 	}
 	it = _headers.find("content-length");
-	if (it != _headers.end())
-		_contentLen = std::stoi(it->second.front());
+	if (it != _headers.end()) {
+		try
+		{
+			_contentLen = std::stoi(it->second.front());
+		}
+		catch(const std::exception& e)
+		{
+			return false;
+		}
+	}
 	it = _headers.find("transfer-encoding");
 	if (it != _headers.end() && it->second.front() == "chunked")
 		_chunked = true;
