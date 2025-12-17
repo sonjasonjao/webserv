@@ -17,7 +17,6 @@ Response::Response(Request const &req) : _req(req)
 		// Why isn't it valid? -> Find out!
 
 		// Assume bad request for now?
-		_startLine	+= " 400 Bad Request";
 		_statusCode	 = BadRequest;
 		_body		 = Pages::getPageContent("default400");
 
@@ -39,6 +38,16 @@ Response::Response(Request const &req) : _req(req)
 	//			What if the content is huge? Chunking time?
 
 	_target = req.getTarget();
+
+	if (!uriFormatOk(_target) || uriTargetAboveRoot(_target)) {
+		_error		= ResponseError::badTarget;
+		_statusCode	= BadRequest;
+		_body		= Pages::getPageContent("default400");
+
+		formResponse();
+
+		return;
+	}
 
 	if (std::filesystem::is_directory(_target)) {
 		if (_target.back() == '/')
