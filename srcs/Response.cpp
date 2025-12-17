@@ -22,6 +22,8 @@ Response::Response(Request const &req) : _req(req)
 
 		formResponse();
 
+		std::cout << "\n---- Response content ----\n" << _content << "\n";
+
 		return;
 	}
 
