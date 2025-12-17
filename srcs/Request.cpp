@@ -384,7 +384,7 @@ void	Request::printData(void) const {
 		std::cout << it->first << '\n';
 	std::cout << "\n";
 	if (!_body.empty())
-		std::cout << "----Body:----\n" << _body << '\n';
+		std::cout << "---- Body ----\n" << _body << '\n';
 	std::cout << "	Keep alive?	" << _keepAlive << '\n';
 	std::cout << "	Missing data?	" << _isMissingData << '\n';
 	std::cout << "	Chunked?	" << _chunked << '\n';

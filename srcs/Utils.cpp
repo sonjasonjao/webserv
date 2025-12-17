@@ -99,8 +99,10 @@ bool	isValidIPv4(std::string_view sv)
 	for (auto const &oct : octets) {
 		if (oct.empty())
 			return false;
+
 		if (!std::all_of(oct.begin(), oct.end(), isdigit))
 			return false;
+
 		try {
 			if (std::stoi(oct) > 255)
 				return false;
@@ -108,6 +110,33 @@ bool	isValidIPv4(std::string_view sv)
 			return false;
 		}
 	}
+
+	return true;
+}
+
+/**
+ * @return	true when sv contains port in valid range, false if not
+ */
+bool	isValidPort(std::string_view sv)
+{
+	if (sv.empty())
+		return false;
+
+	if (!std::all_of(sv.begin(), sv.end(), isdigit))
+		return false;
+
+	unsigned long	portNumber;
+
+	try {
+		portNumber = std::stoul(std::string(sv));
+	} catch (std::exception const &e) {
+		return false;
+	}
+
+	if (portNumber > std::numeric_limits<uint16_t>::max())
+		return false;
+	if (portNumber < 1024)
+		return false;
 
 	return true;
 }
@@ -149,6 +178,7 @@ bool	uriFormatOk(std::string_view uri)
 
 	if (split.empty())
 		return false;
+
 	if (split[0].empty())
 		split.erase(split.begin());
 	if (split[split.size() - 1].empty())
@@ -188,6 +218,29 @@ bool	uriTargetAboveRoot(std::string_view uri)
 	return (up > down);
 }
 
+bool	isValidImfFixdate(std::string_view sv)
+{
+	if (sv.empty())
+		return false;
+
+	auto	parts = splitStringView(sv);
+
+	if (parts.empty())
+		return false;
+	if (std::any_of(parts.begin(), parts.end(), [](auto a) {return a.empty();}))
+		return false;
+
+	return true;
+}
+
+/**
+ * Loads a complete file into a std::string, no removal of whitespace or other
+ * special characters.
+ *
+ * NOTE: Throws a runtime error if file can't be opened, assumes prior validation
+ *
+ * @return	String object containing fileName's contents
+ */
 std::string	getFileAsString(std::string const &fileName, std::string searchDir)
 {
 	static std::string const	currentDir = std::filesystem::current_path();
@@ -205,9 +258,16 @@ std::string	getFileAsString(std::string const &fileName, std::string searchDir)
 	std::stringstream	buf;
 
 	buf << fileStream.rdbuf();
+
 	return buf.str();
 }
 
+/**
+ * NOTE:	Assumes that we won't be changing the current path while running our
+ *			program, otherwise currentDir won't be valid anymore.
+ *
+ * @return	String representation of the absolute path of fileName
+ */
 std::string	getAbsPath(std::string const &fileName, std::string searchDir)
 {
 	static std::string const	currentDir = std::filesystem::current_path();
@@ -218,6 +278,7 @@ std::string	getAbsPath(std::string const &fileName, std::string searchDir)
 		searchDir.pop_back();
 	if (fileName.front() == '/')
 		return searchDir + fileName;
+
 	return searchDir + "/" + fileName;
 }
 

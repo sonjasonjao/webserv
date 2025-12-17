@@ -166,6 +166,7 @@ void	Server::run(void)
 			closePfds();
 			throw std::runtime_error(ERROR_LOG("poll: " + std::string(strerror(errno))));
 		}
+
 		// DEBUG_LOG("pollCount: " + std::string(std::to_string(pollCount)));
 		handleConnections();
 	}
@@ -193,12 +194,14 @@ void	Server::handleNewClient(int listener)
 		closePfds();
 		throw std::runtime_error(ERROR_LOG("accept: " + std::string(strerror(errno))));
 	}
+
 	if (fcntl(clientFd, F_SETFL, O_NONBLOCK) < 0)
 	{
 		close(clientFd);
 		closePfds();
 		throw std::runtime_error(ERROR_LOG("fcntl: " + std::string(strerror(errno))));
 	}
+
 	_pfds.push_back({ clientFd, POLLIN, 0 });
 	Request	req(clientFd);
 	_clients.push_back(req);
@@ -217,81 +220,109 @@ void	Server::handleClientData(size_t& i)
 	char	buf[RECV_BUF_SIZE + 1];
 
 	int		numBytes = recv(_pfds[i].fd, buf, RECV_BUF_SIZE, 0);
+
 	if (numBytes <= 0)
 	{
 		if (numBytes == 0)
 			INFO_LOG("Client disconnected on fd " + std::to_string(_pfds[i].fd));
 		else
 			ERROR_LOG("recv: " + std::string(strerror(errno)));
+
 		INFO_LOG("Closing fd " + std::to_string(_pfds[i].fd));
 		close(_pfds[i].fd);
-		if (_pfds.size() > (i + 1)) {
-			DEBUG_LOG("Replacing fd " + std::to_string(_pfds[i].fd) + " with fd " + std::to_string(_pfds[_pfds.size() - 1].fd));
+
+		if (_pfds.size() > (i + 1))
+		{
+			DEBUG_LOG("Overwriting fd " + std::to_string(_pfds[i].fd) + " with fd " + std::to_string(_pfds[_pfds.size() - 1].fd));
 			INFO_LOG("Removing client fd " + std::to_string(_pfds[i].fd) + " from poll list");
 			_pfds[i] = _pfds[_pfds.size() - 1];
 			_pfds.pop_back();
 			i--;
 			DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
-		} else {
+
+			return ;
+		}
+
+		INFO_LOG("Removing client fd " + std::to_string(_pfds.back().fd) + ", last client");
+		_pfds.pop_back();
+		i--;
+		DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
+
+		return ;
+	}
+
+	buf[numBytes] = '\0';
+	INFO_LOG("Received client data from fd " + std::to_string(_pfds[i].fd));
+	std::cout << "\n---- Request data ----\n" << buf << '\n';
+
+	if (!_clients.empty())
+	{
+		auto it = _clients.begin();
+		while (it != _clients.end())
+		{
+			if (it->getFd() == _pfds[i].fd)
+				break ;
+			it++;
+		}
+
+		if (it ==_clients.end())
+			throw std::runtime_error(ERROR_LOG("Couldn't match client fd to poll fd list"));
+
+		(*it).saveRequest(std::string(buf));
+
+		while (!(*it).isBufferEmpty())
+		{
+			(*it).handleRequest();
+
+			if ((*it).getIsMissingData())
+			{
+				INFO_LOG("Waiting for more data to complete partial request");
+
+				return ;
+			}
+
+			if (!(*it).getIsValid())
+			{
+				ERROR_LOG("Invalid HTTP request");
+
+				return ;
+			}
+
+			//build and send response
+			INFO_LOG("Building response to client fd " + std::to_string(_pfds[i].fd));
+			Response	res(*it);
+
+			INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
+			send(_pfds[i].fd, res.getContent().c_str(), res.getContent().size(), MSG_DONTWAIT);
+
+			(*it).reset();
+		}
+
+		DEBUG_LOG("Keep alive status: " + std::to_string((*it).getKeepAlive()));
+		if (!(*it).getKeepAlive())
+		{
+			INFO_LOG("Closing fd " + std::to_string(_pfds[i].fd));
+			close(_pfds[i].fd);
+
+			INFO_LOG("Erasing fd " + std::to_string(_pfds[i].fd) + " from clients list");
+			_clients.erase(it);
+
+			if (_pfds.size() > (i + 1))
+			{
+				DEBUG_LOG("Overwriting fd " + std::to_string(_pfds[i].fd) + " with fd " + std::to_string(_pfds[_pfds.size() - 1].fd));
+				INFO_LOG("Removing client fd " + std::to_string(_pfds[i].fd) + " from poll list");
+				_pfds[i] = _pfds[_pfds.size() - 1];
+				_pfds.pop_back();
+				i--;
+				DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
+
+				return ;
+			}
+
 			INFO_LOG("Removing client fd " + std::to_string(_pfds.back().fd) + ", last client");
 			_pfds.pop_back();
 			i--;
 			DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
-		}
-	}
-	else
-	{
-		buf[numBytes] = '\0';
-		INFO_LOG("Received client data from fd " + std::to_string(_pfds[i].fd));
-		std::cout << "\n---- Request data ----\n" << buf << '\n';
-		if (!_clients.empty()) {
-			auto it = _clients.begin();
-			while (it != _clients.end()) {
-				if (it->getFd() == _pfds[i].fd)
-					break ;
-				it++;
-			}
-			if (it ==_clients.end())
-				ERROR_LOG("Unexpected error in finding client fd"); //bad messaging
-			(*it).saveRequest(std::string(buf));
-			while (!(*it).isBufferEmpty()) {
-				(*it).handleRequest();
-				if ((*it).getIsMissingData()) {
-					INFO_LOG("Waiting for more data to complete partial request");
-					return ;
-				}
-				if (!(*it).getIsValid()) {
-					ERROR_LOG("Invalid HTTP request");
-					return ;
-				}
-
-				//build and send response
-				Response	res(*it);
-
-				send(_pfds[i].fd, res.getContent().c_str(), res.getContent().size(), MSG_DONTWAIT);
-
-				(*it).reset();
-			}
-			DEBUG_LOG("Keep alive status: " + std::to_string((*it).getKeepAlive()));
-			if (!(*it).getKeepAlive()) {
-				INFO_LOG("Closing fd " + std::to_string(_pfds[i].fd));
-				close(_pfds[i].fd);
-				INFO_LOG("Erasing fd " + std::to_string(_pfds[i].fd) + " from clients list");
-				_clients.erase(it);
-				if (_pfds.size() > (i + 1)) {
-					DEBUG_LOG("Overwriting index " + std::to_string(i) + " with " + std::to_string(_pfds.size() - 1));
-					INFO_LOG("Removing client fd " + std::to_string(_pfds[i].fd) + " from poll list");
-					_pfds[i] = _pfds[_pfds.size() - 1];
-					_pfds.pop_back();
-					i--;
-					DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
-				} else {
-					INFO_LOG("Removing client fd " + std::to_string(_pfds.back().fd) + ", last client");
-					_pfds.pop_back();
-					i--;
-					DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
-				}
-			}
 		}
 	}
 }
@@ -306,18 +337,23 @@ void	Server::handleConnections(void)
 {
 	for (size_t i = 0; i < _pfds.size(); i++)
 	{
-		if (_pfds[i].revents & (POLLIN | POLLHUP)) {
+		if (_pfds[i].revents & (POLLIN | POLLHUP))
+		{
 			auto	it = _serverGroups.begin();
-			while (it != _serverGroups.end()) {
+			while (it != _serverGroups.end())
+			{
 				if (it->fd == _pfds[i].fd)
 					break ;
 				it++;
 			}
-			if (it != _serverGroups.end()) {
+
+			if (it != _serverGroups.end())
+			{
 				INFO_LOG("Handling new client connecting on fd " + std::to_string(it->fd));
 				handleNewClient(it->fd);
 			}
-			else {
+			else
+			{
 				INFO_LOG("Handling client data from fd " + std::to_string(_pfds[i].fd));
 				handleClientData(i);
 			}
