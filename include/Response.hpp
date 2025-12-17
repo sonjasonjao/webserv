@@ -12,6 +12,11 @@ enum ResponseCode : int {
 	NotFound	= 404,
 };
 
+enum class ResponseError {
+	NoError,
+	badTarget,
+};
+
 class Response {
 
 public:
@@ -38,5 +43,6 @@ private:
 	std::string		_headerSection;
 	std::string		_body;
 	std::string		_content;
-	ResponseCode	_statusCode = Unassigned;
+	ResponseCode	_statusCode	= Unassigned;
+	ResponseError	_error		= ResponseError::NoError;
 };
