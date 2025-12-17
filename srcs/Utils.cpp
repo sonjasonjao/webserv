@@ -1,5 +1,6 @@
 #include "Utils.hpp"
 #include "Log.hpp"
+#include <array>
 #include <sstream>
 #include <chrono>
 #include <iomanip>
@@ -227,7 +228,87 @@ bool	isValidImfFixdate(std::string_view sv)
 
 	if (parts.empty())
 		return false;
+	if (parts.size() != 6)
+		return false;
 	if (std::any_of(parts.begin(), parts.end(), [](auto a) {return a.empty();}))
+		return false;
+
+	static const std::array<std::string, 7>	weekdays = {
+		"Mon,",
+		"Tue,",
+		"Wed,",
+		"Thu,",
+		"Fri,",
+		"Sat,",
+		"Sun,"
+	};
+
+	if (std::none_of(weekdays.begin(), weekdays.end(), [&parts](auto a) {return parts[0] == a;}))
+		return false;
+
+	if (parts[1].length() > 2)
+		return false;
+	if (!std::all_of(parts[1].begin(), parts[1].end(), isdigit))
+		return false;
+
+	int	day = std::stoi(parts[1]);
+
+	static const std::array<std::string, 12>	months = {
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec",
+	};
+
+	int	month = -1;
+
+	for (int i = 0; i < 12; ++i)
+		if (months[i] == parts[2])
+			month = i;
+
+	if (month < 0)
+		return false;
+
+	if (parts[3].length() != 4)
+		return false;
+	if (!std::all_of(parts[3].begin(), parts[3].end(), isdigit))
+		return false;
+
+	int	year = std::stoi(parts[3]);
+
+	std::chrono::year_month_day	ymd(	static_cast<std::chrono::year>(year),
+										static_cast<std::chrono::month>(month),
+										static_cast<std::chrono::day>(day));
+
+	if (!ymd.ok())
+		return false;
+
+	auto	hms = splitStringView(parts[4], ":");	// hours:minutes:seconds
+
+	if (hms.size() != 3)
+		return false;
+	if (std::any_of(hms.begin(), hms.end(), [](auto a) {return a.empty();}))
+		return false;
+	for (auto const &e : hms)
+	  if (!all_of(e.begin(), e.end(), isdigit))
+		return false;
+
+	int	hours	= stoi(hms[0]);
+	int	minutes	= stoi(hms[1]);
+	int	seconds	= stoi(hms[2]);
+
+	if (hours > 23 || minutes > 59 || seconds > 59)
+		return false;
+
+	if (parts[5] != "GMT")
 		return false;
 
 	return true;
@@ -313,6 +394,12 @@ int	main()
 	assert(uriFormatOk("abc") == true);
 	assert(uriFormatOk("") == false);
 	assert(uriFormatOk("//") == false);
+
+	assert(isValidImfFixdate("Tue, 15 Nov 1994 12:45:26 GMT") == true);
+	assert(isValidImfFixdate("tue, 15 Nov 1994 12:45:26 GMT") == false);
+	assert(isValidImfFixdate("Tue, 32 Nov 1994 12:45:26 GMT") == false);
+	assert(isValidImfFixdate("Tue, 15 Nov 1994 12:45:60 GMT") == false);
+	assert(isValidImfFixdate("Tue, 15 Nov 1994 12:45:26") == false);
 	return 0;
 }
 
