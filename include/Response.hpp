@@ -29,6 +29,8 @@ public:
 	std::string const				&getStartLine() const;
 	std::vector<std::string> const	*getHeader(std::string const &key) const;
 	RequestMethod					getRequestMethod() const;
+	void							sendToClient();
+	bool							sendIsComplete();
 
 private:
 
@@ -45,4 +47,5 @@ private:
 	std::string		_content;
 	ResponseCode	_statusCode	= Unassigned;
 	ResponseError	_error		= ResponseError::NoError;
+	size_t			_bytesSent	= 0;
 };
