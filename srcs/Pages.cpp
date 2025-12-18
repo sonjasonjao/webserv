@@ -3,8 +3,9 @@
 #include "Log.hpp"
 #include <stdexcept>
 
-std::unordered_map<std::string, std::string>	Pages::cache;
-size_t											Pages::cacheSize = 0;
+std::unordered_map<std::string, std::string const *>	Pages::cacheMap;
+std::deque<std::pair<std::string, std::string>>			Pages::cacheQue;
+size_t													Pages::cacheSize = 0;
 
 constexpr static char const * const	DEFAULT200	= \
 R"(
@@ -56,32 +57,24 @@ R"(
 
 void	Pages::loadDefaults()
 {
-	try {
-		cacheSize -= cache.at("default200").length();
-		cache.erase("default200");
-	} catch (std::out_of_range const &e) {}
-	try {
-		cacheSize -= cache.at("default400").length();
-		cache.erase("default400");
-	} catch (std::out_of_range const &e) {}
-	try {
-		cacheSize -= cache.at("default404").length();
-		cache.erase("default404");
-	} catch (std::out_of_range const &e) {}
-	cache["default200"] = DEFAULT200;
-	cache["default204"] = DEFAULT204;
-	cache["default400"] = DEFAULT400;
-	cache["default404"] = DEFAULT404;
-	cacheSize += cache["default200"].length();
-	cacheSize += cache["default204"].length();
-	cacheSize += cache["default400"].length();
-	cacheSize += cache["default404"].length();
+	cacheQue.emplace_back("default200", DEFAULT200);
+	cacheMap["default200"] = &cacheQue.back().second;
+	cacheQue.emplace_back("default204", DEFAULT204);
+	cacheMap["default204"] = &cacheQue.back().second;
+	cacheQue.emplace_back("default400", DEFAULT400);
+	cacheMap["default400"] = &cacheQue.back().second;
+	cacheQue.emplace_back("default404", DEFAULT404);
+	cacheMap["default404"] = &cacheQue.back().second;
+	cacheSize += cacheMap["default200"]->length();
+	cacheSize += cacheMap["default204"]->length();
+	cacheSize += cacheMap["default400"]->length();
+	cacheSize += cacheMap["default404"]->length();
 }
 
 bool	Pages::isCached(std::string const &key)
 {
 	try {
-		cache.at(key);
+		cacheMap.at(key);
 		return true;
 	} catch (std::out_of_range const &e) {
 		return false;
@@ -101,7 +94,9 @@ std::string const	&Pages::getPageContent(std::string const &key)
 {
 	INFO_LOG("Retrieving " + key);
 	try {
-		return cache.at(key);
+		std::string const	&content = *cacheMap.at(key);
+		
+		return content;
 	} catch (std::out_of_range const &e) {}
 
 	std::string	page = getFileAsString(key, "/");	// Force absolute filepath for unique identifiers for resources
@@ -110,21 +105,23 @@ std::string const	&Pages::getPageContent(std::string const &key)
 		throw std::runtime_error(ERROR_LOG("File " + key + " is too large for cache"));
 
 	while (cacheSize > 0 && cacheSize + page.length() > CACHE_SIZE_MAX) {
-		auto	it = cache.begin();
-
-		DEBUG_LOG("Removing " + it->first + " from cache to make space for " + key);
-		cacheSize -= it->second.length();
-		cache.erase(it->first);
+		DEBUG_LOG("Removing " + cacheQue.front().first + " from cache to make space for " + key);
+		cacheSize -= cacheQue.front().second.length();
+		cacheMap.erase(cacheQue.front().first);
+		cacheQue.pop_front();
 	}
-	DEBUG_LOG("Adding " + key + " to cache");
-	cache[key] = page;
-	cacheSize += page.length();
 
-	return cache.at(key);
+	DEBUG_LOG("Adding " + key + " to cache");
+	cacheSize += page.length();
+	cacheQue.emplace_back(key, page);
+	cacheMap[key] = &cacheQue.back().second;
+
+	return *cacheMap.at(key);
 }
 
 void	Pages::clearCache()
 {
-	cache.clear();
+	cacheMap.clear();
+	cacheQue.clear();
 	cacheSize = 0;
 }
