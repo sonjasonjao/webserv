@@ -25,6 +25,7 @@ std::ofstream	Log::_ofs;	// Reserve space for static member variable
 void	Log::logTime(std::ostream *outputStream)
 {
 	auto	timePoint	= std::chrono::system_clock::now();
+	auto	sinceEpoch	= timePoint.time_since_epoch();
 	auto	time		= std::chrono::system_clock::to_time_t(timePoint);
 
 	auto	sinceEpoch	= timePoint.time_since_epoch();

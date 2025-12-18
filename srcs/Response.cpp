@@ -2,10 +2,12 @@
 #include "Log.hpp"
 #include "Utils.hpp"
 #include "Pages.hpp"
+#include <cstring>
 #include <string>
 #include <vector>
 #include <iostream>
 #include <filesystem>
+#include <sys/socket.h>
 
 constexpr char const * const	CRLF = "\r\n";
 
@@ -100,7 +102,8 @@ Response::Response(Response const &other)
 		_headerSection(other._headerSection),
 		_body(other._body),
 		_content(other._content),
-		_statusCode(other._statusCode)
+		_statusCode(other._statusCode),
+		_error(other._error)
 {}
 
 std::string const	&Response::getContent() const
@@ -163,4 +166,25 @@ void	Response::formResponse()
 	_headerSection += "Content-Length: " + std::to_string(_body.length()) + CRLF;
 
 	_content = _startLine + CRLF + _headerSection + CRLF + _body;
+}
+
+void	Response::sendToClient()
+{
+	size_t	bytesToSend = _content.length() - _bytesSent;
+
+	if (bytesToSend <= 0)
+		return;
+
+	char const	*bufferPosition	= _content.c_str() + _bytesSent;
+	ssize_t		bytesSent		= send(_req.getFd(), bufferPosition, bytesToSend, MSG_DONTWAIT);
+
+	if (bytesSent < 0)
+		throw std::runtime_error(ERROR_LOG("send: " + std::string(strerror(errno))));
+
+	_bytesSent += bytesSent;
+}
+
+bool	Response::sendIsComplete()
+{
+	return _bytesSent >= _content.length();
 }
