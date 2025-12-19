@@ -1,10 +1,14 @@
 #include "Utils.hpp"
+#include "Log.hpp"
 #include <sstream>
 #include <chrono>
 #include <iomanip>
 #include <clocale>
 #include <filesystem>
 #include <algorithm>
+#include <fstream>
+#include <cerrno>
+#include <cstring>
 
 /**
  * The IMF fixdate is the preferred format for HTTP timestamps
@@ -113,11 +117,13 @@ bool	isValidIPv4(std::string_view sv)
  */
 bool	resourceExists(std::string_view uri, std::string searchDir)
 {
+	static std::string const	currentDir = std::filesystem::current_path();
+
 	if (uri.empty())
 		return false;
 
 	if (searchDir.empty())
-		searchDir = std::filesystem::current_path();
+		searchDir = currentDir;
 
 	std::string	path{uri};
 
@@ -180,6 +186,39 @@ bool	uriTargetAboveRoot(std::string_view uri)
 	}
 
 	return (up > down);
+}
+
+std::string	getFileAsString(std::string const &fileName, std::string searchDir)
+{
+	static std::string const	currentDir = std::filesystem::current_path();
+
+	if (searchDir.empty())
+		searchDir = currentDir;
+	if (searchDir.back() == '/')
+		searchDir.pop_back();
+
+	std::ifstream		fileStream(searchDir + "/" + fileName);
+
+	if (fileStream.fail())
+		throw std::runtime_error(ERROR_LOG("Couldn't open " + fileName + ": " + strerror(errno)));
+
+	std::stringstream	buf;
+
+	buf << fileStream.rdbuf();
+	return buf.str();
+}
+
+std::string	getAbsPath(std::string const &fileName, std::string searchDir)
+{
+	static std::string const	currentDir = std::filesystem::current_path();
+
+	if (searchDir.empty())
+		searchDir = currentDir;
+	if (searchDir.back() == '/')
+		searchDir.pop_back();
+	if (fileName.front() == '/')
+		return searchDir + fileName;
+	return searchDir + "/" + fileName;
 }
 
 //#define TEST
