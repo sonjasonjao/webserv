@@ -12,7 +12,7 @@ constexpr char const * const	CRLF = "\r\n";
  * Will need to make the whole logic support this.
  */
 Request::Request(int fd) : _fd(fd), _keepAlive(false), _chunked(false), _isValid(true),
-	_kickMe(false), _isMissingData(false) {
+	_kickMe(false), _isMissingData(false), _completeHeaders(false) {
 	_request.method = RequestMethod::Unknown;
 }
 
@@ -24,14 +24,11 @@ void	Request::saveRequest(std::string const& buf) {
 }
 
 /**
- * Checks whether the buffer so far includes "\r\n\r\n". If not, and headers is empty,
- * we assume the request is partial.
- *
- * Checking if headers is empty does not account for if there is something in headers, but
- * not yet the terminating "\r\n\r\n".
+ * Checks whether the buffer so far includes "\r\n\r\n". If not, and the headers part hasn't
+ * been received completely (ending with "\r\n\r\n"), we assume the request is partial.
  */
 void	Request::handleRequest(void) {
-	if (_buffer.find("\r\n\r\n") == std::string::npos && _headers.empty())
+	if (_buffer.find("\r\n\r\n") == std::string::npos && !_completeHeaders)
 		_isMissingData = true;
 	else {
 		_isMissingData = false;
@@ -52,8 +49,13 @@ void	Request::reset(void) {
 	_body.clear();
 	_contentLen.reset();
 	_isMissingData = false;
+	_isValid = true;
 	_chunked = false;
-	std::cout << "NOW IN BUFFER '" << _buffer << "'\n";
+	_completeHeaders = false;
+}
+
+void	Request::resetKeepAlive(void) {
+	_keepAlive = false;
 }
 
 /**
@@ -82,8 +84,8 @@ std::string	splitReqLine(std::string& orig, std::string delim)
  */
 bool	isNeededHeader(std::string& key)
 {
-	if (key == "host" || key == "content-length" || key == "content-type" || key == "connection"
-		|| key == "transfer-encoding")
+	if (key == "host" || key == "content-length" || key == "content-type"
+		|| key == "connection" || key == "transfer-encoding")
 		return true;
 	return false;
 }
@@ -194,6 +196,7 @@ void	Request::parseHeaders(std::string& str) {
 	while (!str.empty()) {
 		if (str.substr(0, 2) == CRLF) {
 			str = str.substr(2);
+			_completeHeaders = true;
 			break ;
 		}
 		line = splitReqLine(str, CRLF);
@@ -220,6 +223,8 @@ void	Request::parseHeaders(std::string& str) {
 				_headers[key].push_back(oneValue);
 		}
 	}
+	if (!_completeHeaders)
+		_isMissingData = true;
 	if (_headers.empty() || !validateHeaders()) {
 		_isValid = false;
 		return ;
@@ -374,7 +379,9 @@ bool	Request::areValidChars(std::string& s) {
  * If the target is given as absolute path, it has to be either of HTTP or HTTPS
  * protocol.
  *
- * In case the URI includes '?', we use it as a separator to get the query.*
+ * In case the URI includes '?', we use it as a separator to get the query.
+ * We must later split the possible query with '&' which separates different queries.
+ * Might be better to do that in the CGI handling part, so for now it's all in one string.
  */
 bool	Request::isTargetValid(std::string& target) {
 	if (target.size() == 1 && target != "/")
@@ -437,10 +444,11 @@ void	Request::printData(void) const {
 	std::cout << "\n";
 	if (!_body.empty())
 		std::cout << "---- Body ----\n" << _body << '\n';
-	std::cout << "	Keep alive?	" << _keepAlive << '\n';
-	std::cout << "	Missing data?	" << _isMissingData << '\n';
-	std::cout << "	Chunked?	" << _chunked << '\n';
-	std::cout << "	Valid?		" << _isValid << "\n\n";
+	std::cout << "	Keep alive?		" << _keepAlive << '\n';
+	std::cout << "	Complete headers?	" << _completeHeaders << '\n';
+	std::cout << "	Missing data?		" << _isMissingData << '\n';
+	std::cout << "	Chunked?		" << _chunked << '\n';
+	std::cout << "	Valid?			" << _isValid << "\n\n";
 }
 
 std::string	Request::getHost(void) const {

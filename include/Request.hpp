@@ -40,6 +40,7 @@ class Request
 		bool					_isValid;
 		bool					_kickMe;
 		bool					_isMissingData;
+		bool					_completeHeaders;
 
 	public:
 		Request() = delete;
@@ -67,6 +68,7 @@ class Request
 		bool		getIsMissingData(void) const;
 		bool		isBufferEmpty(void);
 		void		reset(void);
+		void		resetKeepAlive(void);
 
 		RequestMethod						getRequestMethod(void) const;
 		std::string const					&getHttpVersion(void) const;

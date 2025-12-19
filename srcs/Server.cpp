@@ -169,14 +169,12 @@ void	Server::run(void)
 	createServerSockets();
 	while (true)
 	{
-		int	pollCount = poll(&_pfds[0], _pfds.size(), 1000); //timeout needs to be set
+		int	pollCount = poll(_pfds.data(), _pfds.size(), 1000); //timeout needs to be set
 		if (pollCount < 0)
 		{
 			closePfds();
 			throw std::runtime_error(ERROR_LOG("poll: " + std::string(strerror(errno))));
 		}
-
-		// DEBUG_LOG("pollCount: " + std::string(std::to_string(pollCount)));
 		handleConnections();
 	}
 }
@@ -275,7 +273,7 @@ void	Server::handleClientData(size_t& i)
 
 			if ((*it).getKickMe())
 			{
-				ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd) + "connection dropped: suspicious request");
+				ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd) + " connection dropped: suspicious request");
 
 				break ;
 			}
@@ -288,41 +286,60 @@ void	Server::handleClientData(size_t& i)
 			}
 
 			INFO_LOG("Building response to client fd " + std::to_string(_pfds[i].fd));
-			Response	res(*it);
 
-			INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
-			send(_pfds[i].fd, res.getContent().c_str(), res.getContent().size(), MSG_DONTWAIT);
+			_responses[_pfds[i].fd].emplace_back(Response(*it));
 
-			(*it).reset();	//IN CASE OF INVALID, BUFFER MIGHT NOT BE EMPTY (TEST WITH CURRENT CLIENT)
+			_pfds[i].events |= POLLOUT;
+
 		}
+	}
+}
 
-		DEBUG_LOG("Keep alive status: " + std::to_string((*it).getKeepAlive()));
-		if (!(*it).getKeepAlive())
+void	Server::sendResponse(size_t& i)
+{
+	auto it = _clients.begin();
+	while (it != _clients.end())
+	{
+		if (it->getFd() == _pfds[i].fd)
+			break ;
+		it++;
+	}
+	auto	&res = _responses[_pfds[i].fd].front();
+
+	INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
+	send(_pfds[i].fd, res.getContent().c_str(), res.getContent().size(), MSG_DONTWAIT);
+
+	_pfds[i].events &= ~POLLOUT;
+
+	(*it).reset();
+
+	DEBUG_LOG("Keep alive status: " + std::to_string((*it).getKeepAlive()));
+	if (!(*it).getKeepAlive())
+	{
+		INFO_LOG("Closing fd " + std::to_string(_pfds[i].fd));
+		close(_pfds[i].fd);
+
+		INFO_LOG("Erasing fd " + std::to_string(_pfds[i].fd) + " from clients list");
+		_clients.erase(it);
+
+		if (_pfds.size() > (i + 1))
 		{
-			INFO_LOG("Closing fd " + std::to_string(_pfds[i].fd));
-			close(_pfds[i].fd);
-
-			INFO_LOG("Erasing fd " + std::to_string(_pfds[i].fd) + " from clients list");
-			_clients.erase(it);
-
-			if (_pfds.size() > (i + 1))
-			{
-				DEBUG_LOG("Overwriting fd " + std::to_string(_pfds[i].fd) + " with fd " + std::to_string(_pfds[_pfds.size() - 1].fd));
-				INFO_LOG("Removing client fd " + std::to_string(_pfds[i].fd) + " from poll list");
-				_pfds[i] = _pfds[_pfds.size() - 1];
-				_pfds.pop_back();
-				i--;
-				DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
-
-				return ;
-			}
-
-			INFO_LOG("Removing client fd " + std::to_string(_pfds.back().fd) + ", last client");
+			DEBUG_LOG("Overwriting fd " + std::to_string(_pfds[i].fd) + " with fd " + std::to_string(_pfds[_pfds.size() - 1].fd));
+			INFO_LOG("Removing client fd " + std::to_string(_pfds[i].fd) + " from poll list");
+			_pfds[i] = _pfds[_pfds.size() - 1];
 			_pfds.pop_back();
 			i--;
 			DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
+
+			return ;
 		}
+
+		INFO_LOG("Removing client fd " + std::to_string(_pfds.back().fd) + ", last client");
+		_pfds.pop_back();
+		i--;
+		DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
 	}
+	(*it).resetKeepAlive();
 }
 
 /**
@@ -330,6 +347,9 @@ void	Server::handleClientData(size_t& i)
  * incoming request. If the fd that had a new event is one of the server fds, it's a new client
  * wanting to connect to that server. If it's not a server fd, it is an existing client that has
  * sent data.
+ *
+ * We probably need to implement tracking of POLLOUT here, and handle the sending through
+ * a separate process, as it now is by just calling send() once in handleClientData().
  */
 void	Server::handleConnections(void)
 {
@@ -356,6 +376,8 @@ void	Server::handleConnections(void)
 				handleClientData(i);
 			}
 		}
+		if (_pfds[i].revents & POLLOUT)
+			sendResponse(i);
 	}
 }
 

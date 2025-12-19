@@ -2,6 +2,7 @@
 #include "Parser.hpp"
 #include "Log.hpp"
 #include "Request.hpp"
+#include "Response.hpp"
 #include <vector>
 #include <unordered_map>
 #include <exception>
@@ -23,10 +24,11 @@ struct ServerGroup
 class Server
 {
 	private:
-		std::vector<Config>			_configs;
-		std::vector<pollfd>			_pfds;
-		std::vector<ServerGroup>	_serverGroups;
-		std::vector<Request>		_clients;
+		std::vector<Config>								_configs;
+		std::vector<pollfd>								_pfds;
+		std::vector<ServerGroup>						_serverGroups;
+		std::vector<Request>							_clients;
+		std::unordered_map<int, std::vector<Response>>	_responses;
 
 	public:
 		Server() = delete;
@@ -42,6 +44,7 @@ class Server
 		void	run(void);
 		void	handleNewClient(int listener);
 		void	handleClientData(size_t& i);
+		void	sendResponse(size_t& i);
 		void	handleConnections(void);
 		void	closePfds(void);
 		void	groupConfigs(void);

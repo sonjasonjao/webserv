@@ -13,6 +13,8 @@
 #include <iostream>
 #include <fcntl.h>
 #include <cstring>
+#include <vector>
+#include <poll.h>
 
 int main(int argc, char **argv)
 {
@@ -45,18 +47,47 @@ int main(int argc, char **argv)
 		break ;
 	}
 	freeaddrinfo(res);
-	char msg[62] =
-	"GET / HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-encoding: Chunked\r\n";
-	char msg2[67] =
-	"Connection: Keep-alive\r\n\r\n7\r\nThis is b\r\n0F\r\nThis is another\r\n0\r\n\r\n";
+	std::vector<pollfd>	pfd;
+	pfd.push_back({ sockfd, POLLOUT, 0 });
+	char msg[34] =
+	"GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n";
+	char msg2[95] =
+	"Connection: Keep-alive\r\nTransfer-encoding: Chunked\r\n\r\n9\r\nThis is b\r\n0F\r\nThis is another\r\n0\r\n\r\n";
 	char msg3[36] =
 	"GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n";
-	send(sockfd, msg, sizeof(msg), 0);
-	usleep(1000);
-	send(sockfd, msg2, sizeof(msg2), 0);
-	usleep(1000);
-	send(sockfd, msg3, sizeof(msg3), 0);
-	close(sockfd);
+	int i = 0;
+	int j = 0;
+	while (true)
+	{
+		poll(pfd.data(), pfd.size(), 1000);
+		if ((pfd[0].revents & POLLOUT) && i < 3) {
+			if (i == 0)
+				send(sockfd, msg, sizeof(msg), 0);
+			if (i == 1) {
+				send(sockfd, msg2, sizeof(msg2), 0);
+				pfd[0].events |= POLLIN;
+			}
+			if (i == 2) {
+				send(sockfd, msg3, sizeof(msg3), 0);
+				pfd[0].events |= POLLIN;
+			}
+			i++;
+			std::cout << "Sent\n";
+			usleep(1000);
+		}
+		else if ((pfd[0].revents & POLLIN) && j < 2) {
+			ssize_t	numBytes;
+			char	buf[1025];
+			if ((numBytes = recv(sockfd, buf, 1024, 0)) == -1) {
+				perror("recv");
+				exit(1);
+			}
+			buf[numBytes] = '\0';
+			std::cout << "Received: '" << buf << "'\n";
+			pfd[0].events &= ~POLLIN;
+			j++;
+		}
+	}
 
 	return 0;
 }
