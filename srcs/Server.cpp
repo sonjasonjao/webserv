@@ -238,7 +238,6 @@ void	Server::handleClientData(size_t& i)
 			_pfds[i] = _pfds[_pfds.size() - 1];
 			_pfds.pop_back();
 			i--;
-			DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
 
 			return ;
 		}
@@ -246,7 +245,6 @@ void	Server::handleClientData(size_t& i)
 		INFO_LOG("Removing client fd " + std::to_string(_pfds.back().fd) + ", last client");
 		_pfds.pop_back();
 		i--;
-		DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
 
 		return ;
 	}
@@ -298,7 +296,6 @@ void	Server::handleClientData(size_t& i)
 			(*it).reset();
 		}
 
-		DEBUG_LOG("Keep alive status: " + std::to_string((*it).getKeepAlive()));
 		if (!(*it).getKeepAlive())
 		{
 			INFO_LOG("Closing fd " + std::to_string(_pfds[i].fd));
@@ -314,7 +311,6 @@ void	Server::handleClientData(size_t& i)
 				_pfds[i] = _pfds[_pfds.size() - 1];
 				_pfds.pop_back();
 				i--;
-				DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
 
 				return ;
 			}
@@ -322,7 +318,6 @@ void	Server::handleClientData(size_t& i)
 			INFO_LOG("Removing client fd " + std::to_string(_pfds.back().fd) + ", last client");
 			_pfds.pop_back();
 			i--;
-			DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
 		}
 	}
 }
