@@ -202,7 +202,7 @@ void	Server::handleNewClient(int listener)
 		throw std::runtime_error(ERROR_LOG("fcntl: " + std::string(strerror(errno))));
 	}
 
-	_pfds.push_back({ clientFd, POLLIN, 0 });
+	_pfds.push_back({ clientFd, POLLIN | POLLOUT, 0 });
 	Request	req(clientFd);
 	_clients.push_back(req);
 	INFO_LOG("New client accepted, assigned fd " + std::to_string(clientFd));
@@ -275,7 +275,8 @@ void	Server::handleClientData(size_t& i)
 			{
 				ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd) + " connection dropped: suspicious request");
 
-				break ;
+				//need to build closing and cleanup here
+				return ;
 			}
 
 			if ((*it).getIsMissingData())
@@ -287,14 +288,18 @@ void	Server::handleClientData(size_t& i)
 
 			INFO_LOG("Building response to client fd " + std::to_string(_pfds[i].fd));
 
+			//do we need to match here client to config and send that config to Response?
+
 			_responses[_pfds[i].fd].emplace_back(Response(*it));
 
-			_pfds[i].events |= POLLOUT;
-
+			// _pfds[i].events |= POLLOUT; we should probably listen to both all the time
 		}
 	}
 }
 
+/**
+ * Send protection (disconnect and erase client) missing
+ */
 void	Server::sendResponse(size_t& i)
 {
 	auto it = _clients.begin();
@@ -304,12 +309,24 @@ void	Server::sendResponse(size_t& i)
 			break ;
 		it++;
 	}
+
+	try
+	{
+		if (_responses.at(_pfds[i].fd).empty())
+			throw std::exception();
+	}
+	catch(const std::exception& e)
+	{
+		INFO_LOG("No responses to send");
+		return ;
+	}
+
 	auto	&res = _responses[_pfds[i].fd].front();
 
 	INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
 	send(_pfds[i].fd, res.getContent().c_str(), res.getContent().size(), MSG_DONTWAIT);
 
-	_pfds[i].events &= ~POLLOUT;
+	// _pfds[i].events &= ~POLLOUT; we should probably listen to both all the time
 
 	(*it).reset();
 

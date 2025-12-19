@@ -39,14 +39,14 @@ class Server
 
 		std::vector<Config> const&	getConfigs() const;
 
-		void	createServerSockets(void);
-		int		getServerSocket(Config conf);
-		void	run(void);
-		void	handleNewClient(int listener);
-		void	handleClientData(size_t& i);
-		void	sendResponse(size_t& i);
-		void	handleConnections(void);
-		void	closePfds(void);
-		void	groupConfigs(void);
-		bool	isGroupMember(Config& conf);
+		void			createServerSockets(void);
+		int				getServerSocket(Config conf);
+		void			run(void);
+		void			handleNewClient(int listener);
+		void			handleClientData(size_t& i);
+		void			sendResponse(size_t& i);
+		void			handleConnections(void);
+		void			closePfds(void);
+		void			groupConfigs(void);
+		bool			isGroupMember(Config& conf);
 };
