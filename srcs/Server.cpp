@@ -225,7 +225,6 @@ void	Server::handleClientData(size_t& i)
 			_pfds[i] = _pfds[_pfds.size() - 1];
 			_pfds.pop_back();
 			i--;
-			DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
 
 			return ;
 		}
@@ -233,7 +232,6 @@ void	Server::handleClientData(size_t& i)
 		INFO_LOG("Removing client fd " + std::to_string(_pfds.back().fd) + ", last client");
 		_pfds.pop_back();
 		i--;
-		DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
 
 		return ;
 	}
@@ -302,7 +300,28 @@ void	Server::handleClientData(size_t& i)
 			_responses[_pfds[i].fd].emplace_back(Response(*it));
 			(*it).reset();
 
-			// _pfds[i].events |= POLLOUT; //we should probably listen to both all the time
+		if (!(*it).getKeepAlive())
+		{
+			INFO_LOG("Closing fd " + std::to_string(_pfds[i].fd));
+			close(_pfds[i].fd);
+
+			INFO_LOG("Erasing fd " + std::to_string(_pfds[i].fd) + " from clients list");
+			_clients.erase(it);
+
+			if (_pfds.size() > (i + 1))
+			{
+				DEBUG_LOG("Overwriting fd " + std::to_string(_pfds[i].fd) + " with fd " + std::to_string(_pfds[_pfds.size() - 1].fd));
+				INFO_LOG("Removing client fd " + std::to_string(_pfds[i].fd) + " from poll list");
+				_pfds[i] = _pfds[_pfds.size() - 1];
+				_pfds.pop_back();
+				i--;
+
+				return ;
+			}
+
+			INFO_LOG("Removing client fd " + std::to_string(_pfds.back().fd) + ", last client");
+			_pfds.pop_back();
+			i--;
 		}
 	}
 }
