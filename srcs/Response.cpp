@@ -51,6 +51,8 @@ Response::Response(Request const &req) : _req(req)
 		return;
 	}
 
+	_target = std::filesystem::path(_target).lexically_normal();
+
 	if (std::filesystem::is_directory(_target)) {
 		if (_target.back() == '/')
 			_target.pop_back();
