@@ -31,17 +31,6 @@ Server::Server(Parser& parser)
 }
 
 /**
- * Do we need this?
- */
-Server::Server(Server const& obj)
-{
-	_configs = obj._configs;
-	_pfds = obj._pfds;
-	_serverGroups = obj._serverGroups;
-	_clients = obj._clients;
-}
-
-/**
  * Looks through existing serverGroups and checks whether any of them shares the same
  * IP and port with this current config.
  */
@@ -275,7 +264,26 @@ void	Server::handleClientData(size_t& i)
 			{
 				ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd) + " connection dropped: suspicious request");
 
-				//need to build closing and cleanup here
+				INFO_LOG("Closing fd " + std::to_string(_pfds[i].fd));
+				close(_pfds[i].fd);
+
+				INFO_LOG("Erasing fd " + std::to_string(_pfds[i].fd) + " from clients list");
+				_clients.erase(it);
+
+				if (_pfds.size() > (i + 1))
+				{
+					DEBUG_LOG("Overwriting fd " + std::to_string(_pfds[i].fd) + " with fd " + std::to_string(_pfds[_pfds.size() - 1].fd));
+					INFO_LOG("Removing client fd " + std::to_string(_pfds[i].fd) + " from poll list");
+					_pfds[i] = _pfds[_pfds.size() - 1];
+					_pfds.pop_back();
+					i--;
+
+					return ;
+				}
+
+				INFO_LOG("Removing client fd " + std::to_string(_pfds.back().fd) + ", last client");
+				_pfds.pop_back();
+				i--;
 				return ;
 			}
 
@@ -312,12 +320,14 @@ void	Server::sendResponse(size_t& i)
 
 	try
 	{
+		if (it == _clients.end())
+			throw std::runtime_error("Could not find client fd from _clients");
 		if (_responses.at(_pfds[i].fd).empty())
-			throw std::exception();
+			throw std::runtime_error("No responses to send");
 	}
 	catch(const std::exception& e)
 	{
-		INFO_LOG("No responses to send");
+		INFO_LOG(e.what());
 		return ;
 	}
 
@@ -346,7 +356,6 @@ void	Server::sendResponse(size_t& i)
 			_pfds[i] = _pfds[_pfds.size() - 1];
 			_pfds.pop_back();
 			i--;
-			DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
 
 			return ;
 		}
@@ -354,9 +363,9 @@ void	Server::sendResponse(size_t& i)
 		INFO_LOG("Removing client fd " + std::to_string(_pfds.back().fd) + ", last client");
 		_pfds.pop_back();
 		i--;
-		DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
 	}
 	(*it).resetKeepAlive();
+	_responses[_pfds[i].fd].pop_front();
 }
 
 /**

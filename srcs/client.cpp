@@ -55,21 +55,27 @@ int main(int argc, char **argv)
 	"Connection: Keep-alive\r\nTransfer-encoding: Chunked\r\n\r\n9\r\nThis is b\r\n0F\r\nThis is another\r\n0\r\n\r\n";
 	char msg3[36] =
 	"GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n";
-	int i = 0;
-	int j = 0;
+	int		i = 0;
+	int		j = 0;
+	ssize_t	ret = 0;
 	while (true)
 	{
-		poll(pfd.data(), pfd.size(), 1000);
+		if (poll(pfd.data(), pfd.size(), 1000) < 0 || i == 3 || j == 2)
+			break ;
 		if ((pfd[0].revents & POLLOUT) && i < 3) {
 			if (i == 0)
-				send(sockfd, msg, sizeof(msg), 0);
+				ret = send(sockfd, msg, strlen(msg), 0);
 			if (i == 1) {
-				send(sockfd, msg2, sizeof(msg2), 0);
+				ret = send(sockfd, msg2, strlen(msg2), 0);
 				pfd[0].events |= POLLIN;
 			}
 			if (i == 2) {
-				send(sockfd, msg3, sizeof(msg3), 0);
+				ret = send(sockfd, msg3, strlen(msg3), 0);
 				pfd[0].events |= POLLIN;
+			}
+			if (ret < 0) {
+				std::cerr << "Error: send failure\n";
+				break ;
 			}
 			i++;
 			std::cout << "Sent\n";
@@ -78,9 +84,14 @@ int main(int argc, char **argv)
 		else if ((pfd[0].revents & POLLIN) && j < 2) {
 			ssize_t	numBytes;
 			char	buf[1025];
-			if ((numBytes = recv(sockfd, buf, 1024, 0)) == -1) {
+			numBytes = recv(sockfd, buf, 1024, 0);
+			if (numBytes == -1) {
 				perror("recv");
 				exit(1);
+			}
+			if (numBytes == 0) {
+				std::cout << "Server closed the connection\n";
+				break ;
 			}
 			buf[numBytes] = '\0';
 			std::cout << "Received: '" << buf << "'\n";
@@ -88,6 +99,7 @@ int main(int argc, char **argv)
 			j++;
 		}
 	}
+	close(sockfd);
 
 	return 0;
 }

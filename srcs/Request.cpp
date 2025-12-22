@@ -137,8 +137,12 @@ void	Request::fillHost(void) {
 	if (pos == std::string::npos)
 		pos = _buffer.find("host: ");
 	if (pos != std::string::npos) {
-		std::string	key = _buffer.substr(0, pos);
-		std::string	value = _buffer.substr(pos + 2, _buffer.size() - (pos + 2));
+		std::string	key = "host";
+		size_t	valueStart = pos + 6;
+		auto	valueEnd = _buffer.find("\r\n", valueStart);
+		if (valueEnd == std::string::npos)
+			valueEnd = _buffer.size();
+		std::string	value = _buffer.substr(valueStart, valueEnd - valueStart);
 		_headers[key].push_back(value);
 	}
 	//if Host header is not found, what will we do with the response?
@@ -263,7 +267,7 @@ void	Request::parseChunked(void) {
 			_isMissingData = true;
 		}
 		else if (finder != std::string::npos) {
-			while (_buffer.substr(pos - 1, 5) != "0\r\n\r\n") {
+			while (pos > 0 && _buffer.substr(pos - 1, 5) != "0\r\n\r\n") {
 				size_t	len;
 				try
 				{

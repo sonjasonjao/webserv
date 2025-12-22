@@ -4,6 +4,7 @@
 #include "Request.hpp"
 #include "Response.hpp"
 #include <vector>
+#include <deque>
 #include <unordered_map>
 #include <exception>
 #include <poll.h>
@@ -28,12 +29,12 @@ class Server
 		std::vector<pollfd>								_pfds;
 		std::vector<ServerGroup>						_serverGroups;
 		std::vector<Request>							_clients;
-		std::unordered_map<int, std::vector<Response>>	_responses;
+		std::unordered_map<int, std::deque<Response>>	_responses;
 
 	public:
 		Server() = delete;
 		Server(Parser& parser);
-		Server(Server const& obj);
+		Server(Server const& obj) = delete;
 		Server const&	operator=(Server const& other) = delete;
 		~Server();
 
