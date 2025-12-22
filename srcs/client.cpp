@@ -16,6 +16,14 @@
 #include <vector>
 #include <poll.h>
 
+
+/**
+ * This is a simple client program to test different cases, such as sending partial requests,
+ * chunked requests, etc.
+ *
+ * In the poll loop, i and j manually track the duration of the loop so the program breaks out
+ * after sending and receiving as expected.
+ */
 int main(int argc, char **argv)
 {
 	if (argc != 3)
@@ -49,8 +57,8 @@ int main(int argc, char **argv)
 	freeaddrinfo(res);
 	std::vector<pollfd>	pfd;
 	pfd.push_back({ sockfd, POLLOUT, 0 });
-	char msg[34] =
-	"GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n";
+	char msg[58] =
+	"GET / HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: Keep-alive\r\n";
 	char msg2[95] =
 	"Connection: Keep-alive\r\nTransfer-encoding: Chunked\r\n\r\n9\r\nThis is b\r\n0F\r\nThis is another\r\n0\r\n\r\n";
 	char msg3[36] =

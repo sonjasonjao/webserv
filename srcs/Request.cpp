@@ -8,11 +8,11 @@
 constexpr char const * const	CRLF = "\r\n";
 
 /**
- * Probably more intuitive to initialize _isValid to false and _isMissingData to true.
- * Will need to make the whole logic support this.
+ * Probably more intuitive to initialize _isValid to false, but this way round enables us to
+ * catch possible invalidity as soon as it appears and proceeding according to that.
  */
 Request::Request(int fd) : _fd(fd), _keepAlive(false), _chunked(false), _isValid(true),
-	_kickMe(false), _isMissingData(false), _completeHeaders(false) {
+	_kickMe(false), _isMissingData(true), _completeHeaders(false) {
 	_request.method = RequestMethod::Unknown;
 }
 
@@ -38,7 +38,7 @@ void	Request::handleRequest(void) {
 
 /**
  * After receiving and parsing a complete request, and handling it (= building a response and
- * sending it), we reset these properties of the current client for a possible following request.
+ * sending it), these properties of the current client are reset for a possible following request.
  */
 void	Request::reset(void) {
 	_request.target.clear();
@@ -48,12 +48,16 @@ void	Request::reset(void) {
 	_headers.clear();
 	_body.clear();
 	_contentLen.reset();
-	_isMissingData = false;
+	_isMissingData = true;
 	_isValid = true;
 	_chunked = false;
 	_completeHeaders = false;
 }
 
+/**
+ * Resets the keepAlive status separately from other resets, only after keepAlive status of the
+ * latest request has been checked.
+*/
 void	Request::resetKeepAlive(void) {
 	_keepAlive = false;
 }
@@ -93,20 +97,24 @@ bool	isNeededHeader(std::string& key)
 /**
  * Validates and parses different sections of the request. After the last valid
  * header line, if there is remaining data, and content-length is found in headers, that length
- * of data is stored in _body.
+ * of data is stored in _body - if chunked is found in headers, the rest is handled as chunks.
  */
 void	Request::parseRequest(void) {
 	if (_request.method == RequestMethod::Unknown) {
 		std::string	reqLine = splitReqLine(_buffer, CRLF);
 		std::istringstream	req(reqLine);
 		parseRequestLine(req);
-		if (!_isValid)
+		if (!_isValid) {
+			_buffer.clear(); //if there is more than one request in buffer, we must not clear all
 			return ;
+		}
 	}
 	if (_headers.empty())
 		parseHeaders(_buffer);
-	if (!_isValid || _kickMe)
+	if (!_isValid || _kickMe) {
+		_buffer.clear(); //here also, must clear only until start of possible next request
 		return ;
+	}
 	if (!_buffer.empty() && (_contentLen.has_value() && _body.size() < _contentLen.value())) {
 		size_t	missingLen = _contentLen.value() - _body.size();
 		if (missingLen < _buffer.size()) {
@@ -129,8 +137,8 @@ void	Request::parseRequest(void) {
 }
 
 /**
- * In case of invalid request flagged before header parsing, host is searched from the buffer in order
- * to store it for forming a 400 Bad request response.
+ * In case of invalid request flagged before header parsing, host is searched from the buffer in
+ * order to store it for forming a 400 Bad request response.
  */
 void	Request::fillHost(void) {
 	auto	pos = _buffer.find("Host: ");
@@ -229,6 +237,8 @@ void	Request::parseHeaders(std::string& str) {
 	}
 	if (!_completeHeaders)
 		_isMissingData = true;
+	else
+		_isMissingData = false;
 	if (_headers.empty() || !validateHeaders()) {
 		_isValid = false;
 		return ;

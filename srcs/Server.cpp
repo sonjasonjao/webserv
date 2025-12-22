@@ -169,7 +169,8 @@ void	Server::run(void)
 }
 
 /**
- * Accepts new client connection and stores the fd into _pfds.
+ * Accepts new client connection, stores the fd into _pfds, and creates a Request object for the
+ * client in _clients.
  */
 void	Server::handleNewClient(int listener)
 {
@@ -299,8 +300,9 @@ void	Server::handleClientData(size_t& i)
 			//do we need to match here client to config and send that config to Response?
 
 			_responses[_pfds[i].fd].emplace_back(Response(*it));
+			(*it).reset();
 
-			// _pfds[i].events |= POLLOUT; we should probably listen to both all the time
+			// _pfds[i].events |= POLLOUT; //we should probably listen to both all the time
 		}
 	}
 }
@@ -317,17 +319,19 @@ void	Server::sendResponse(size_t& i)
 			break ;
 		it++;
 	}
+	if (it == _clients.end()) {
+		ERROR_LOG("Could not find matching client request");
+		return ;
+	}
 
 	try
 	{
-		if (it == _clients.end())
-			throw std::runtime_error("Could not find client fd from _clients");
 		if (_responses.at(_pfds[i].fd).empty())
-			throw std::runtime_error("No responses to send");
+			throw std::exception();
 	}
 	catch(const std::exception& e)
 	{
-		INFO_LOG(e.what());
+		// INFO_LOG("No responses to send");
 		return ;
 	}
 
@@ -336,9 +340,11 @@ void	Server::sendResponse(size_t& i)
 	INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
 	send(_pfds[i].fd, res.getContent().c_str(), res.getContent().size(), MSG_DONTWAIT);
 
-	// _pfds[i].events &= ~POLLOUT; we should probably listen to both all the time
+	// _pfds[i].events &= ~POLLOUT; //we should probably listen to both all the time
 
-	(*it).reset();
+	// (*it).reset();
+
+	int	tmp = _pfds[i].fd;
 
 	DEBUG_LOG("Keep alive status: " + std::to_string((*it).getKeepAlive()));
 	if (!(*it).getKeepAlive())
@@ -365,17 +371,18 @@ void	Server::sendResponse(size_t& i)
 		i--;
 	}
 	(*it).resetKeepAlive();
-	_responses[_pfds[i].fd].pop_front();
+	_responses[tmp].pop_front();
 }
 
 /**
  * Loops through _pfds, finding which fd had an event, and whether it's new client or
  * incoming request. If the fd that had a new event is one of the server fds, it's a new client
  * wanting to connect to that server. If it's not a server fd, it is an existing client that has
- * sent data.
+ * sent data. Thirdly tracks POLLOUT to recognize when server has a response ready to be sent to
+ * that client.
  *
- * We probably need to implement tracking of POLLOUT here, and handle the sending through
- * a separate process, as it now is by just calling send() once in handleClientData().
+ * POLLOUT is triggered constantly, so in sendResponse we first check if there is
+ * any response ready. This check might be better to handle with a client status variable.
  */
 void	Server::handleConnections(void)
 {
