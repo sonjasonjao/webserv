@@ -49,7 +49,6 @@ void	Request::reset(void) {
 	_body.clear();
 	_contentLen.reset();
 	_isMissingData = true;
-	_isValid = true;
 	_chunked = false;
 	_completeHeaders = false;
 }
@@ -58,8 +57,9 @@ void	Request::reset(void) {
  * Resets the keepAlive status separately from other resets, only after keepAlive status of the
  * latest request has been checked.
 */
-void	Request::resetKeepAlive(void) {
+void	Request::resetKeepAliveValid(void) {
 	_keepAlive = false;
+	_isValid = true;
 }
 
 /**
@@ -105,14 +105,14 @@ void	Request::parseRequest(void) {
 		std::istringstream	req(reqLine);
 		parseRequestLine(req);
 		if (!_isValid) {
-			_buffer.clear(); //if there is more than one request in buffer, we must not clear all
+			_buffer.clear();
 			return ;
 		}
 	}
 	if (_headers.empty())
 		parseHeaders(_buffer);
 	if (!_isValid || _kickMe) {
-		_buffer.clear(); //here also, must clear only until start of possible next request
+		_buffer.clear();
 		return ;
 	}
 	if (!_buffer.empty() && (_contentLen.has_value() && _body.size() < _contentLen.value())) {
@@ -263,12 +263,14 @@ void	Request::parseChunked(void) {
 				catch (const std::exception& e)
 				{
 					_isValid = false;
+					_buffer.clear();
 					return;
 				}
 				_buffer = _buffer.substr(pos + 2);
 				std::string	tmp = splitReqLine(_buffer, CRLF);
 				if (tmp.size() != len) {
 					_isValid = false;
+					_buffer.clear();
 					return;
 				}
 				_body += tmp;
@@ -286,12 +288,14 @@ void	Request::parseChunked(void) {
 				catch (const std::exception& e)
 				{
 					_isValid = false;
+					_buffer.clear();
 					return;
 				}
 				_buffer = _buffer.substr(pos + 2);
 				std::string	tmp = splitReqLine(_buffer, CRLF);
 				if (tmp.size() != len) {
 					_isValid = false;
+					_buffer.clear();
 					return;
 				}
 				_body += tmp;
@@ -498,10 +502,8 @@ bool	Request::getKickMe(void) const {
 	return _kickMe;
 }
 
-bool	Request::isBufferEmpty(void) {
-	if (_buffer.empty())
-		return true;
-	return false;
+std::string const	&Request::getBuffer(void) const {
+	return _buffer;
 }
 
 RequestMethod	Request::getRequestMethod() const {

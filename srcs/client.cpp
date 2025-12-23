@@ -56,20 +56,27 @@ int main(int argc, char **argv)
 	}
 	freeaddrinfo(res);
 	std::vector<pollfd>	pfd;
-	pfd.push_back({ sockfd, POLLOUT, 0 });
+	pollfd	tmp;
+	tmp.events = POLLOUT;
+	tmp.fd = sockfd;
+	tmp.revents = 0;
+	pfd.push_back(tmp);
+	// pfd.push_back({ sockfd, POLLOUT, 0 }); doesn't compile with macOS
 	char msg[58] =
 	"GET / HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: Keep-alive\r\n";
-	char msg2[95] =
-	"Connection: Keep-alive\r\nTransfer-encoding: Chunked\r\n\r\n9\r\nThis is b\r\n0F\r\nThis is another\r\n0\r\n\r\n";
-	char msg3[36] =
-	"GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n";
+	char msg2[71] =
+	"Transfer-encoding: Chunked\r\n\r\n9\r\nThis is b\r\n0F\r\nThis is another\r\n0\r\n\r\n";
+	char msg3[72] =
+	"POST / HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-length: 15\r\n\r\nWe test this!!!";
 	int		i = 0;
 	int		j = 0;
 	ssize_t	ret = 0;
 	while (true)
 	{
-		if (poll(pfd.data(), pfd.size(), 1000) < 0 || i == 3 || j == 2)
+		if (poll(pfd.data(), pfd.size(), 1000) < 0) {
+			perror("poll");
 			break ;
+		}
 		if ((pfd[0].revents & POLLOUT) && i < 3) {
 			if (i == 0)
 				ret = send(sockfd, msg, strlen(msg), 0);
@@ -105,6 +112,7 @@ int main(int argc, char **argv)
 			std::cout << "Received: '" << buf << "'\n";
 			pfd[0].events &= ~POLLIN;
 			j++;
+			usleep(1000);
 		}
 	}
 	close(sockfd);

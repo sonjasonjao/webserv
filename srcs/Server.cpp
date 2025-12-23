@@ -23,10 +23,10 @@ Server::Server(Parser& parser)
 	//_configs = parser.getConfigs();
 	Config tmp = parser.getServerConfig(0);
 	_configs.push_back(tmp);
-	tmp = parser.getServerConfig(1);
-	_configs.push_back(tmp);
-	tmp = parser.getServerConfig(2);
-	_configs.push_back(tmp);
+	// tmp = parser.getServerConfig(1);
+	// _configs.push_back(tmp);
+	// tmp = parser.getServerConfig(2);
+	// _configs.push_back(tmp);
 	groupConfigs();
 }
 
@@ -257,7 +257,7 @@ void	Server::handleClientData(size_t& i)
 
 		(*it).saveRequest(std::string(buf));
 
-		while (!(*it).isBufferEmpty())
+		while (!((*it).getBuffer().empty()))
 		{
 			(*it).handleRequest();
 
@@ -347,7 +347,7 @@ void	Server::sendResponse(size_t& i)
 	int	tmp = _pfds[i].fd;
 
 	DEBUG_LOG("Keep alive status: " + std::to_string((*it).getKeepAlive()));
-	if (!(*it).getKeepAlive())
+	if (!(*it).getIsValid() || !(*it).getKeepAlive())
 	{
 		INFO_LOG("Closing fd " + std::to_string(_pfds[i].fd));
 		close(_pfds[i].fd);
@@ -370,7 +370,7 @@ void	Server::sendResponse(size_t& i)
 		_pfds.pop_back();
 		i--;
 	}
-	(*it).resetKeepAlive();
+	(*it).resetKeepAliveValid();
 	_responses[tmp].pop_front();
 }
 
