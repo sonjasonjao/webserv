@@ -5,12 +5,14 @@
 #include <iostream>
 #include <unordered_set>
 
+constexpr char const * const	CRLF = "\r\n";
+
 /**
- * Probably more intuitive to initialize _isValid to false and _isMissingData to true.
- * Will need to make the whole logic support this.
+ * Probably more intuitive to initialize _isValid to false, but this way round enables us to
+ * catch possible invalidity as soon as it appears and proceeding according to that.
  */
 Request::Request(int fd) : _fd(fd), _keepAlive(false), _chunked(false), _isValid(true),
-	_isMissingData(false) {
+	_kickMe(false), _isMissingData(true), _completeHeaders(false) {
 	_request.method = RequestMethod::Unknown;
 }
 
@@ -22,14 +24,11 @@ void	Request::saveRequest(std::string const& buf) {
 }
 
 /**
- * Checks whether the buffer so far includes "\r\n\r\n". If not, and headers is empty,
- * we assume the request is partial.
- *
- * Checking if headers is empty does not account for if there is something in headers, but
- * not yet the terminating "\r\n\r\n".
+ * Checks whether the buffer so far includes "\r\n\r\n". If not, and the headers part hasn't
+ * been received completely (ending with "\r\n\r\n"), we assume the request is partial.
  */
 void	Request::handleRequest(void) {
-	if (_buffer.find("\r\n\r\n") == std::string::npos && _headers.empty())
+	if (_buffer.find("\r\n\r\n") == std::string::npos && !_completeHeaders)
 		_isMissingData = true;
 	else {
 		_isMissingData = false;
@@ -39,7 +38,7 @@ void	Request::handleRequest(void) {
 
 /**
  * After receiving and parsing a complete request, and handling it (= building a response and
- * sending it), we reset these properties of the current client for a possible following request.
+ * sending it), these properties of the current client are reset for a possible following request.
  */
 void	Request::reset(void) {
 	_request.target.clear();
@@ -49,8 +48,18 @@ void	Request::reset(void) {
 	_headers.clear();
 	_body.clear();
 	_contentLen.reset();
-	_isMissingData = false;
+	_isMissingData = true;
 	_chunked = false;
+	_completeHeaders = false;
+}
+
+/**
+ * Resets the keepAlive status separately from other resets, only after keepAlive status of the
+ * latest request has been checked.
+*/
+void	Request::resetKeepAliveValid(void) {
+	_keepAlive = false;
+	_isValid = true;
 }
 
 /**
@@ -79,8 +88,8 @@ std::string	splitReqLine(std::string& orig, std::string delim)
  */
 bool	isNeededHeader(std::string& key)
 {
-	if (key == "host" || key == "content-length" || key == "content-type" || key == "connection"
-		|| key == "transfer-encoding")
+	if (key == "host" || key == "content-length" || key == "content-type"
+		|| key == "connection" || key == "transfer-encoding")
 		return true;
 	return false;
 }
@@ -88,20 +97,24 @@ bool	isNeededHeader(std::string& key)
 /**
  * Validates and parses different sections of the request. After the last valid
  * header line, if there is remaining data, and content-length is found in headers, that length
- * of data is stored in _body.
+ * of data is stored in _body - if chunked is found in headers, the rest is handled as chunks.
  */
 void	Request::parseRequest(void) {
 	if (_request.method == RequestMethod::Unknown) {
-		std::string	reqLine = splitReqLine(_buffer, "\r\n");
+		std::string	reqLine = splitReqLine(_buffer, CRLF);
 		std::istringstream	req(reqLine);
 		parseRequestLine(req);
-		if (!_isValid)
+		if (!_isValid) {
+			_buffer.clear();
 			return ;
+		}
 	}
 	if (_headers.empty())
 		parseHeaders(_buffer);
-	if (!_isValid)
+	if (!_isValid || _kickMe) {
+		_buffer.clear();
 		return ;
+	}
 	if (!_buffer.empty() && (_contentLen.has_value() && _body.size() < _contentLen.value())) {
 		size_t	missingLen = _contentLen.value() - _body.size();
 		if (missingLen < _buffer.size()) {
@@ -124,6 +137,26 @@ void	Request::parseRequest(void) {
 }
 
 /**
+ * In case of invalid request flagged before header parsing, host is searched from the buffer in
+ * order to store it for forming a 400 Bad request response.
+ */
+void	Request::fillHost(void) {
+	auto	pos = _buffer.find("Host: ");
+	if (pos == std::string::npos)
+		pos = _buffer.find("host: ");
+	if (pos != std::string::npos) {
+		std::string	key = "host";
+		size_t	valueStart = pos + 6;
+		auto	valueEnd = _buffer.find("\r\n", valueStart);
+		if (valueEnd == std::string::npos)
+			valueEnd = _buffer.size();
+		std::string	value = _buffer.substr(valueStart, valueEnd - valueStart);
+		_headers[key].push_back(value);
+	}
+	//if Host header is not found, what will we do with the response?
+}
+
+/**
  * Splits the request line into tokens, recognises method, and validates target path
  * and HTTP version.
  */
@@ -133,6 +166,7 @@ void	Request::parseRequestLine(std::istringstream& req) {
 	if (!(req >> method >> target >> httpVersion))
 	{
 		_isValid = false;
+		fillHost();
 		return ;
 	}
 	size_t i ;
@@ -154,11 +188,13 @@ void	Request::parseRequestLine(std::istringstream& req) {
 			break ;
 		default:
 			_isValid = false;
+			fillHost();
 			return ;
 	}
 	if (!isTargetValid(target) || !isHttpValid(httpVersion))
 	{
 		_isValid = false;
+		fillHost();
 		return ;
 	}
 }
@@ -166,16 +202,22 @@ void	Request::parseRequestLine(std::istringstream& req) {
 /**
  * Accepts as headers every line with ':' and stores each header as key and value to
  * an unordered map. For now, only stores the needed headers and skips the rest.
- *
- * IMPLEMENT CHECK IF HEADERS END WITH \r\n\r\n, OTHERWISE INVALID!
  */
 void	Request::parseHeaders(std::string& str) {
 	std::string	line;
 	while (!str.empty()) {
-		line = splitReqLine(str, "\r\n");
-		const size_t point = line.find(":");
-		if (point == std::string::npos)
+		if (str.substr(0, 2) == CRLF) {
+			str = str.substr(2);
+			_completeHeaders = true;
 			break ;
+		}
+		line = splitReqLine(str, CRLF);
+		const size_t point = line.find(":");
+		if (point == std::string::npos) {
+			_kickMe = true;
+			_keepAlive = false;
+			return ;
+		}
 		std::string	key = line.substr(0, point);
 		for (size_t i = 0; i < key.size(); i++)
 			key[i] = std::tolower(static_cast<unsigned char>(key[i]));
@@ -193,6 +235,10 @@ void	Request::parseHeaders(std::string& str) {
 				_headers[key].push_back(oneValue);
 		}
 	}
+	if (!_completeHeaders)
+		_isMissingData = true;
+	else
+		_isMissingData = false;
 	if (_headers.empty() || !validateHeaders()) {
 		_isValid = false;
 		return ;
@@ -201,38 +247,59 @@ void	Request::parseHeaders(std::string& str) {
 
 /**
  * In the case of a chunked request, attempts to check the size of each chunk and split the
- * string accordingly to store that chunk into body. Still need to consider what happens if the
- * given size of chunk differs from the actual size.
+ * string accordingly to store that chunk into body.
  */
 void	Request::parseChunked(void) {
 	while (!_buffer.empty()) {
-		auto	pos = _buffer.find("\r\n");
+		auto	pos = _buffer.find(CRLF);
 		auto	finder = _buffer.find("0\r\n\r\n");
 		if (finder == std::string::npos && pos != std::string::npos) {
 			while (pos != std::string::npos) {
-				size_t	len = std::stoi(_buffer.substr(0, pos), 0, 16);
+				size_t	len;
+				try
+				{
+					len = std::stoi(_buffer.substr(0, pos), 0, 16);
+				}
+				catch (const std::exception& e)
+				{
+					_isValid = false;
+					_buffer.clear();
+					return;
+				}
 				_buffer = _buffer.substr(pos + 2);
-				std::string	tmp = splitReqLine(_buffer, "\r\n");
+				std::string	tmp = splitReqLine(_buffer, CRLF);
 				if (tmp.size() != len) {
 					_isValid = false;
+					_buffer.clear();
 					return;
 				}
 				_body += tmp;
-				pos = _buffer.find("\r\n");
+				pos = _buffer.find(CRLF);
 			}
 			_isMissingData = true;
 		}
 		else if (finder != std::string::npos) {
-			while (_buffer.substr(pos - 1, 5) != "0\r\n\r\n") {
-				size_t	len = std::stoi(_buffer.substr(0, pos), 0, 16);
+			while (pos > 0 && _buffer.substr(pos - 1, 5) != "0\r\n\r\n") {
+				size_t	len;
+				try
+				{
+					len = std::stoi(_buffer.substr(0, pos), 0, 16);
+				}
+				catch (const std::exception& e)
+				{
+					_isValid = false;
+					_buffer.clear();
+					return;
+				}
 				_buffer = _buffer.substr(pos + 2);
-				std::string	tmp = splitReqLine(_buffer, "\r\n");
+				std::string	tmp = splitReqLine(_buffer, CRLF);
 				if (tmp.size() != len) {
 					_isValid = false;
+					_buffer.clear();
 					return;
 				}
 				_body += tmp;
-				pos = _buffer.find("\r\n");
+				pos = _buffer.find(CRLF);
 			}
 			_body += splitReqLine(_buffer, "0\r\n\r\n");
 			_isMissingData = false;
@@ -264,8 +331,16 @@ bool	Request::validateHeaders(void) {
 		}
 	}
 	it = _headers.find("content-length");
-	if (it != _headers.end())
-		_contentLen = std::stoi(it->second.front());
+	if (it != _headers.end()) {
+		try
+		{
+			_contentLen = std::stoi(it->second.front());
+		}
+		catch(const std::exception& e)
+		{
+			return false;
+		}
+	}
 	it = _headers.find("transfer-encoding");
 	if (it != _headers.end() && it->second.front() == "chunked")
 		_chunked = true;
@@ -322,7 +397,9 @@ bool	Request::areValidChars(std::string& s) {
  * If the target is given as absolute path, it has to be either of HTTP or HTTPS
  * protocol.
  *
- * In case the URI includes '?', we use it as a separator to get the query.*
+ * In case the URI includes '?', we use it as a separator to get the query.
+ * We must later split the possible query with '&' which separates different queries.
+ * Might be better to do that in the CGI handling part, so for now it's all in one string.
  */
 bool	Request::isTargetValid(std::string& target) {
 	if (target.size() == 1 && target != "/")
@@ -385,10 +462,11 @@ void	Request::printData(void) const {
 	std::cout << "\n";
 	if (!_body.empty())
 		std::cout << "---- Body ----\n" << _body << '\n';
-	std::cout << "	Keep alive?	" << _keepAlive << '\n';
-	std::cout << "	Missing data?	" << _isMissingData << '\n';
-	std::cout << "	Chunked?	" << _chunked << '\n';
-	std::cout << "	Valid?		" << _isValid << "\n\n";
+	std::cout << "	Keep alive?		" << _keepAlive << '\n';
+	std::cout << "	Complete headers?	" << _completeHeaders << '\n';
+	std::cout << "	Missing data?		" << _isMissingData << '\n';
+	std::cout << "	Chunked?		" << _chunked << '\n';
+	std::cout << "	Valid?			" << _isValid << "\n\n";
 }
 
 std::string	Request::getHost(void) const {
@@ -420,10 +498,12 @@ bool	Request::getIsMissingData(void) const {
 	return _isMissingData;
 }
 
-bool	Request::isBufferEmpty(void) {
-	if (_buffer.empty())
-		return true;
-	return false;
+bool	Request::getKickMe(void) const {
+	return _kickMe;
+}
+
+std::string const	&Request::getBuffer(void) const {
+	return _buffer;
 }
 
 RequestMethod	Request::getRequestMethod() const {
