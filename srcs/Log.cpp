@@ -33,7 +33,9 @@ void	Log::logTime(std::ostream *outputStream)
 
 	timeStream.imbue(std::locale::classic());
 	timeStream	<< std::put_time(std::localtime(&time), "%F %T ");
-	timeStream << std::setw(9) << std::setfill('0') << sinceEpoch.count() % 1000000000;
+	timeStream << std::setw(3) << std::setfill('0') << sinceEpoch.count() % 1000000000 / 1000000 << " ";
+	timeStream << std::setw(3) << std::setfill('0') << sinceEpoch.count() % 1000000 / 1000 << " ";
+	timeStream << std::setw(3) << std::setfill('0') << sinceEpoch.count() % 1000;
 	timeStr		= timeStream.str();
 
 	*outputStream << std::setw(TIMESTAMP_WIDTH) << std::left << timeStr;
