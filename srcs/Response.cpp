@@ -13,7 +13,7 @@ Response::Response(Request const &req) : _req(req)
 {
 	static std::string	currentDir = std::filesystem::current_path();
 
-	if (!req.getIsValid()) {
+	if (req.getStatus() == ReqStatus::Invalid) {
 		// Why isn't it valid? -> Find out!
 
 		// Assume bad request for now?

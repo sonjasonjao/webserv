@@ -16,6 +16,15 @@ enum class RequestMethod
 	Unknown
 };
 
+enum class ReqStatus
+{
+	WaitingData,
+	CompleteReq,
+	ReadyForResponse,
+	Invalid,
+	Error
+};
+
 struct RequestLine
 {
 	std::string					target;
@@ -30,6 +39,7 @@ class Request
 
 	private:
 		int						_fd;
+		int						_serverFd;
 		std::string				_buffer;
 		struct RequestLine		_request;
 		stringMap				_headers;
@@ -37,14 +47,12 @@ class Request
 		std::optional<size_t>	_contentLen;
 		bool					_keepAlive;
 		bool					_chunked;
-		bool					_isValid;
-		bool					_kickMe;
-		bool					_isMissingData;
 		bool					_completeHeaders;
+		ReqStatus				_status;
 
 	public:
 		Request() = delete;
-		Request(int fd);
+		Request(int fd, int serverFd);
 		~Request() = default;
 
 		void				saveRequest(std::string const& buf);
@@ -62,13 +70,13 @@ class Request
 		bool				isHttpValid(std::string& httpVersion);
 		std::string			getHost(void) const;
 		int					getFd(void) const;
+		int					getServerFd(void) const;
 		bool				getKeepAlive(void) const;
-		bool				getKickMe(void) const;
-		bool				getIsValid(void) const;
-		bool				getIsMissingData(void) const;
+		ReqStatus			getStatus(void) const;
+		void				setStatus(ReqStatus status);
 		std::string const	&getBuffer(void) const;
 		void				reset(void);
-		void				resetKeepAliveValid(void);
+		void				resetKeepAlive(void);
 
 		RequestMethod						getRequestMethod(void) const;
 		std::string const					&getHttpVersion(void) const;

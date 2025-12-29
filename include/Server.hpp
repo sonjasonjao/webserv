@@ -50,4 +50,5 @@ class Server
 		void			closePfds(void);
 		void			groupConfigs(void);
 		bool			isGroupMember(Config& conf);
+		Config const	&matchConfig(Request const &req);
 };

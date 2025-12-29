@@ -23,10 +23,10 @@ Server::Server(Parser& parser)
 	//_configs = parser.getConfigs();
 	Config tmp = parser.getServerConfig(0);
 	_configs.push_back(tmp);
-	// tmp = parser.getServerConfig(1);
-	// _configs.push_back(tmp);
-	// tmp = parser.getServerConfig(2);
-	// _configs.push_back(tmp);
+	tmp = parser.getServerConfig(1);
+	_configs.push_back(tmp);
+	tmp = parser.getServerConfig(2);
+	_configs.push_back(tmp);
 	groupConfigs();
 }
 
@@ -193,7 +193,7 @@ void	Server::handleNewClient(int listener)
 	}
 
 	_pfds.push_back({ clientFd, POLLIN | POLLOUT, 0 });
-	Request	req(clientFd);
+	Request	req(clientFd, listener);
 	_clients.push_back(req);
 	INFO_LOG("New client accepted, assigned fd " + std::to_string(clientFd));
 }
@@ -261,7 +261,7 @@ void	Server::handleClientData(size_t& i)
 		{
 			(*it).handleRequest();
 
-			if ((*it).getKickMe())
+			if ((*it).getStatus() == ReqStatus::Error)
 			{
 				ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd) + " connection dropped: suspicious request");
 
@@ -288,7 +288,7 @@ void	Server::handleClientData(size_t& i)
 				return ;
 			}
 
-			if ((*it).getIsMissingData())
+			if ((*it).getStatus() == ReqStatus::WaitingData)
 			{
 				INFO_LOG("Waiting for more data to complete partial request");
 
@@ -297,14 +297,38 @@ void	Server::handleClientData(size_t& i)
 
 			INFO_LOG("Building response to client fd " + std::to_string(_pfds[i].fd));
 
-			//do we need to match here client to config and send that config to Response?
+			Config	 const &tmp = matchConfig(*it);
+			std::cout << "Matched config: " << tmp.host << " " << tmp.host_name << " "
+				<< tmp.ports[0] << '\n';
 
-			_responses[_pfds[i].fd].emplace_back(Response(*it));
+			_responses[_pfds[i].fd].emplace_back(Response(*it)); //should config be sent to response?
 			(*it).reset();
-
-			// _pfds[i].events |= POLLOUT; //we should probably listen to both all the time
+			(*it).setStatus(ReqStatus::ReadyForResponse);
 		}
 	}
+}
+
+/**
+ * Matches current request(so, client) with the config or the server it is connected with.
+ * Looks for the serverGroup with a matching server fd, and then looks for the host name to match
+ * Host header value in the request. If no host name match is found, returns the default config of
+ * that serverGroup.
+ */
+Config const	&Server::matchConfig(Request const &req)
+{
+	int fd = req.getServerFd();
+	ServerGroup	*tmp = nullptr;
+	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++) {
+		if (it->fd == fd) {
+			tmp = &(*it);
+			break ;
+		}
+	}
+	for (auto it = tmp->configs.begin(); it != tmp->configs.end(); it++) {
+		if (it->host_name == req.getHost())
+			return *it;
+	}
+	return *(tmp->defaultConf);
 }
 
 /**
@@ -324,30 +348,18 @@ void	Server::sendResponse(size_t& i)
 		return ;
 	}
 
-	try
-	{
-		if (_responses.at(_pfds[i].fd).empty())
-			throw std::exception();
-	}
-	catch(const std::exception& e)
-	{
-		// INFO_LOG("No responses to send");
+	if ((*it).getStatus() != ReqStatus::ReadyForResponse)
 		return ;
-	}
 
-	auto	&res = _responses[_pfds[i].fd].front();
+	auto	&res = _responses.at(_pfds[i].fd).front();
 
 	INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
 	send(_pfds[i].fd, res.getContent().c_str(), res.getContent().size(), MSG_DONTWAIT);
 
-	// _pfds[i].events &= ~POLLOUT; //we should probably listen to both all the time
-
-	// (*it).reset();
-
 	int	tmp = _pfds[i].fd;
 
 	DEBUG_LOG("Keep alive status: " + std::to_string((*it).getKeepAlive()));
-	if (!(*it).getIsValid() || !(*it).getKeepAlive())
+	if ((*it).getStatus() == ReqStatus::Invalid || !(*it).getKeepAlive())
 	{
 		INFO_LOG("Closing fd " + std::to_string(_pfds[i].fd));
 		close(_pfds[i].fd);
@@ -369,9 +381,11 @@ void	Server::sendResponse(size_t& i)
 		INFO_LOG("Removing client fd " + std::to_string(_pfds.back().fd) + ", last client");
 		_pfds.pop_back();
 		i--;
+		return ;
 	}
-	(*it).resetKeepAliveValid();
-	_responses[tmp].pop_front();
+	(*it).resetKeepAlive();
+	_responses.at(tmp).pop_front();
+	(*it).setStatus(ReqStatus::WaitingData);
 }
 
 /**
@@ -381,8 +395,8 @@ void	Server::sendResponse(size_t& i)
  * sent data. Thirdly tracks POLLOUT to recognize when server has a response ready to be sent to
  * that client.
  *
- * POLLOUT is triggered constantly, so in sendResponse we first check if there is
- * any response ready. This check might be better to handle with a client status variable.
+ * POLLOUT is triggered constantly, so in sendResponse we first check if client status is set
+ * ready for response (set by server as soon as a response is ready).
  */
 void	Server::handleConnections(void)
 {

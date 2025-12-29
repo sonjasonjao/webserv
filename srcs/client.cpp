@@ -57,13 +57,9 @@ int main(int argc, char **argv)
 	freeaddrinfo(res);
 	std::vector<pollfd>	pfd;
 	pollfd	tmp;
-	tmp.events = POLLOUT;
-	tmp.fd = sockfd;
-	tmp.revents = 0;
-	pfd.push_back(tmp);
-	// pfd.push_back({ sockfd, POLLOUT, 0 }); doesn't compile with macOS
-	char msg[58] =
-	"GET / HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: Keep-alive\r\n";
+	pfd.push_back({ sockfd, POLLOUT, 0 });
+	char msg[61] =
+	"GET / HTTP/1.0\r\nConnection: Keep-alive\r\nHost: www.test.com\r\n";
 	char msg2[71] =
 	"Transfer-encoding: Chunked\r\n\r\n9\r\nThis is b\r\n0F\r\nThis is another\r\n0\r\n\r\n";
 	char msg3[72] =
@@ -96,7 +92,7 @@ int main(int argc, char **argv)
 			std::cout << "Sent\n";
 			usleep(1000);
 		}
-		else if ((pfd[0].revents & POLLIN) && j < 2) {
+		else if ((pfd[0].revents & POLLIN) && j < 1) {
 			ssize_t	numBytes;
 			char	buf[1025];
 			numBytes = recv(sockfd, buf, 1024, 0);

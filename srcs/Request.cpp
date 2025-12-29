@@ -7,13 +7,9 @@
 
 constexpr char const * const	CRLF = "\r\n";
 
-/**
- * Probably more intuitive to initialize _isValid to false, but this way round enables us to
- * catch possible invalidity as soon as it appears and proceeding according to that.
- */
-Request::Request(int fd) : _fd(fd), _keepAlive(false), _chunked(false), _isValid(true),
-	_kickMe(false), _isMissingData(true), _completeHeaders(false) {
+Request::Request(int fd, int serverFd) : _fd(fd), _serverFd(serverFd), _keepAlive(false), _chunked(false), _completeHeaders(false) {
 	_request.method = RequestMethod::Unknown;
+	_status = ReqStatus::WaitingData;
 }
 
 /**
@@ -29,11 +25,9 @@ void	Request::saveRequest(std::string const& buf) {
  */
 void	Request::handleRequest(void) {
 	if (_buffer.find("\r\n\r\n") == std::string::npos && !_completeHeaders)
-		_isMissingData = true;
-	else {
-		_isMissingData = false;
+		_status = ReqStatus::WaitingData;
+	else
 		parseRequest();
-	}
 }
 
 /**
@@ -48,7 +42,7 @@ void	Request::reset(void) {
 	_headers.clear();
 	_body.clear();
 	_contentLen.reset();
-	_isMissingData = true;
+	_status = ReqStatus::WaitingData;
 	_chunked = false;
 	_completeHeaders = false;
 }
@@ -57,9 +51,8 @@ void	Request::reset(void) {
  * Resets the keepAlive status separately from other resets, only after keepAlive status of the
  * latest request has been checked.
 */
-void	Request::resetKeepAliveValid(void) {
+void	Request::resetKeepAlive(void) {
 	_keepAlive = false;
-	_isValid = true;
 }
 
 /**
@@ -104,18 +97,20 @@ void	Request::parseRequest(void) {
 		std::string	reqLine = splitReqLine(_buffer, CRLF);
 		std::istringstream	req(reqLine);
 		parseRequestLine(req);
-		if (!_isValid) {
+		if (_status == ReqStatus::Invalid) {
 			_buffer.clear();
 			return ;
 		}
 	}
-	if (_headers.empty())
+	if (!_completeHeaders)
 		parseHeaders(_buffer);
-	if (!_isValid || _kickMe) {
+	if (_status == ReqStatus::Invalid || _status == ReqStatus::Error) {
 		_buffer.clear();
 		return ;
 	}
-	if (!_buffer.empty() && (_contentLen.has_value() && _body.size() < _contentLen.value())) {
+	if (_buffer.empty() && !_contentLen.has_value() && !_chunked)
+		_status = ReqStatus::CompleteReq;
+	else if (!_buffer.empty() && (_contentLen.has_value() && _body.size() < _contentLen.value())) {
 		size_t	missingLen = _contentLen.value() - _body.size();
 		if (missingLen < _buffer.size()) {
 			std::string	toAdd = _buffer.substr(0, missingLen);
@@ -127,9 +122,9 @@ void	Request::parseRequest(void) {
 			_buffer.clear();
 		}
 		if (_body.size() < _contentLen.value())
-			_isMissingData = true;
+			_status = ReqStatus::WaitingData;
 		else if (_body.size() == _contentLen.value())
-			_isMissingData = false;
+			_status = ReqStatus::CompleteReq;
 	}
 	else if (_chunked)
 		parseChunked();
@@ -165,7 +160,7 @@ void	Request::parseRequestLine(std::istringstream& req) {
 	std::vector<std::string>	methods = { "GET", "POST", "DELETE "};
 	if (!(req >> method >> target >> httpVersion))
 	{
-		_isValid = false;
+		_status = ReqStatus::Invalid;
 		fillHost();
 		return ;
 	}
@@ -187,13 +182,13 @@ void	Request::parseRequestLine(std::istringstream& req) {
 			_request.method = RequestMethod::Delete;
 			break ;
 		default:
-			_isValid = false;
+			_status = ReqStatus::Invalid;
 			fillHost();
 			return ;
 	}
 	if (!isTargetValid(target) || !isHttpValid(httpVersion))
 	{
-		_isValid = false;
+		_status = ReqStatus::Invalid;
 		fillHost();
 		return ;
 	}
@@ -214,7 +209,7 @@ void	Request::parseHeaders(std::string& str) {
 		line = splitReqLine(str, CRLF);
 		const size_t point = line.find(":");
 		if (point == std::string::npos) {
-			_kickMe = true;
+			_status = ReqStatus::Error;
 			_keepAlive = false;
 			return ;
 		}
@@ -236,11 +231,9 @@ void	Request::parseHeaders(std::string& str) {
 		}
 	}
 	if (!_completeHeaders)
-		_isMissingData = true;
-	else
-		_isMissingData = false;
+		_status = ReqStatus::WaitingData;
 	if (_headers.empty() || !validateHeaders()) {
-		_isValid = false;
+		_status = ReqStatus::Invalid;
 		return ;
 	}
 }
@@ -262,21 +255,21 @@ void	Request::parseChunked(void) {
 				}
 				catch (const std::exception& e)
 				{
-					_isValid = false;
+					_status = ReqStatus::Invalid;
 					_buffer.clear();
 					return;
 				}
 				_buffer = _buffer.substr(pos + 2);
 				std::string	tmp = splitReqLine(_buffer, CRLF);
 				if (tmp.size() != len) {
-					_isValid = false;
+					_status = ReqStatus::Invalid;
 					_buffer.clear();
 					return;
 				}
 				_body += tmp;
 				pos = _buffer.find(CRLF);
 			}
-			_isMissingData = true;
+			_status = ReqStatus::WaitingData;
 		}
 		else if (finder != std::string::npos) {
 			while (pos > 0 && _buffer.substr(pos - 1, 5) != "0\r\n\r\n") {
@@ -287,14 +280,14 @@ void	Request::parseChunked(void) {
 				}
 				catch (const std::exception& e)
 				{
-					_isValid = false;
+					_status = ReqStatus::Invalid;
 					_buffer.clear();
 					return;
 				}
 				_buffer = _buffer.substr(pos + 2);
 				std::string	tmp = splitReqLine(_buffer, CRLF);
 				if (tmp.size() != len) {
-					_isValid = false;
+					_status = ReqStatus::Invalid;
 					_buffer.clear();
 					return;
 				}
@@ -302,7 +295,7 @@ void	Request::parseChunked(void) {
 				pos = _buffer.find(CRLF);
 			}
 			_body += splitReqLine(_buffer, "0\r\n\r\n");
-			_isMissingData = false;
+			_status = ReqStatus::CompleteReq;
 		}
 	}
 }
@@ -315,7 +308,7 @@ void	Request::parseChunked(void) {
  */
 bool	Request::validateHeaders(void) {
 	auto	it = _headers.find("host");
-	if (it == _headers.end() || it->second.empty())
+	if ((it == _headers.end() || it->second.empty()) && _request.httpVersion == "HTTP/1.1")
 		return false;
 	for (auto const& [key, values] : _headers) {
 		if (values.size() > 1 && isUniqueHeader(key))
@@ -434,6 +427,30 @@ bool	Request::isHttpValid(std::string& httpVersion) {
 	return true ;
 }
 
+void	printStatus(ReqStatus status)
+{
+	switch (status)
+	{
+		case ReqStatus::WaitingData:
+			std::cout << "Waiting for more data\n";
+			break ;
+		case ReqStatus::CompleteReq:
+			std::cout << "Complete and valid request received\n";
+			break ;
+		case ReqStatus::Error:
+			std::cout << "Critical error found, client to be disconnected\n";
+			break ;
+		case ReqStatus::Invalid:
+			std::cout << "Invalid HTTP request\n";
+			break ;
+		case ReqStatus::ReadyForResponse:
+			std::cout << "Ready to receive response\n";
+			break ;
+		default:
+			std::cout << "Unknown\n";
+	}
+}
+
 /**
  * Prints parsed data just for debugging for now.
  */
@@ -464,9 +481,9 @@ void	Request::printData(void) const {
 		std::cout << "---- Body ----\n" << _body << '\n';
 	std::cout << "	Keep alive?		" << _keepAlive << '\n';
 	std::cout << "	Complete headers?	" << _completeHeaders << '\n';
-	std::cout << "	Missing data?		" << _isMissingData << '\n';
+	std::cout << "	Status?		";
+	printStatus(_status);
 	std::cout << "	Chunked?		" << _chunked << '\n';
-	std::cout << "	Valid?			" << _isValid << "\n\n";
 }
 
 std::string	Request::getHost(void) const {
@@ -486,20 +503,20 @@ int	Request::getFd(void) const {
 	return _fd;
 }
 
+int	Request::getServerFd(void) const {
+	return _serverFd;
+}
+
 bool	Request::getKeepAlive(void) const {
 	return _keepAlive;
 }
 
-bool	Request::getIsValid(void) const {
-	return _isValid;
+ReqStatus	Request::getStatus(void) const {
+	return _status;
 }
 
-bool	Request::getIsMissingData(void) const {
-	return _isMissingData;
-}
-
-bool	Request::getKickMe(void) const {
-	return _kickMe;
+void	Request::setStatus(ReqStatus status) {
+	_status = status;
 }
 
 std::string const	&Request::getBuffer(void) const {
