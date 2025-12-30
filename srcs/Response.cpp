@@ -13,7 +13,11 @@ Response::Response(Request const &req) : _req(req)
 {
 	static std::string	currentDir = std::filesystem::current_path();
 
-	if (req.getStatus() == ReqStatus::Invalid) {
+	/**
+	 * This if case temporarily includes timeout case, just to test and debug timeout handling.
+	 * Later, timeout must be handled separately for its own error page forming.
+	 */
+	if (req.getStatus() == RequestStatus::Invalid || req.getStatus() == RequestStatus::Timeout) {
 		// Why isn't it valid? -> Find out!
 
 		// Assume bad request for now?

@@ -3,6 +3,10 @@
 #include <vector>
 #include <string>
 #include <optional>
+#include <chrono>
+
+#define REQ_TIMEOUT 5000 // here for now, values to be decided, and should they be in Server.hpp?
+#define RESP_TIMEOUT 10000
 
 /**
  * Mandatory methods required in the subject, do we want to add more? -> Will affect
@@ -16,11 +20,17 @@ enum class RequestMethod
 	Unknown
 };
 
-enum class ReqStatus
+/**
+ * WaitingData is set for a new client by default, and ReadyForResponse whenever a response is
+ * formed and ready to be sent from server. Error indicates there is a critical error in the HTTP
+ * request, and thus client must be immediately disconnected.
+ */
+enum class RequestStatus
 {
 	WaitingData,
 	CompleteReq,
 	ReadyForResponse,
+	Timeout,
 	Invalid,
 	Error
 };
@@ -36,6 +46,7 @@ struct RequestLine
 class Request
 {
 	using stringMap = std::unordered_map<std::string, std::vector<std::string>>;
+	using timePoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
 	private:
 		int						_fd;
@@ -48,39 +59,42 @@ class Request
 		bool					_keepAlive;
 		bool					_chunked;
 		bool					_completeHeaders;
-		ReqStatus				_status;
+		RequestStatus			_status;
+		timePoint				_recvStart;
+		timePoint				_sendStart;
 
 	public:
 		Request() = delete;
 		Request(int fd, int serverFd);
 		~Request() = default;
 
-		void				saveRequest(std::string const& buf);
+		void				saveRequest(std::string const &buf);
 		void				handleRequest(void);
 		void				parseRequest(void);
 		void				fillHost(void);
-		void				parseRequestLine(std::istringstream& req);
-		void				parseHeaders(std::string& str);
+		void				parseRequestLine(std::istringstream &req);
+		void				parseHeaders(std::string &str);
 		bool				validateHeaders(void);
 		void				parseChunked(void);
 		void				printData(void) const;
-		bool				isUniqueHeader(std::string const& key);
-		bool				isTargetValid(std::string& target);
-		bool				areValidChars(std::string& target);
-		bool				isHttpValid(std::string& httpVersion);
+		bool				isUniqueHeader(std::string const &key);
+		bool				isTargetValid(std::string &target);
+		bool				areValidChars(std::string &target);
+		bool				isHttpValid(std::string &httpVersion);
 		std::string			getHost(void) const;
 		int					getFd(void) const;
 		int					getServerFd(void) const;
 		bool				getKeepAlive(void) const;
-		ReqStatus			getStatus(void) const;
-		void				setStatus(ReqStatus status);
+		RequestStatus		getStatus(void) const;
+		void				setStatus(RequestStatus status);
 		std::string const	&getBuffer(void) const;
 		void				reset(void);
 		void				resetKeepAlive(void);
+		void				checkReqTimeouts(void);
 
 		RequestMethod						getRequestMethod(void) const;
 		std::string const					&getHttpVersion(void) const;
 		std::string const					&getBody(void) const;
 		std::string const					&getTarget(void) const;
-		std::vector<std::string> const *	getHeader(std::string const &key) const;
+		std::vector<std::string> const		*getHeader(std::string const &key) const;
 };

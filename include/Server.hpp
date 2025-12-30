@@ -12,8 +12,9 @@
 
 class Request;
 
-#define MAX_PENDING 20 //to be decided
-#define RECV_BUF_SIZE 4096 //to be decided
+#define MAX_PENDING 20 // all of these to be decided
+#define RECV_BUF_SIZE 4096
+#define POLL_TIMEOUT 100
 
 struct ServerGroup
 {
@@ -33,22 +34,25 @@ class Server
 
 	public:
 		Server() = delete;
-		Server(Parser& parser);
-		Server(Server const& obj) = delete;
-		Server const&	operator=(Server const& other) = delete;
+		Server(Parser &parser);
+		Server(Server const &obj) = delete;
+		Server const	&operator=(Server const &other) = delete;
 		~Server();
 
-		std::vector<Config> const&	getConfigs() const;
+		std::vector<Config> const	&getConfigs() const;
 
 		void			createServerSockets(void);
-		int				getServerSocket(Config conf);
+		int				createSingleServerSocket(Config conf);
 		void			run(void);
 		void			handleNewClient(int listener);
-		void			handleClientData(size_t& i);
-		void			sendResponse(size_t& i);
+		void			handleClientData(size_t &i);
+		void			removeClientFromPollFds(size_t &i);
+		void			sendResponse(size_t &i);
+		void			checkTimeouts(size_t &i);
 		void			handleConnections(void);
 		void			closePfds(void);
 		void			groupConfigs(void);
-		bool			isGroupMember(Config& conf);
+		bool			isGroupMember(Config &conf);
+		bool			isServerFd(int fd);
 		Config const	&matchConfig(Request const &req);
 };
