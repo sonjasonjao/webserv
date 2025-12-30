@@ -219,6 +219,9 @@ bool	uriTargetAboveRoot(std::string_view uri)
 	return (up > down);
 }
 
+/**
+ * @return	true if sv contains a valid IMF fixdate, false if not
+ */
 bool	isValidImfFixdate(std::string_view sv)
 {
 	if (sv.empty())
@@ -253,6 +256,9 @@ bool	isValidImfFixdate(std::string_view sv)
 
 	int	day = std::stoi(parts[1]);
 
+	if (day < 1 || day > 31)
+		return false;
+
 	static const std::array<std::string, 12>	months = {
 		"Jan",
 		"Feb",
@@ -285,7 +291,7 @@ bool	isValidImfFixdate(std::string_view sv)
 	int	year = std::stoi(parts[3]);
 
 	std::chrono::year_month_day	ymd(	static_cast<std::chrono::year>(year),
-										static_cast<std::chrono::month>(month),
+										static_cast<std::chrono::month>(month + 1),
 										static_cast<std::chrono::day>(day));
 
 	if (!ymd.ok())
@@ -298,12 +304,12 @@ bool	isValidImfFixdate(std::string_view sv)
 	if (std::any_of(hms.begin(), hms.end(), [](auto a) {return a.empty();}))
 		return false;
 	for (auto const &e : hms)
-	  if (!all_of(e.begin(), e.end(), isdigit))
+	  if (e.length() != 2 || !std::all_of(e.begin(), e.end(), isdigit))
 		return false;
 
-	int	hours	= stoi(hms[0]);
-	int	minutes	= stoi(hms[1]);
-	int	seconds	= stoi(hms[2]);
+	int	hours	= std::stoi(hms[0]);
+	int	minutes	= std::stoi(hms[1]);
+	int	seconds	= std::stoi(hms[2]);
 
 	if (hours > 23 || minutes > 59 || seconds > 59)
 		return false;
