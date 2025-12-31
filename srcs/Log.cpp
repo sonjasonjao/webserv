@@ -27,10 +27,19 @@ void	Log::logTime(std::ostream *outputStream)
 	auto	timePoint	= std::chrono::system_clock::now();
 	auto	time		= std::chrono::system_clock::to_time_t(timePoint);
 
+	auto	sinceEpoch	= timePoint.time_since_epoch();
+	auto	ms			= sinceEpoch.count() % 1000000000 / 1000000;	// Milliseconds
+	auto	us			= sinceEpoch.count() % 1000000 / 1000;			// Microseconds
+	auto	ns			= sinceEpoch.count() % 1000;					// Nanoseconds
+
 	std::stringstream	timeStream;
 	std::string			timeStr;
 
-	timeStream	<< std::put_time(std::localtime(&time), "%F %T");
+	timeStream.imbue(std::locale::classic());
+	timeStream	<< std::put_time(std::localtime(&time), "%F %T.");
+	timeStream << std::setw(3) << std::setfill('0') << ms << ",";
+	timeStream << std::setw(3) << std::setfill('0') << us << ",";
+	timeStream << std::setw(3) << std::setfill('0') << ns;
 	timeStr		= timeStream.str();
 
 	*outputStream << std::setw(TIMESTAMP_WIDTH) << std::left << timeStr;
