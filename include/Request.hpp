@@ -24,12 +24,16 @@ enum class RequestMethod
  * WaitingData is set for a new client by default, and ReadyForResponse whenever a response is
  * formed and ready to be sent from server. Error indicates there is a critical error in the HTTP
  * request, and thus client must be immediately disconnected.
+ *
+ * CompleteSend will later be implemented to track when a response has been sent completely, getting
+ * that info from Response class that does the actual send() call.
  */
 enum class RequestStatus
 {
 	WaitingData,
 	CompleteReq,
 	ReadyForResponse,
+	CompleteSend,
 	Timeout,
 	Invalid,
 	Error
@@ -78,9 +82,9 @@ class Request
 		void				parseChunked(void);
 		void				printData(void) const;
 		bool				isUniqueHeader(std::string const &key);
-		bool				isTargetValid(std::string &target);
+		bool				validateAndAssignTarget(std::string &target);
 		bool				areValidChars(std::string &target);
-		bool				isHttpValid(std::string &httpVersion);
+		bool				validateAndAssignHttp(std::string &httpVersion);
 		std::string			getHost(void) const;
 		int					getFd(void) const;
 		int					getServerFd(void) const;

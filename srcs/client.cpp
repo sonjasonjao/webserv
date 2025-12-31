@@ -56,7 +56,6 @@ int main(int argc, char **argv)
 	}
 	freeaddrinfo(res);
 	std::vector<pollfd>	pfd;
-	pollfd	tmp;
 	pfd.push_back({ sockfd, POLLOUT, 0 });
 	char msg[61] =
 	"GET / HTTP/1.0\r\nConnection: Keep-alive\r\nHost: www.test.com\r\n";

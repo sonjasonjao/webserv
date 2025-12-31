@@ -22,11 +22,11 @@ Server::Server(Parser& parser)
 {
 	//_configs = parser.getConfigs();
 	Config tmp = parser.getServerConfig(0);
-	_configs.push_back(tmp);
+	_configs.emplace_back(tmp);
 	tmp = parser.getServerConfig(1);
-	_configs.push_back(tmp);
+	_configs.emplace_back(tmp);
 	tmp = parser.getServerConfig(2);
-	_configs.push_back(tmp);
+	_configs.emplace_back(tmp);
 	groupConfigs();
 }
 
@@ -40,7 +40,7 @@ bool	Server::isGroupMember(Config& conf)
 	{
 		if (it->defaultConf->host == conf.host
 			&& it->defaultConf->ports.front() == conf.ports.front()) {
-			it->configs.push_back(conf);
+			it->configs.emplace_back(conf);
 			return true;
 		}
 	}
@@ -58,9 +58,9 @@ void	Server::groupConfigs(void)
 		if (_serverGroups.empty() || !isGroupMember(*it)) {
 			ServerGroup	newServGroup;
 			newServGroup.fd = -1;
-			newServGroup.configs.push_back(*it);
+			newServGroup.configs.emplace_back(*it);
 			newServGroup.defaultConf = &(*it);
-			_serverGroups.push_back(newServGroup);
+			_serverGroups.emplace_back(newServGroup);
 		}
 	}
 }
@@ -196,9 +196,9 @@ void	Server::handleNewClient(int listener)
 		throw std::runtime_error(ERROR_LOG("fcntl: " + std::string(strerror(errno))));
 	}
 
-	_pfds.push_back({ clientFd, POLLIN | POLLOUT, 0 });
+	_pfds.push_back({ clientFd, POLLIN, 0 });
 	Request	req(clientFd, listener);
-	_clients.push_back(req);
+	_clients.emplace_back(req);
 	INFO_LOG("New client accepted, assigned fd " + std::to_string(clientFd));
 }
 
@@ -219,10 +219,6 @@ void	Server::handleClientData(size_t& i)
 		else
 			ERROR_LOG("recv: " + std::string(strerror(errno)));
 
-		/*This section (until the next return) is not really working in all cases now, eg. if
-		first client program is run (with timeout) and then another client, browser, is connected.
-		Or if browser just connects, and then timeout happens (getHost() issue).
-		Need to double check the logic: when do we erase from _clients, when from _pfds, etc?*/
 		auto it = _clients.begin();
 		while (it != _clients.end())
 		{
@@ -293,6 +289,7 @@ void	Server::handleClientData(size_t& i)
 			_responses[_pfds[i].fd].emplace_back(Response(*it)); //should config be sent to response?
 			(*it).reset();
 			(*it).setStatus(RequestStatus::ReadyForResponse);
+			_pfds[i].events |= POLLOUT;
 		}
 	}
 }
@@ -349,7 +346,8 @@ void	Server::removeClientFromPollFds(size_t& i)
 }
 
 /**
- * Send protection (disconnect and erase client) missing
+ * Send() will be moved to be called from Response class (with a protected call and handling of
+ * partial send).
  */
 void	Server::sendResponse(size_t& i)
 {
@@ -372,9 +370,12 @@ void	Server::sendResponse(size_t& i)
 	auto	&res = _responses.at(_pfds[i].fd).front();
 
 	INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
-	send(_pfds[i].fd, res.getContent().c_str(), res.getContent().size(), MSG_DONTWAIT);
+	send(_pfds[i].fd, res.getContent().c_str(), res.getContent().size(),
+		MSG_DONTWAIT);
 
 	int	tmp = _pfds[i].fd;
+
+	_pfds[i].events &= ~POLLOUT;
 
 	DEBUG_LOG("Keep alive status: " + std::to_string((*it).getKeepAlive()));
 	if ((*it).getStatus() == RequestStatus::Invalid || !(*it).getKeepAlive())

@@ -8,11 +8,17 @@
 
 constexpr char const * const	CRLF = "\r\n";
 
+/**
+ * Initializes attribute values for request. Http version is now by default initialized to HTTP/1.1,
+ * so if the http version given in the request is invalid, 1.1 will be used to send the error page
+ * response.
+ */
 Request::Request(int fd, int serverFd) : _fd(fd), _serverFd(serverFd), _keepAlive(false), _chunked(false), _completeHeaders(false) {
 	_request.method = RequestMethod::Unknown;
 	_status = RequestStatus::WaitingData;
 	_recvStart = {};
 	_sendStart = {};
+	_request.httpVersion = "HTTP/1.1";
 }
 
 /**
@@ -213,7 +219,7 @@ void	Request::parseRequestLine(std::istringstream& req) {
 			fillHost();
 			return ;
 	}
-	if (!isTargetValid(target) || !isHttpValid(httpVersion))
+	if (!validateAndAssignTarget(target) || !validateAndAssignHttp(httpVersion))
 	{
 		_status = RequestStatus::Invalid;
 		fillHost();
@@ -248,13 +254,13 @@ void	Request::parseHeaders(std::string& str) {
 			value[i] = std::tolower(static_cast<unsigned char>(value[i]));
 		if (isNeededHeader(key)) {
 			if (value.find(",") == std::string::npos) {
-				_headers[key].push_back(value);
+				_headers[key].emplace_back(value);
 				continue;
 			}
 			std::istringstream	values(value);
 			std::string	oneValue;
 			while (getline(values, oneValue, ','))
-				_headers[key].push_back(oneValue);
+				_headers[key].emplace_back(oneValue);
 		}
 	}
 	if (!_completeHeaders)
@@ -426,7 +432,7 @@ bool	Request::areValidChars(std::string& s) {
  * We must later split the possible query with '&' which separates different queries.
  * Might be better to do that in the CGI handling part, so for now it's all in one string.
  */
-bool	Request::isTargetValid(std::string& target) {
+bool	Request::validateAndAssignTarget(std::string& target) {
 	if (target.size() == 1 && target != "/")
 		return false ;
 	if (!areValidChars(target))
@@ -452,7 +458,7 @@ bool	Request::isTargetValid(std::string& target) {
 /**
  * Only accepts HTTP/1.0 and HTTP/1.1 as valid versions on the request line.
  */
-bool	Request::isHttpValid(std::string& httpVersion) {
+bool	Request::validateAndAssignHttp(std::string& httpVersion) {
 	if (!std::regex_match(httpVersion, std::regex("HTTP/1.([01])")))
 		return false ;
 	_request.httpVersion = httpVersion;
