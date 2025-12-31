@@ -64,7 +64,6 @@ int main(int argc, char **argv)
 	// char msg3[72] =
 	// "POST / HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-length: 15\r\n\r\nWe test this!!!";
 	int		i = 0;
-	int		j = 0;
 	ssize_t	ret = 0;
 	while (true)
 	{
@@ -90,7 +89,7 @@ int main(int argc, char **argv)
 			i++;
 			std::cout << "Sent\n";
 		}
-		else if ((pfd[0].revents & POLLIN) && j < 1) {
+		else if ((pfd[0].revents & POLLIN)) {
 			ssize_t	numBytes;
 			char	buf[1025];
 			numBytes = recv(sockfd, buf, 1024, 0);
@@ -104,8 +103,7 @@ int main(int argc, char **argv)
 			}
 			buf[numBytes] = '\0';
 			std::cout << "Received: '" << buf << "'\n";
-			pfd[0].events &= ~POLLIN;
-			j++;
+			// pfd[0].events &= ~POLLIN;
 			usleep(1000);
 		}
 	}

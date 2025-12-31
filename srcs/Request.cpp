@@ -71,19 +71,21 @@ void	Request::resetKeepAlive(void) {
  * to zero.
  */
 void	Request::checkReqTimeouts(void) {
-	auto	now = std::chrono::high_resolution_clock::now();
-	auto	diff = now - _recvStart;
-	auto	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
+	auto		now = std::chrono::high_resolution_clock::now();
+	auto		diff = now - _recvStart;
+	auto		durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	timePoint	init = {};
 	if (_recvStart != init && durMs.count() > REQ_TIMEOUT) {
-		_status = RequestStatus::Timeout;
+		_status = RequestStatus::RecvTimeout;
+		DEBUG_LOG("Recv timeout with client fd " + std::to_string(_fd));
 		_keepAlive = false;
 		return ;
 	}
 	diff = now - _sendStart;
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	if (_sendStart != init && durMs.count() > RESP_TIMEOUT) {
-		_status = RequestStatus::Timeout;
+		_status = RequestStatus::SendTimeout;
+		DEBUG_LOG("Send timeout with client fd " + std::to_string(_fd));
 		_keepAlive = false;
 	}
 }

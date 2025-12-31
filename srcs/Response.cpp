@@ -2,10 +2,13 @@
 #include "Log.hpp"
 #include "Utils.hpp"
 #include "Pages.hpp"
+#include <cstring>
 #include <string>
 #include <vector>
 #include <iostream>
 #include <filesystem>
+#include <sys/socket.h>
+#include <unistd.h>
 
 constexpr char const * const	CRLF = "\r\n";
 
@@ -13,15 +16,11 @@ Response::Response(Request const &req) : _req(req)
 {
 	static std::string	currentDir = std::filesystem::current_path();
 
-	/**
-	 * This if case temporarily includes timeout case, just to test and debug timeout handling.
-	 * Later, timeout must be handled separately for its own error page forming.
-	 */
-	if (req.getStatus() == RequestStatus::Invalid || req.getStatus() == RequestStatus::Timeout) {
+	if (req.getStatus() == RequestStatus::Invalid
+		|| req.getStatus() == RequestStatus::RecvTimeout) {
 		// Why isn't it valid? -> Find out!
 
 		// Assume bad request for now?
-		_startLine	+= " 400 Bad Request";
 		_statusCode	 = BadRequest;
 		_body		 = Pages::getPageContent("default400");
 
@@ -43,6 +42,18 @@ Response::Response(Request const &req) : _req(req)
 	//			What if the content is huge? Chunking time?
 
 	_target = req.getTarget();
+
+	if (!uriFormatOk(_target) || uriTargetAboveRoot(_target)) {
+		_error		= ResponseError::badTarget;
+		_statusCode	= BadRequest;
+		_body		= Pages::getPageContent("default400");
+
+		formResponse();
+
+		return;
+	}
+
+	_target = std::filesystem::path(_target).lexically_normal();
 
 	if (std::filesystem::is_directory(_target)) {
 		if (_target.back() == '/')
@@ -95,7 +106,8 @@ Response::Response(Response const &other)
 		_headerSection(other._headerSection),
 		_body(other._body),
 		_content(other._content),
-		_statusCode(other._statusCode)
+		_statusCode(other._statusCode),
+		_error(other._error)
 {}
 
 std::string const	&Response::getContent() const
@@ -158,4 +170,25 @@ void	Response::formResponse()
 	_headerSection += "Content-Length: " + std::to_string(_body.length()) + CRLF;
 
 	_content = _startLine + CRLF + _headerSection + CRLF + _body;
+}
+
+void	Response::sendToClient()
+{
+	size_t	bytesToSend = _content.length() - _bytesSent;
+
+	if (bytesToSend <= 0)
+		return;
+
+	char const	*bufferPosition	= _content.c_str() + _bytesSent;
+	ssize_t		bytesSent		= send(_req.getFd(), bufferPosition, bytesToSend, MSG_DONTWAIT);
+
+	if (bytesSent < 0)
+		throw std::runtime_error(ERROR_LOG("send: " + std::string(strerror(errno))));
+
+	_bytesSent += bytesSent;
+}
+
+bool	Response::sendIsComplete()
+{
+	return _bytesSent >= _content.length();
 }

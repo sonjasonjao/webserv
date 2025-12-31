@@ -364,14 +364,18 @@ void	Server::sendResponse(size_t& i)
 	}
 
 	if ((*it).getStatus() != RequestStatus::ReadyForResponse
-		&& (*it).getStatus() != RequestStatus::Timeout)
+		&& (*it).getStatus() != RequestStatus::RecvTimeout)
 		return ;
 
 	auto	&res = _responses.at(_pfds[i].fd).front();
 
 	INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
-	send(_pfds[i].fd, res.getContent().c_str(), res.getContent().size(),
-		MSG_DONTWAIT);
+	res.sendToClient();
+	if (!res.sendIsComplete())
+	{
+		INFO_LOG("Response partially sent, waiting for server to complete response sending");
+		return ;
+	}
 
 	int	tmp = _pfds[i].fd;
 
@@ -394,8 +398,9 @@ void	Server::sendResponse(size_t& i)
 
 /**
  * On each poll round, checks whether any of the clients have experienced request or response
- * timeout. If so, calls Response constructor to form an error page response, and sendResponse to
- * send it.
+ * timeout. If a request receiving timeout occurs, calls Response constructor to form an error
+ * page response, and sendResponse to send it and to disconnect client. In case of send timeout,
+ * client is disconnected without sending a response (need to double check if that should happen!).
  */
 void	Server::checkTimeouts(size_t& i)
 {
@@ -403,9 +408,14 @@ void	Server::checkTimeouts(size_t& i)
 	{
 		if (it->getFd() == _pfds[i].fd) {
 			it->checkReqTimeouts();
-			if (it->getStatus() == RequestStatus::Timeout) {
+			if (it->getStatus() == RequestStatus::RecvTimeout) {
 				_responses[_pfds[i].fd].emplace_back(Response(*it));
 				sendResponse(i);
+			}
+			if (it->getStatus() == RequestStatus::SendTimeout) {
+				removeClientFromPollFds(i);
+				INFO_LOG("Erasing fd " + std::to_string(_pfds[i].fd) + " from clients list");
+				_clients.erase(it);
 			}
 			return ;
 		}
