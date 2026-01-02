@@ -339,6 +339,13 @@ void	Server::removeClientFromPollFds(size_t& i)
 	i--;
 }
 
+/**
+ * Sets the starting time for send timeout tracking and calls sendToClient() to send the response.
+ * If the response was completely sent with one call, resets the send timeout tracker to 0, removes
+ * POLLOUT from  events, and in case of keepAlive being false, disconnects and removes the client.
+ * Finally removes sent response from _responses and in case of keepAlive, sets client status back
+ * to default.
+ */
 void	Server::sendResponse(size_t& i)
 {
 	auto it = getRequestByFd(_pfds[i].fd);
@@ -384,6 +391,9 @@ void	Server::sendResponse(size_t& i)
 	it->setStatus(RequestStatus::WaitingData);
 }
 
+/**
+ * Helper to get the Request object that matches fd given as parameter.
+ */
 ReqIter	Server::getRequestByFd(int fd)
 {
 	for (auto it = _clients.begin(); it != _clients.end(); it++)
@@ -444,10 +454,7 @@ bool	Server::isServerFd(int fd)
  * incoming request. If the fd that had a new event is one of the server fds, it's a new client
  * wanting to connect to that server. If it's not a server fd, it is an existing client that has
  * sent data. Thirdly tracks POLLOUT to recognize when server has a response ready to be sent to
- * that client. Fourthly, for all client fds, goes to check for request or response timeout.
- *
- * POLLOUT is triggered constantly, so in sendResponse we first check if client status is set
- * ready for response (set by server as soon as a response is ready).
+ * that client. Fourthly, goes to check all client fds for request or response timeout.
  */
 void	Server::handleConnections(void)
 {

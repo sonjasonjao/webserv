@@ -65,7 +65,7 @@ void	Request::resetKeepAlive(void) {
 }
 
 /**
- * In the handleConnections loop, each client fd is checked for possible timeouts by comparing
+ * In handleConnections, each client fd is checked for possible timeouts by comparing
  * the stored _recvStart and _sendStart with the current time stamp. Helper variable init is
  * used to check whether _recvStart or _sendStart has ever been updated after the initialization
  * to zero.
