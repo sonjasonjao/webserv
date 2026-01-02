@@ -8,7 +8,7 @@
 #define INFO_LOGGING	1
 #define DEBUG_LOGGING	1
 
-#define TIMESTAMP_WIDTH	23
+#define TIMESTAMP_WIDTH	27
 #define CATEGORY_WIDTH	20
 
 enum class LogType {
