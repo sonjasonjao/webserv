@@ -275,8 +275,7 @@ void	Server::handleClientData(size_t& i)
 			INFO_LOG("Building response to client fd " + std::to_string(_pfds[i].fd));
 
 			Config	 const &tmp = matchConfig(*it);
-			std::cout << "Matched config: " << tmp.host << " " << tmp.host_name << " "
-				<< tmp.ports[0] << '\n';
+			DEBUG_LOG("Matched config: " + tmp.host + " " + tmp.host_name + " " + std::to_string(tmp.ports[0]));
 
 			_responses[_pfds[i].fd].emplace_back(Response(*it)); //should config be sent to response?
 			it->reset();

@@ -524,19 +524,19 @@ void	Request::printData(void) const {
 		std::cout << "---- Body ----\n" << _body << '\n';
 	std::cout << "	Keep alive?		" << _keepAlive << '\n';
 	std::cout << "	Complete headers?	" << _completeHeaders << '\n';
-	std::cout << "	Status?		";
+	std::cout << "	Status?			";
 	printStatus(_status);
-	std::cout << "	Chunked?		" << _chunked << '\n';
+	std::cout << "	Chunked?		" << _chunked << "\n\n";
 }
 
 void	Request::setRecvStart(void) {
 	_recvStart = std::chrono::high_resolution_clock::now();
-	std::cout << "set recv start\n";
+	DEBUG_LOG("Fd " + std::to_string(_fd) + " _recvStart set to " + std::to_string(_recvStart.time_since_epoch().count()));
 }
 
 void	Request::setSendStart(void) {
 	_sendStart = std::chrono::high_resolution_clock::now();
-	std::cout << "set send start\n";
+	DEBUG_LOG("Fd " + std::to_string(_fd) + " _sendStart set to " + std::to_string(_sendStart.time_since_epoch().count()));
 }
 
 void	Request::resetSendStart(void) {
