@@ -232,7 +232,7 @@ void	Server::handleClientData(size_t& i)
 		if (it ==_clients.end())
 			throw std::runtime_error(ERROR_LOG("Couldn't match client fd to poll fd list"));
 
-		INFO_LOG("Erasing fd " + std::to_string(_pfds[i].fd) + " from clients list");
+		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 		_clients.erase(it);
 
 		return ;
@@ -267,7 +267,7 @@ void	Server::handleClientData(size_t& i)
 
 				removeClientFromPollFds(i);
 
-				INFO_LOG("Erasing fd " + std::to_string(_pfds[i].fd) + " from clients list");
+				INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 				_clients.erase(it);
 
 				return ;
@@ -386,8 +386,9 @@ void	Server::sendResponse(size_t& i)
 	{
 		removeClientFromPollFds(i);
 
-		INFO_LOG("Erasing fd " + std::to_string(_pfds[i].fd) + " from clients list");
+		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 		_clients.erase(it);
+		_responses.at(tmp).pop_front();
 
 		return ;
 	}
@@ -414,7 +415,7 @@ void	Server::checkTimeouts(size_t& i)
 			}
 			if (it->getStatus() == RequestStatus::SendTimeout) {
 				removeClientFromPollFds(i);
-				INFO_LOG("Erasing fd " + std::to_string(_pfds[i].fd) + " from clients list");
+				INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 				_clients.erase(it);
 			}
 			return ;
