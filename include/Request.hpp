@@ -86,13 +86,16 @@ class Request
 		void				reset(void);
 		void				resetKeepAlive(void);
 		void				checkReqTimeouts(void);
+		void				setRecvStart(void);
+		void				setSendStart(void);
+		void				resetSendStart(void);
 
 		RequestMethod						getRequestMethod(void) const;
 		std::string const					&getHttpVersion(void) const;
 		std::string const					&getBody(void) const;
 		std::string const					&getTarget(void) const;
 		std::vector<std::string> const		*getHeader(std::string const &key) const;
-		std::string const					&getHost(void) const;
+		std::string							getHost(void) const;
 		int									getFd(void) const;
 		int									getServerFd(void) const;
 		bool								getKeepAlive(void) const;

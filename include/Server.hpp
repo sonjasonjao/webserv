@@ -25,6 +25,8 @@ struct ServerGroup
 
 class Server
 {
+	using ReqIter = std::vector<Request>::iterator;
+
 	private:
 		std::vector<Config>								_configs;
 		std::vector<pollfd>								_pfds;
@@ -48,11 +50,12 @@ class Server
 		void			handleClientData(size_t &i);
 		void			removeClientFromPollFds(size_t &i);
 		void			sendResponse(size_t &i);
-		void			checkTimeouts(size_t &i);
+		void			checkTimeouts(void);
 		void			handleConnections(void);
 		void			closePfds(void);
 		void			groupConfigs(void);
 		bool			isGroupMember(Config &conf);
 		bool			isServerFd(int fd);
 		Config const	&matchConfig(Request const &req);
+		ReqIter			getRequestByFd(int fd);
 };

@@ -26,7 +26,6 @@ Request::Request(int fd, int serverFd) : _fd(fd), _serverFd(serverFd), _keepAliv
  */
 void	Request::saveRequest(std::string const& buf) {
 	_buffer += buf;
-	_recvStart = std::chrono::high_resolution_clock::now();
 }
 
 /**
@@ -55,7 +54,6 @@ void	Request::reset(void) {
 	_chunked = false;
 	_completeHeaders = false;
 	_recvStart = {};
-	_sendStart = {};
 }
 
 /**
@@ -531,7 +529,21 @@ void	Request::printData(void) const {
 	std::cout << "	Chunked?		" << _chunked << '\n';
 }
 
-std::string const	&Request::getHost(void) const {
+void	Request::setRecvStart(void) {
+	_recvStart = std::chrono::high_resolution_clock::now();
+	std::cout << "set recv start\n";
+}
+
+void	Request::setSendStart(void) {
+	_sendStart = std::chrono::high_resolution_clock::now();
+	std::cout << "set send start\n";
+}
+
+void	Request::resetSendStart(void) {
+	_sendStart = {};
+}
+
+std::string	Request::getHost(void) const {
 	std::string	host;
 	try
 	{
@@ -560,14 +572,8 @@ RequestStatus	Request::getStatus(void) const {
 	return _status;
 }
 
-/**
- * Set RequestStatus to the value given as parameter. In case of ReadyForResponse, this function
- * also stores the current timestamp into _sendStart.
- */
 void	Request::setStatus(RequestStatus status) {
 	_status = status;
-	if (status == RequestStatus::ReadyForResponse)
-		_sendStart = std::chrono::high_resolution_clock::now();
 }
 
 std::string const	&Request::getBuffer(void) const {
@@ -590,7 +596,7 @@ std::string const	&Request::getTarget() const {
 	return _request.target;
 }
 
-std::vector<std::string> const *	Request::getHeader(std::string const &key) const
+std::vector<std::string> const	*Request::getHeader(std::string const &key) const
 {
 	try {
 		return &_headers.at(key);

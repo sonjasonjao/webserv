@@ -12,6 +12,8 @@
 #include <fcntl.h>
 #include <cstring>
 
+using ReqIter = std::vector<Request>::iterator;
+
 /**
  * At construction, _configs will be fetched from parser.
  *
@@ -72,7 +74,7 @@ void	Server::groupConfigs(void)
 void	Server::closePfds(void)
 {
 	for (auto it = _pfds.begin(); it != _pfds.end(); it++)
-		close((*it).fd);
+		close(it->fd);
 }
 
 /**
@@ -217,18 +219,13 @@ void	Server::handleClientData(size_t& i)
 		else
 			ERROR_LOG("recv: " + std::string(strerror(errno)));
 
-		auto it = _clients.begin();
-		while (it != _clients.end())
-		{
-			if (it->getFd() == _pfds[i].fd)
-				break ;
-			it++;
-		}
+		auto it = getRequestByFd(_pfds[i].fd);
 
 		removeClientFromPollFds(i);
 
 		if (it == _clients.end())
-			throw std::runtime_error(ERROR_LOG("Couldn't match client fd to poll fd list"));
+			throw std::runtime_error(ERROR_LOG("Could not find request with fd "
+				+ std::to_string(_pfds[i].fd)));
 
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 		_clients.erase(it);
@@ -242,26 +239,23 @@ void	Server::handleClientData(size_t& i)
 
 	if (!_clients.empty())
 	{
-		auto it = _clients.begin();
-		while (it != _clients.end())
-		{
-			if (it->getFd() == _pfds[i].fd)
-				break ;
-			it++;
-		}
+		auto it = getRequestByFd(_pfds[i].fd);
 
 		if (it ==_clients.end())
-			throw std::runtime_error(ERROR_LOG("Couldn't match client fd to poll fd list"));
+			throw std::runtime_error(ERROR_LOG("Could not find request with fd "
+				+ std::to_string(_pfds[i].fd)));
 
-		(*it).saveRequest(std::string(buf));
+		it->setRecvStart(); // do we want to reset the timer with every recv() or only when a new request is coming?
+		it->saveRequest(std::string(buf));
 
-		while (!((*it).getBuffer().empty()))
+		while (!(it->getBuffer().empty()))
 		{
-			(*it).handleRequest();
+			it->handleRequest();
 
-			if ((*it).getStatus() == RequestStatus::Error)
+			if (it->getStatus() == RequestStatus::Error)
 			{
-				ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd) + " connection dropped: suspicious request");
+				ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
+					+ " connection dropped: suspicious request");
 
 				removeClientFromPollFds(i);
 
@@ -271,7 +265,7 @@ void	Server::handleClientData(size_t& i)
 				return ;
 			}
 
-			if ((*it).getStatus() == RequestStatus::WaitingData)
+			if (it->getStatus() == RequestStatus::WaitingData)
 			{
 				INFO_LOG("Waiting for more data to complete partial request");
 
@@ -285,8 +279,8 @@ void	Server::handleClientData(size_t& i)
 				<< tmp.ports[0] << '\n';
 
 			_responses[_pfds[i].fd].emplace_back(Response(*it)); //should config be sent to response?
-			(*it).reset();
-			(*it).setStatus(RequestStatus::ReadyForResponse);
+			it->reset();
+			it->setStatus(RequestStatus::ReadyForResponse);
 			_pfds[i].events |= POLLOUT;
 		}
 	}
@@ -331,7 +325,8 @@ void	Server::removeClientFromPollFds(size_t& i)
 
 	if (_pfds.size() > (i + 1))
 	{
-		DEBUG_LOG("Overwriting fd " + std::to_string(_pfds[i].fd) + " with fd " + std::to_string(_pfds[_pfds.size() - 1].fd));
+		DEBUG_LOG("Overwriting fd " + std::to_string(_pfds[i].fd) + " with fd "
+			+ std::to_string(_pfds[_pfds.size() - 1].fd));
 		INFO_LOG("Removing client fd " + std::to_string(_pfds[i].fd) + " from poll list");
 		_pfds[i] = _pfds[_pfds.size() - 1];
 		_pfds.pop_back();
@@ -347,25 +342,20 @@ void	Server::removeClientFromPollFds(size_t& i)
 
 void	Server::sendResponse(size_t& i)
 {
-	auto it = _clients.begin();
-	while (it != _clients.end())
-	{
-		if (it->getFd() == _pfds[i].fd)
-			break ;
-		it++;
-	}
+	auto it = getRequestByFd(_pfds[i].fd);
 	if (it == _clients.end()) {
-		ERROR_LOG("Could not find matching client request");
+		ERROR_LOG("Could not find a response to send to this client");
 		return ;
 	}
 
-	if ((*it).getStatus() != RequestStatus::ReadyForResponse
-		&& (*it).getStatus() != RequestStatus::RecvTimeout)
+	if (it->getStatus() != RequestStatus::ReadyForResponse
+		&& it->getStatus() != RequestStatus::RecvTimeout)
 		return ;
 
 	auto	&res = _responses.at(_pfds[i].fd).front();
 
 	INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
+	it->setSendStart();
 	res.sendToClient();
 	if (!res.sendIsComplete())
 	{
@@ -373,12 +363,13 @@ void	Server::sendResponse(size_t& i)
 		return ;
 	}
 
+	it->resetSendStart();
 	int	tmp = _pfds[i].fd;
 
 	_pfds[i].events &= ~POLLOUT;
 
-	DEBUG_LOG("Keep alive status: " + std::to_string((*it).getKeepAlive()));
-	if ((*it).getStatus() == RequestStatus::Invalid || !(*it).getKeepAlive())
+	DEBUG_LOG("Keep alive status: " + std::to_string(it->getKeepAlive()));
+	if (it->getStatus() == RequestStatus::Invalid || !it->getKeepAlive())
 	{
 		removeClientFromPollFds(i);
 
@@ -389,9 +380,19 @@ void	Server::sendResponse(size_t& i)
 
 		return ;
 	}
-	(*it).resetKeepAlive();
+	it->resetKeepAlive();
 	_responses.at(tmp).pop_front();
-	(*it).setStatus(RequestStatus::WaitingData);
+	it->setStatus(RequestStatus::WaitingData);
+}
+
+ReqIter	Server::getRequestByFd(int fd)
+{
+	for (auto it = _clients.begin(); it != _clients.end(); it++)
+	{
+		if (it->getFd() == fd)
+			return it;
+	}
+	return _clients.end();
 }
 
 /**
@@ -400,11 +401,14 @@ void	Server::sendResponse(size_t& i)
  * page response, and sendResponse to send it and to disconnect client. In case of send timeout,
  * client is disconnected without sending a response (need to double check if that should happen!).
  */
-void	Server::checkTimeouts(size_t& i)
+void	Server::checkTimeouts(void)
 {
-	for (auto it = _clients.begin(); it != _clients.end(); it++)
-	{
-		if (it->getFd() == _pfds[i].fd) {
+	for (size_t i = 0; i < _pfds.size(); i++) {
+		if (!isServerFd(_pfds[i].fd)) {
+			auto it = getRequestByFd(_pfds[i].fd);
+			if (it == _clients.end())
+				throw std::runtime_error(ERROR_LOG("Could not find request with fd "
+					+ std::to_string(_pfds[i].fd)));
 			it->checkReqTimeouts();
 			if (it->getStatus() == RequestStatus::RecvTimeout) {
 				_responses[_pfds[i].fd].emplace_back(Response(*it));
@@ -415,10 +419,8 @@ void	Server::checkTimeouts(size_t& i)
 				INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 				_clients.erase(it);
 			}
-			return ;
 		}
 	}
-	throw std::runtime_error(ERROR_LOG("Unexpected error in finding current client fd"));
 }
 
 /**
@@ -467,9 +469,8 @@ void	Server::handleConnections(void)
 		}
 		if (_pfds[i].revents & POLLOUT)
 			sendResponse(i);
-		if (!isServerFd(_pfds[i].fd))
-			checkTimeouts(i);
 	}
+	checkTimeouts();
 }
 
 std::vector<Config> const&	Server::getConfigs() const
