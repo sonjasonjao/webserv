@@ -176,7 +176,7 @@ void	Response::sendToClient()
 {
 	size_t	bytesToSend = _content.length() - _bytesSent;
 
-	if (bytesToSend <= 0)
+	if (bytesToSend == 0)
 		return;
 
 	char const	*bufferPosition	= _content.c_str() + _bytesSent;
