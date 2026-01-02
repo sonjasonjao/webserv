@@ -82,13 +82,7 @@ class Request
 		bool				validateAndAssignTarget(std::string &target);
 		bool				areValidChars(std::string &target);
 		bool				validateAndAssignHttp(std::string &httpVersion);
-		std::string			getHost(void) const;
-		int					getFd(void) const;
-		int					getServerFd(void) const;
-		bool				getKeepAlive(void) const;
-		RequestStatus		getStatus(void) const;
 		void				setStatus(RequestStatus status);
-		std::string const	&getBuffer(void) const;
 		void				reset(void);
 		void				resetKeepAlive(void);
 		void				checkReqTimeouts(void);
@@ -98,4 +92,10 @@ class Request
 		std::string const					&getBody(void) const;
 		std::string const					&getTarget(void) const;
 		std::vector<std::string> const		*getHeader(std::string const &key) const;
+		std::string const					&getHost(void) const;
+		int									getFd(void) const;
+		int									getServerFd(void) const;
+		bool								getKeepAlive(void) const;
+		RequestStatus						getStatus(void) const;
+		std::string const					&getBuffer(void) const;
 };

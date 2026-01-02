@@ -194,7 +194,7 @@ void	Request::fillHost(void) {
  */
 void	Request::parseRequestLine(std::istringstream& req) {
 	std::string method, target, httpVersion;
-	std::vector<std::string>	methods = { "GET", "POST", "DELETE "};
+	std::vector<std::string>	methods = { "GET", "POST", "DELETE" };
 	if (!(req >> method >> target >> httpVersion))
 	{
 		_status = RequestStatus::Invalid;
@@ -350,7 +350,7 @@ void	Request::parseChunked(void) {
  */
 bool	Request::validateHeaders(void) {
 	auto	it = _headers.find("host");
-	if ((it == _headers.end() || it->second.empty()) && _request.httpVersion == "HTTP/1.1")
+	if ( _request.httpVersion == "HTTP/1.1" && (it == _headers.end() || it->second.empty()))
 		return false;
 	for (auto const& [key, values] : _headers) {
 		if (values.size() > 1 && isUniqueHeader(key))
@@ -531,7 +531,7 @@ void	Request::printData(void) const {
 	std::cout << "	Chunked?		" << _chunked << '\n';
 }
 
-std::string	Request::getHost(void) const {
+std::string const	&Request::getHost(void) const {
 	std::string	host;
 	try
 	{

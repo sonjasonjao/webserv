@@ -92,10 +92,8 @@ int	Server::createSingleServerSocket(Config conf)
 
 	ret = getaddrinfo(conf.host.c_str(), (std::to_string(conf.ports.at(0))).c_str(),
 		&hints, &servinfo);
-	if (ret != 0) {
-		freeaddrinfo(servinfo);
+	if (ret != 0)
 		throw std::runtime_error(ERROR_LOG("getaddrinfo: " + std::string(gai_strerror(ret))));
-	}
 
 	for (p = servinfo; p != NULL; p = p->ai_next)
 	{
@@ -229,7 +227,7 @@ void	Server::handleClientData(size_t& i)
 
 		removeClientFromPollFds(i);
 
-		if (it ==_clients.end())
+		if (it == _clients.end())
 			throw std::runtime_error(ERROR_LOG("Couldn't match client fd to poll fd list"));
 
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
@@ -295,7 +293,7 @@ void	Server::handleClientData(size_t& i)
 }
 
 /**
- * Matches current request(so, client) with the config or the server it is connected with.
+ * Matches current request (so, client) with the config of the server it is connected to.
  * Looks for the serverGroup with a matching server fd, and then looks for the host name to match
  * Host header value in the request. If no host name match is found, returns the default config of
  * that serverGroup.
@@ -311,6 +309,8 @@ Config const	&Server::matchConfig(Request const &req)
 			break ;
 		}
 	}
+	if (tmp == nullptr)
+		throw std::runtime_error(ERROR_LOG("Unexpected error in matching request with server config"));
 	for (auto it = tmp->configs.begin(); it != tmp->configs.end(); it++)
 	{
 		if (it->host_name == req.getHost())
@@ -345,10 +345,6 @@ void	Server::removeClientFromPollFds(size_t& i)
 	i--;
 }
 
-/**
- * Send() will be moved to be called from Response class (with a protected call and handling of
- * partial send).
- */
 void	Server::sendResponse(size_t& i)
 {
 	auto it = _clients.begin();
@@ -388,6 +384,7 @@ void	Server::sendResponse(size_t& i)
 
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 		_clients.erase(it);
+
 		_responses.at(tmp).pop_front();
 
 		return ;
