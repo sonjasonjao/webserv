@@ -470,7 +470,7 @@ bool	Request::validateAndAssignHttp(std::string& httpVersion) {
 /**
  * Helper function to print RequestStatus value.
  */
-void	printStatus(RequestStatus status)
+static void	printStatus(RequestStatus status)
 {
 	switch (status)
 	{
