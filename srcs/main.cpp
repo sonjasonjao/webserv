@@ -26,9 +26,7 @@ int	main(int argc, char **argv)
 		Pages::loadDefaults();
 		server.run();
 	}
-	catch(const std::exception& e) {
-		ERROR_LOG(e.what());
-	}
+	catch(const std::exception& e) {}
 
 	return 0;
 }
