@@ -17,9 +17,13 @@ Response::Response(Request const &req) : _req(req)
 		// Why isn't it valid? -> Find out!
 
 		// Assume bad request for now?
-		_startLine	+= " 400 Bad Request";
 		_statusCode	 = BadRequest;
 		_body		 = Pages::getPageContent("default400");
+
+		formResponse();
+
+		std::cout << "\n---- Response content ----\n" << _content << "\n";
+
 		return;
 	}
 
@@ -34,6 +38,16 @@ Response::Response(Request const &req) : _req(req)
 	//			What if the content is huge? Chunking time?
 
 	_target = req.getTarget();
+
+	if (!uriFormatOk(_target) || uriTargetAboveRoot(_target)) {
+		_error		= ResponseError::badTarget;
+		_statusCode	= BadRequest;
+		_body		= Pages::getPageContent("default400");
+
+		formResponse();
+
+		return;
+	}
 
 	if (std::filesystem::is_directory(_target)) {
 		if (_target.back() == '/')
@@ -78,7 +92,16 @@ Response::Response(Request const &req) : _req(req)
 	std::cout << "\n---- Response content ----\n" << _content << "\n";
 }
 
-Response::Response(Response const &other) : _req(other._req) {}
+Response::Response(Response const &other)
+	:	_req(other._req),
+		_headers(other._headers),
+		_target(other._target),
+		_startLine(other._startLine),
+		_headerSection(other._headerSection),
+		_body(other._body),
+		_content(other._content),
+		_statusCode(other._statusCode)
+{}
 
 std::string const	&Response::getContent() const
 {
@@ -112,8 +135,6 @@ void	Response::formResponse()
 	_headerSection +=	"Date: " + getImfFixdate() + CRLF;
 	_headerSection +=	"Content-Type: text/html" + std::string(CRLF);
 
-	_body = "<!DOCTYPE html><html><head></head><body>Placeholder page</body></html>";
-
 	switch (_statusCode) {
 		case 200:
 			_startLine	= _req.getHttpVersion() + " 200 OK";
@@ -135,7 +156,7 @@ void	Response::formResponse()
 			_body		= Pages::getPageContent("default404");
 		break;
 		default:
-			_startLine = _req.getHttpVersion() + " 400 Bad Request";
+			_startLine	= _req.getHttpVersion() + " 400 Bad Request";
 			_body		= Pages::getPageContent("default400");
 	}
 
