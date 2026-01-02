@@ -14,7 +14,7 @@ enum ResponseCode : int {
 
 enum class ResponseError {
 	NoError,
-	badTarget,
+	BadTarget,
 };
 
 class Response {

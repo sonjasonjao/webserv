@@ -44,7 +44,7 @@ Response::Response(Request const &req) : _req(req)
 	_target = req.getTarget();
 
 	if (!uriFormatOk(_target) || uriTargetAboveRoot(_target)) {
-		_error		= ResponseError::badTarget;
+		_error		= ResponseError::BadTarget;
 		_statusCode	= BadRequest;
 		_body		= Pages::getPageContent("default400");
 
