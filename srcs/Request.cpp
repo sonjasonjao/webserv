@@ -54,6 +54,8 @@ void	Request::reset(void) {
 	_contentLen.reset();
 	_chunked = false;
 	_completeHeaders = false;
+	_recvStart = {};
+	_sendStart = {};
 }
 
 /**
