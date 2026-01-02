@@ -147,7 +147,7 @@ void	Response::formResponse()
 			_body		= Pages::getPageContent("default404");
 		break;
 		default:
-			_startLine = _req.getHttpVersion() + " 400 Bad Request";
+			_startLine	= _req.getHttpVersion() + " 400 Bad Request";
 			_body		= Pages::getPageContent("default400");
 	}
 
