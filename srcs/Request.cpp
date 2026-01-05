@@ -365,13 +365,20 @@ bool	Request::validateHeaders(void) {
 	}
 	it = _headers.find("connection");
 	if (it != _headers.end()) {
-		for (auto con = it->second.begin(); con != it->second.end(); con++) {
-			if (*con == "keep-alive") {
-				_keepAlive = true;
-				break ;
+		if (!(it->second.size() == 1 && it->second.front() == "close"))
+		{
+			for (auto con = it->second.begin(); con != it->second.end(); con++) {
+				if (*con == "keep-alive") {
+					_keepAlive = true;
+					break ;
+				}
 			}
+			if (_request.httpVersion == "HTTP/1.1")
+				_keepAlive = true;
 		}
 	}
+	else if (_request.httpVersion == "HTTP/1.1")
+		_keepAlive = true;
 	it = _headers.find("content-length");
 	if (it != _headers.end()) {
 		try

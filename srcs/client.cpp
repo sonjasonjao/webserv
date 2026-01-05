@@ -58,7 +58,7 @@ int main(int argc, char **argv)
 	std::vector<pollfd>	pfd;
 	pfd.push_back({ sockfd, POLLOUT, 0 });
 	char msg[61] =
-	"GET / HTTP/1.0\r\nConnection: Keep-alive\r\nHost: www.test.com\r\n";
+	"GET / HTTP/1.1\r\nConnection: Close\r\nHost: www.test.com\r\n";
 	char msg2[66] =
 	"Transfer-encoding: Chunked\r\n\r\n9\r\nThis is b\r\n0F\r\nThis is another\r\n";
 	// char msg3[72] =
