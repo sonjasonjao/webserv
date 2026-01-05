@@ -10,7 +10,7 @@
 
 - There might be a **URI** in the request
 - The **config** might have one or more **routes**
-    - Loop over all config reroutes and see if the URI contains such a route
+    - Loop over all config routes and see if the URI contains such a route
     - Replace part of the URI with the correct route
     - Make sure that the **request type is allowed** for that route in the config
 - Make sure the **resource exists**

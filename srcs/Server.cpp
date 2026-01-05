@@ -277,10 +277,11 @@ void	Server::handleClientData(size_t& i)
 
 			INFO_LOG("Building response to client fd " + std::to_string(_pfds[i].fd));
 
-			Config	 const &tmp = matchConfig(*it);
-			DEBUG_LOG("Matched config: " + tmp.host + " " + tmp.host_name + " " + std::to_string(tmp.ports[0]));
+			Config const	&conf = matchConfig(*it);
 
-			_responses[_pfds[i].fd].emplace_back(Response(*it));
+			DEBUG_LOG("Matched config: " + conf.host + " " + conf.host_name + " " + std::to_string(conf.ports[0]));
+
+			_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
 			it->reset();
 			it->setStatus(RequestStatus::ReadyForResponse);
 			_pfds[i].events |= POLLOUT;
@@ -427,7 +428,7 @@ void	Server::checkTimeouts(void)
 			it->checkReqTimeouts();
 			if (it->getStatus() == RequestStatus::IdleTimeout
 				|| it->getStatus() == RequestStatus::RecvTimeout) {
-				_responses[_pfds[i].fd].emplace_back(Response(*it));
+				_responses[_pfds[i].fd].emplace_back(Response(*it, matchConfig(*it)));
 				sendResponse(i);
 			}
 			if (it->getStatus() == RequestStatus::SendTimeout) {
