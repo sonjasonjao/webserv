@@ -12,29 +12,37 @@
 #include <fcntl.h>
 #include <cstring>
 
+volatile sig_atomic_t	g_endSignal = false;
+
 using ReqIter = std::vector<Request>::iterator;
 
 /**
- * At construction, _configs will be fetched from parser.
- *
- * For now, we manually fetch the three configs that test.json/servergrups.json has, and move on
- * to group the configs.
+ * Handles SIGINT signal by updating the value of global endSignal variable (to stop poll() loop
+ * and eventually close the server).
+ */
+void	handleSignal(int sig)
+{
+	g_endSignal = sig;
+	if (sig == SIGINT)
+		INFO_LOG("Server closed with SIGINT signal");
+}
+
+/**
+ * At construction, server starts listening to SIGINT, and _configs will be fetched from parser.
  */
 Server::Server(Parser& parser)
 {
-	//_configs = parser.getConfigs();
-	Config tmp = parser.getServerConfig(0);
-	_configs.emplace_back(tmp);
-	tmp = parser.getServerConfig(1);
-	_configs.emplace_back(tmp);
-	tmp = parser.getServerConfig(2);
-	_configs.emplace_back(tmp);
+	signal(SIGINT, handleSignal);
+	_configs = parser.getServerConfigs();
 	groupConfigs();
 }
 
 /**
  * Looks through existing serverGroups and checks whether any of them shares the same
  * IP and port with this current config.
+ *
+ * Ports will be replaced with a single port, as parser will create a unique config for each
+ * port in case one IP has many.
  */
 bool	Server::isGroupMember(Config& conf)
 {
@@ -65,16 +73,6 @@ void	Server::groupConfigs(void)
 			_serverGroups.emplace_back(newServGroup);
 		}
 	}
-}
-
-/**
- * This needs to be checked: can we loop through the fds, and how to avoid closing
- * something that's not open?
- */
-void	Server::closePfds(void)
-{
-	for (auto it = _pfds.begin(); it != _pfds.end(); it++)
-		close(it->fd);
 }
 
 /**
@@ -155,17 +153,20 @@ void	Server::createServerSockets(void)
 }
 
 /**
- * Calls getServerSockets() to create listener sockets, starts poll() loop.
+ * Calls getServerSockets() to create listener sockets, starts poll() loop. If a signal is detected,
+ * it gets caught with poll returning -1 with errno set to EINTR --> continues to next loop round,
+ * on which endSignal won't be false, and loop will finish.
  */
 void	Server::run(void)
 {
 	createServerSockets();
-	while (true)
+	while (g_endSignal == false)
 	{
 		int	pollCount = poll(_pfds.data(), _pfds.size(), POLL_TIMEOUT);
 		if (pollCount < 0)
 		{
-			closePfds();
+			if (errno == EINTR)
+				continue ;
 			throw std::runtime_error(ERROR_LOG("poll: " + std::string(strerror(errno))));
 		}
 		handleConnections();
@@ -184,15 +185,11 @@ void	Server::handleNewClient(int listener)
 
 	clientFd = accept(listener, (struct sockaddr*)&newClient, &addrLen);
 	if (clientFd < 0)
-	{
-		closePfds();
 		throw std::runtime_error(ERROR_LOG("accept: " + std::string(strerror(errno))));
-	}
 
 	if (fcntl(clientFd, F_SETFL, O_NONBLOCK) < 0)
 	{
 		close(clientFd);
-		closePfds();
 		throw std::runtime_error(ERROR_LOG("fcntl: " + std::string(strerror(errno))));
 	}
 
@@ -484,7 +481,11 @@ std::vector<Config> const&	Server::getConfigs() const
 	return _configs;
 }
 
+/**
+ * At destruction, all file descriptors in _pfds will be closed.
+ */
 Server::~Server()
 {
-	closePfds();
+	for (auto it = _pfds.begin(); it != _pfds.end(); it++)
+		close(it->fd);
 }

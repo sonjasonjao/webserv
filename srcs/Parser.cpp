@@ -106,6 +106,13 @@ const Config& Parser::getServerConfig(size_t index) {
 }
 
 /**
+ * will return the whole configs vector for server construction.
+ */
+const std::vector<Config>	&Parser::getServerConfigs(void) const {
+	return _server_configs;
+}
+
+/**
  * will return the size of the inetrnal container, usefull info when required
  * to loop through the entire vector
 */
