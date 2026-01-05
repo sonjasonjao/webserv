@@ -5,7 +5,7 @@
 
 std::unordered_map<std::string, std::string>			Pages::defaultPages;
 std::unordered_map<std::string, std::string const *>	Pages::cacheMap;
-std::deque<std::pair<std::string, std::string>>			Pages::cacheQue;
+std::list<std::pair<std::string, std::string>>			Pages::cacheQueue;
 size_t													Pages::cacheSize = 0;
 
 constexpr static char const * const	DEFAULT200	= \
@@ -140,16 +140,16 @@ std::string const	&Pages::getPageContent(std::string const &key)
 		throw std::runtime_error(ERROR_LOG("File " + key + " is too large for cache"));
 
 	while (cacheSize > 0 && cacheSize > CACHE_SIZE_MAX - page.length()) {
-		DEBUG_LOG("Removing " + cacheQue.front().first + " from cache to make space for " + key);
-		cacheSize -= cacheQue.front().second.length();
-		cacheMap.erase(cacheQue.front().first);
-		cacheQue.pop_front();
+		DEBUG_LOG("Removing " + cacheQueue.front().first + " from cache to make space for " + key);
+		cacheSize -= cacheQueue.front().second.length();
+		cacheMap.erase(cacheQueue.front().first);
+		cacheQueue.pop_front();
 	}
 
 	DEBUG_LOG("Adding " + key + " to cache");
+	cacheQueue.emplace_back(key, page);
+	cacheMap[key] = &cacheQueue.back().second;
 	cacheSize += page.length();
-	cacheQue.emplace_back(key, page);
-	cacheMap[key] = &cacheQue.back().second;
 
 	return *cacheMap.at(key);
 }
@@ -157,6 +157,6 @@ std::string const	&Pages::getPageContent(std::string const &key)
 void	Pages::clearCache()
 {
 	cacheMap.clear();
-	cacheQue.clear();
+	cacheQueue.clear();
 	cacheSize = 0;
 }

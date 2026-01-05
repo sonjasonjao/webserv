@@ -3,7 +3,7 @@
 #include <string>
 #include <cstddef>
 #include <unordered_map>
-#include <deque>
+#include <list>
 
 #define CACHE_SIZE_MAX	4194304	// 4 MiB
 
@@ -17,7 +17,7 @@ public:
 
 private:
 	static std::unordered_map<std::string, std::string>			defaultPages;
-	static std::deque<std::pair<std::string, std::string>>		cacheQue;
+	static std::list<std::pair<std::string, std::string>>		cacheQueue;
 	static std::unordered_map<std::string, std::string const *>	cacheMap;
 	static size_t												cacheSize;
 };
