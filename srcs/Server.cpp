@@ -12,6 +12,8 @@
 #include <fcntl.h>
 #include <cstring>
 
+using ReqIter = std::vector<Request>::iterator;
+
 /**
  * At construction, _configs will be fetched from parser.
  *
@@ -22,31 +24,25 @@ Server::Server(Parser& parser)
 {
 	//_configs = parser.getConfigs();
 	Config tmp = parser.getServerConfig(0);
-	_configs.push_back(tmp);
+	_configs.emplace_back(tmp);
 	tmp = parser.getServerConfig(1);
-	_configs.push_back(tmp);
+	_configs.emplace_back(tmp);
 	tmp = parser.getServerConfig(2);
-	_configs.push_back(tmp);
+	_configs.emplace_back(tmp);
 	groupConfigs();
 }
 
 /**
- * Do we need this?
+ * Looks through existing serverGroups and checks whether any of them shares the same
+ * IP and port with this current config.
  */
-Server::Server(Server const& obj)
-{
-	_configs = obj._configs;
-	_pfds = obj._pfds;
-	_serverGroups = obj._serverGroups;
-}
-
 bool	Server::isGroupMember(Config& conf)
 {
 	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++)
 	{
 		if (it->defaultConf->host == conf.host
 			&& it->defaultConf->ports.front() == conf.ports.front()) {
-			it->configs.push_back(conf);
+			it->configs.emplace_back(conf);
 			return true;
 		}
 	}
@@ -55,18 +51,18 @@ bool	Server::isGroupMember(Config& conf)
 
 /**
  * Groups configs so that all configs in one group have the same IP and the same port.
- * Each listenergroup will then have one server (listener) socket.
+ * Each serverGroup will then have one server (listener) socket.
  */
 void	Server::groupConfigs(void)
 {
 	for (auto it = _configs.begin(); it != _configs.end(); it++)
 	{
 		if (_serverGroups.empty() || !isGroupMember(*it)) {
-			ListenerGroup	newServGroup;
+			ServerGroup	newServGroup;
 			newServGroup.fd = -1;
-			newServGroup.configs.push_back(*it);
+			newServGroup.configs.emplace_back(*it);
 			newServGroup.defaultConf = &(*it);
-			_serverGroups.push_back(newServGroup);
+			_serverGroups.emplace_back(newServGroup);
 		}
 	}
 }
@@ -78,14 +74,13 @@ void	Server::groupConfigs(void)
 void	Server::closePfds(void)
 {
 	for (auto it = _pfds.begin(); it != _pfds.end(); it++)
-		close((*it).fd);
+		close(it->fd);
 }
 
 /**
- * Creates a server socket, binds it to correct address, and starts listening. Still
- * need to check all function call protections, and at which point fcntl() is called.
+ * Creates a server socket, binds it to correct address, and starts listening.
  */
-int	Server::getServerSocket(Config conf)
+int	Server::createSingleServerSocket(Config conf)
 {
 	int	listener;
 	int	yes = 1;
@@ -110,7 +105,12 @@ int	Server::getServerSocket(Config conf)
 			ERROR_LOG("socket: " + std::string(strerror(errno)));
 			continue;
 		}
-		setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+		if (setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) < 0)
+		{
+			ERROR_LOG("setsockopt: " + std::string(strerror(errno)));
+			close(listener);
+			continue;
+		}
 		if (bind(listener, p->ai_addr, p->ai_addrlen) < 0)
 		{
 			ERROR_LOG("bind: " + std::string(strerror(errno)));
@@ -125,8 +125,10 @@ int	Server::getServerSocket(Config conf)
 		}
 		break;
 	}
-	if (p == NULL)
+	if (p == NULL) {
+		freeaddrinfo(servinfo);
 		throw std::runtime_error(ERROR_LOG("could not create server socket(s)"));
+	}
 
 	freeaddrinfo(servinfo);
 
@@ -139,16 +141,16 @@ int	Server::getServerSocket(Config conf)
 }
 
 /**
- * Loops through server configurations and creates listener socket for each, stores
- * them into _pfds and stores the pair of fd and config into _fdToConfig.
+ * Loops through serverGroups and creates listener socket for each, stores
+ * them into _pfds and stores the fd of the created socket into that serverGroup.
  */
-void	Server::createServerSockets()
+void	Server::createServerSockets(void)
 {
 	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++)
 	{
-		int sockfd = getServerSocket(*(it->defaultConf));
+		int sockfd = createSingleServerSocket(*(it->defaultConf));
 		_pfds.push_back({ sockfd, POLLIN, 0 });
-		it->fd = sockfd; //making a copy of each config not really efficient
+		it->fd = sockfd;
 	}
 }
 
@@ -160,19 +162,19 @@ void	Server::run(void)
 	createServerSockets();
 	while (true)
 	{
-		int	pollCount = poll(&_pfds[0], _pfds.size(), 1000); //timeout needs to be set
+		int	pollCount = poll(_pfds.data(), _pfds.size(), POLL_TIMEOUT);
 		if (pollCount < 0)
 		{
 			closePfds();
 			throw std::runtime_error(ERROR_LOG("poll: " + std::string(strerror(errno))));
 		}
-		// DEBUG_LOG("pollCount: " + std::string(std::to_string(pollCount)));
 		handleConnections();
 	}
 }
 
 /**
- * Accepts new client connection and stores the fd into _pfds.
+ * Accepts new client connection, stores the fd into _pfds, and creates a Request object for the
+ * client in _clients.
  */
 void	Server::handleNewClient(int listener)
 {
@@ -180,149 +182,301 @@ void	Server::handleNewClient(int listener)
 	socklen_t				addrLen = sizeof(newClient);
 	int						clientFd;
 
-	// if (_pfds.size() == MAX_CLIENTS) //where do we get this from? ERROR or INFO_LOG?
-	// {
-	// 	ERROR_LOG("failed to accept new client connection - max clients reached");
-	// 	std::cout << "Failed to accept new connection - max clients reached\n";
-	// 	return;
-	// }
-
 	clientFd = accept(listener, (struct sockaddr*)&newClient, &addrLen);
 	if (clientFd < 0)
 	{
 		closePfds();
 		throw std::runtime_error(ERROR_LOG("accept: " + std::string(strerror(errno))));
 	}
+
 	if (fcntl(clientFd, F_SETFL, O_NONBLOCK) < 0)
 	{
 		close(clientFd);
 		closePfds();
 		throw std::runtime_error(ERROR_LOG("fcntl: " + std::string(strerror(errno))));
 	}
+
 	_pfds.push_back({ clientFd, POLLIN, 0 });
-	Request	req(clientFd);
-	_clients.push_back(req);
+	Request	req(clientFd, listener);
+	_clients.emplace_back(req);
 	INFO_LOG("New client accepted, assigned fd " + std::to_string(clientFd));
 }
 
 /**
  * Receives data from the client that poll() has recognized ready. Message (= request)
  * will be parsed and response formed.
- *
- * Probably will need to differentiate _isValid and _kickClient, so if e.g. a chunked request
- * has hex size that does not match the actual size, the client must be disconnected altogether.
  */
 void	Server::handleClientData(size_t& i)
 {
 	char	buf[RECV_BUF_SIZE + 1];
 
 	int		numBytes = recv(_pfds[i].fd, buf, RECV_BUF_SIZE, 0);
+
 	if (numBytes <= 0)
 	{
 		if (numBytes == 0)
 			INFO_LOG("Client disconnected on fd " + std::to_string(_pfds[i].fd));
 		else
 			ERROR_LOG("recv: " + std::string(strerror(errno)));
-		INFO_LOG("Closing fd " + std::to_string(_pfds[i].fd));
-		close(_pfds[i].fd);
-		if (_pfds.size() > (i + 1)) {
-			DEBUG_LOG("Replacing fd " + std::to_string(_pfds[i].fd) + " with fd " + std::to_string(_pfds[_pfds.size() - 1].fd));
-			INFO_LOG("Removing client fd " + std::to_string(_pfds[i].fd) + " from poll list");
-			_pfds[i] = _pfds[_pfds.size() - 1];
-			_pfds.pop_back();
-			i--;
-			DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
-		} else {
-			INFO_LOG("Removing client fd " + std::to_string(_pfds.back().fd) + ", last client");
-			_pfds.pop_back();
-			i--;
-			DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
+
+		auto it = getRequestByFd(_pfds[i].fd);
+
+		removeClientFromPollFds(i);
+
+		if (it == _clients.end())
+			throw std::runtime_error(ERROR_LOG("Could not find request with fd "
+				+ std::to_string(_pfds[i].fd)));
+
+		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
+		_clients.erase(it);
+
+		return ;
+	}
+
+	buf[numBytes] = '\0';
+	INFO_LOG("Received client data from fd " + std::to_string(_pfds[i].fd));
+	std::cout << "\n---- Request data ----\n" << buf << '\n';
+
+	if (!_clients.empty())
+	{
+		auto it = getRequestByFd(_pfds[i].fd);
+
+		if (it ==_clients.end())
+			throw std::runtime_error(ERROR_LOG("Could not find request with fd "
+				+ std::to_string(_pfds[i].fd)));
+
+		it->setRecvStart(); // do we want to reset the timer with every recv() or only when a new request is coming?
+		it->saveRequest(std::string(buf));
+
+		while (!(it->getBuffer().empty()))
+		{
+			it->handleRequest();
+
+			if (it->getStatus() == RequestStatus::Error)
+			{
+				ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
+					+ " connection dropped: suspicious request");
+
+				removeClientFromPollFds(i);
+
+				INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
+				_clients.erase(it);
+
+				return ;
+			}
+
+			if (it->getStatus() == RequestStatus::WaitingData)
+			{
+				INFO_LOG("Waiting for more data to complete partial request");
+
+				return ;
+			}
+
+			INFO_LOG("Building response to client fd " + std::to_string(_pfds[i].fd));
+
+			Config	 const &tmp = matchConfig(*it);
+			DEBUG_LOG("Matched config: " + tmp.host + " " + tmp.host_name + " " + std::to_string(tmp.ports[0]));
+
+			_responses[_pfds[i].fd].emplace_back(Response(*it)); //should config be sent to response?
+			it->reset();
+			it->setStatus(RequestStatus::ReadyForResponse);
+			_pfds[i].events |= POLLOUT;
 		}
 	}
-	else
+}
+
+/**
+ * Matches current request (so, client) with the config of the server it is connected to.
+ * Looks for the serverGroup with a matching server fd, and then looks for the host name to match
+ * Host header value in the request. If no host name match is found, returns the default config of
+ * that serverGroup.
+ */
+Config const	&Server::matchConfig(Request const &req)
+{
+	int fd = req.getServerFd();
+	ServerGroup	*tmp = nullptr;
+	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++)
 	{
-		buf[numBytes] = '\0';
-		INFO_LOG("Received client data from fd " + std::to_string(_pfds[i].fd));
-		std::cout << "\n---- Request data ----\n" << buf << '\n';
-		if (!_clients.empty()) {
-			auto it = _clients.begin();
-			while (it != _clients.end()) {
-				if (it->getFd() == _pfds[i].fd)
-					break ;
-				it++;
+		if (it->fd == fd) {
+			tmp = &(*it);
+			break ;
+		}
+	}
+	if (tmp == nullptr)
+		throw std::runtime_error(ERROR_LOG("Unexpected error in matching request with server config"));
+	for (auto it = tmp->configs.begin(); it != tmp->configs.end(); it++)
+	{
+		if (it->host_name == req.getHost())
+			return *it;
+	}
+	return *(tmp->defaultConf);
+}
+
+/**
+ * In case of a client that has disconnected itself, or will be disconnected (invalid request,
+ * critical error in request, or keepAlive being false), this function closes its fd and removes
+ * it from _pfds.
+ */
+void	Server::removeClientFromPollFds(size_t& i)
+{
+	INFO_LOG("Closing fd " + std::to_string(_pfds[i].fd));
+	close(_pfds[i].fd);
+
+	if (_pfds.size() > (i + 1))
+	{
+		DEBUG_LOG("Overwriting fd " + std::to_string(_pfds[i].fd) + " with fd "
+			+ std::to_string(_pfds[_pfds.size() - 1].fd));
+		INFO_LOG("Removing client fd " + std::to_string(_pfds[i].fd) + " from poll list");
+		_pfds[i] = _pfds[_pfds.size() - 1];
+		_pfds.pop_back();
+		i--;
+
+		return ;
+	}
+
+	INFO_LOG("Removing client fd " + std::to_string(_pfds.back().fd) + ", last client");
+	_pfds.pop_back();
+	i--;
+}
+
+/**
+ * Sets the starting time for send timeout tracking and calls sendToClient() to send the response.
+ * If the response was completely sent with one call, resets the send timeout tracker to 0, removes
+ * POLLOUT from  events, and in case of keepAlive being false, disconnects and removes the client.
+ * Finally removes sent response from _responses and in case of keepAlive, sets client status back
+ * to default.
+ */
+void	Server::sendResponse(size_t& i)
+{
+	auto it = getRequestByFd(_pfds[i].fd);
+	if (it == _clients.end()) {
+		ERROR_LOG("Could not find a response to send to this client");
+		return ;
+	}
+
+	if (it->getStatus() != RequestStatus::ReadyForResponse
+		&& it->getStatus() != RequestStatus::RecvTimeout)
+		return ;
+
+	auto	&res = _responses.at(_pfds[i].fd).front();
+
+	INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
+	it->setSendStart();
+	res.sendToClient();
+	if (!res.sendIsComplete())
+	{
+		INFO_LOG("Response partially sent, waiting for server to complete response sending");
+		return ;
+	}
+
+	it->resetSendStart();
+	int	tmp = _pfds[i].fd;
+
+	_pfds[i].events &= ~POLLOUT;
+
+	DEBUG_LOG("Keep alive status: " + std::to_string(it->getKeepAlive()));
+	if (it->getStatus() == RequestStatus::Invalid || !it->getKeepAlive())
+	{
+		removeClientFromPollFds(i);
+
+		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
+		_clients.erase(it);
+
+		_responses.at(tmp).pop_front();
+
+		return ;
+	}
+	it->resetKeepAlive();
+	_responses.at(tmp).pop_front();
+	it->setStatus(RequestStatus::WaitingData);
+}
+
+/**
+ * Helper to get the Request object that matches fd given as parameter.
+ */
+ReqIter	Server::getRequestByFd(int fd)
+{
+	for (auto it = _clients.begin(); it != _clients.end(); it++)
+	{
+		if (it->getFd() == fd)
+			return it;
+	}
+	return _clients.end();
+}
+
+/**
+ * On each poll round, checks whether any of the clients have experienced request or response
+ * timeout. If a request receiving timeout occurs, calls Response constructor to form an error
+ * page response, and sendResponse to send it and to disconnect client. In case of send timeout,
+ * client is disconnected without sending a response (need to double check if that should happen!).
+ */
+void	Server::checkTimeouts(void)
+{
+	for (size_t i = 0; i < _pfds.size(); i++) {
+		if (!isServerFd(_pfds[i].fd)) {
+			auto it = getRequestByFd(_pfds[i].fd);
+			if (it == _clients.end())
+				throw std::runtime_error(ERROR_LOG("Could not find request with fd "
+					+ std::to_string(_pfds[i].fd)));
+			it->checkReqTimeouts();
+			if (it->getStatus() == RequestStatus::RecvTimeout) {
+				_responses[_pfds[i].fd].emplace_back(Response(*it));
+				sendResponse(i);
 			}
-			if (it ==_clients.end())
-				ERROR_LOG("Unexpected error in finding client fd"); //bad messaging
-			(*it).saveRequest(std::string(buf));
-			while (!(*it).isBufferEmpty()) {
-				(*it).handleRequest();
-				if ((*it).getIsMissingData()) {
-					INFO_LOG("Waiting for more data to complete partial request");
-					return ;
-				}
-				if (!(*it).getIsValid()) {
-					ERROR_LOG("Invalid HTTP request");
-					return ;
-				}
-
-				//build and send response
-				Response	res(*it);
-
-				send(_pfds[i].fd, res.getContent().c_str(), res.getContent().size(), MSG_DONTWAIT);
-
-				(*it).reset();
-			}
-			DEBUG_LOG("Keep alive status: " + std::to_string((*it).getKeepAlive()));
-			if (!(*it).getKeepAlive()) {
-				INFO_LOG("Closing fd " + std::to_string(_pfds[i].fd));
-				close(_pfds[i].fd);
-				INFO_LOG("Erasing fd " + std::to_string(_pfds[i].fd) + " from clients list");
+			if (it->getStatus() == RequestStatus::SendTimeout) {
+				removeClientFromPollFds(i);
+				INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 				_clients.erase(it);
-				if (_pfds.size() > (i + 1)) {
-					DEBUG_LOG("Overwriting index " + std::to_string(i) + " with " + std::to_string(_pfds.size() - 1));
-					INFO_LOG("Removing client fd " + std::to_string(_pfds[i].fd) + " from poll list");
-					_pfds[i] = _pfds[_pfds.size() - 1];
-					_pfds.pop_back();
-					i--;
-					DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
-				} else {
-					INFO_LOG("Removing client fd " + std::to_string(_pfds.back().fd) + ", last client");
-					_pfds.pop_back();
-					i--;
-					DEBUG_LOG("Value of i after decrement: " + std::to_string(i));
-				}
 			}
 		}
 	}
 }
 
 /**
- * Loops through _pfds, finding which fd triggered poll, and whether it's new client or
+ * Checks if current fd is a server (true) or a client (false) fd.
+*/
+bool	Server::isServerFd(int fd)
+{
+	auto it = _serverGroups.begin();
+	while (it != _serverGroups.end())
+	{
+		if (it->fd == fd)
+			break ;
+		it++;
+	}
+	if (it != _serverGroups.end())
+		return true;
+	return false;
+}
+
+/**
+ * Loops through _pfds, finding which fd had an event, and whether it's new client or
  * incoming request. If the fd that had a new event is one of the server fds, it's a new client
  * wanting to connect to that server. If it's not a server fd, it is an existing client that has
- * sent data.
+ * sent data. Thirdly tracks POLLOUT to recognize when server has a response ready to be sent to
+ * that client. Fourthly, goes to check all client fds for request or response timeout.
  */
 void	Server::handleConnections(void)
 {
 	for (size_t i = 0; i < _pfds.size(); i++)
 	{
-		if (_pfds[i].revents & (POLLIN | POLLHUP)) {
-			auto	it = _serverGroups.begin();
-			while (it != _serverGroups.end()) {
-				if (it->fd == _pfds[i].fd)
-					break ;
-				it++;
+		if (_pfds[i].revents & (POLLIN | POLLHUP))
+		{
+			if (isServerFd(_pfds[i].fd))
+			{
+				INFO_LOG("Handling new client connecting on fd " + std::to_string(_pfds[i].fd));
+				handleNewClient(_pfds[i].fd);
 			}
-			if (it != _serverGroups.end()) {
-				INFO_LOG("Handling new client connecting on fd " + std::to_string(it->fd));
-				handleNewClient(it->fd);
-			}
-			else {
+			else
+			{
 				INFO_LOG("Handling client data from fd " + std::to_string(_pfds[i].fd));
 				handleClientData(i);
 			}
 		}
+		if (_pfds[i].revents & POLLOUT)
+			sendResponse(i);
 	}
+	checkTimeouts();
 }
 
 std::vector<Config> const&	Server::getConfigs() const

@@ -1,5 +1,6 @@
 #include "Utils.hpp"
 #include "Log.hpp"
+#include <array>
 #include <sstream>
 #include <chrono>
 #include <iomanip>
@@ -99,8 +100,10 @@ bool	isValidIPv4(std::string_view sv)
 	for (auto const &oct : octets) {
 		if (oct.empty())
 			return false;
+
 		if (!std::all_of(oct.begin(), oct.end(), isdigit))
 			return false;
+
 		try {
 			if (std::stoi(oct) > 255)
 				return false;
@@ -108,6 +111,33 @@ bool	isValidIPv4(std::string_view sv)
 			return false;
 		}
 	}
+
+	return true;
+}
+
+/**
+ * @return	true when sv contains port in valid range, false if not
+ */
+bool	isValidPort(std::string_view sv)
+{
+	if (sv.empty())
+		return false;
+
+	if (!std::all_of(sv.begin(), sv.end(), isdigit))
+		return false;
+
+	unsigned long	portNumber;
+
+	try {
+		portNumber = std::stoul(std::string(sv));
+	} catch (std::exception const &e) {
+		return false;
+	}
+
+	if (portNumber > std::numeric_limits<uint16_t>::max())
+		return false;
+	if (portNumber < 1024)
+		return false;
 
 	return true;
 }
@@ -149,6 +179,7 @@ bool	uriFormatOk(std::string_view uri)
 
 	if (split.empty())
 		return false;
+
 	if (split[0].empty())
 		split.erase(split.begin());
 	if (split[split.size() - 1].empty())
@@ -188,6 +219,115 @@ bool	uriTargetAboveRoot(std::string_view uri)
 	return (up > down);
 }
 
+/**
+ * @return	true if sv contains a valid IMF fixdate, false if not
+ */
+bool	isValidImfFixdate(std::string_view sv)
+{
+	if (sv.empty())
+		return false;
+
+	auto	parts = splitStringView(sv);
+
+	if (parts.empty())
+		return false;
+	if (parts.size() != 6)
+		return false;
+	if (std::any_of(parts.begin(), parts.end(), [](auto a) {return a.empty();}))
+		return false;
+
+	static const std::array<std::string, 7>	weekdays = {
+		"Mon,",
+		"Tue,",
+		"Wed,",
+		"Thu,",
+		"Fri,",
+		"Sat,",
+		"Sun,"
+	};
+
+	if (std::none_of(weekdays.begin(), weekdays.end(), [&parts](auto a) {return parts[0] == a;}))
+		return false;
+
+	if (parts[1].length() > 2)
+		return false;
+	if (!std::all_of(parts[1].begin(), parts[1].end(), isdigit))
+		return false;
+
+	int	day = std::stoi(parts[1]);
+
+	if (day < 1 || day > 31)
+		return false;
+
+	static const std::array<std::string, 12>	months = {
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec",
+	};
+
+	int	month = -1;
+
+	for (int i = 0; i < 12; ++i)
+		if (months[i] == parts[2])
+			month = i;
+
+	if (month < 0)
+		return false;
+
+	if (parts[3].length() != 4)
+		return false;
+	if (!std::all_of(parts[3].begin(), parts[3].end(), isdigit))
+		return false;
+
+	int	year = std::stoi(parts[3]);
+
+	std::chrono::year_month_day	ymd(	static_cast<std::chrono::year>(year),
+										static_cast<std::chrono::month>(month + 1),
+										static_cast<std::chrono::day>(day));
+
+	if (!ymd.ok())
+		return false;
+
+	auto	hms = splitStringView(parts[4], ":");	// hours:minutes:seconds
+
+	if (hms.size() != 3)
+		return false;
+	if (std::any_of(hms.begin(), hms.end(), [](auto a) {return a.empty();}))
+		return false;
+	for (auto const &e : hms)
+	  if (e.length() != 2 || !std::all_of(e.begin(), e.end(), isdigit))
+		return false;
+
+	int	hours	= std::stoi(hms[0]);
+	int	minutes	= std::stoi(hms[1]);
+	int	seconds	= std::stoi(hms[2]);
+
+	if (hours > 23 || minutes > 59 || seconds > 59)
+		return false;
+
+	if (parts[5] != "GMT")
+		return false;
+
+	return true;
+}
+
+/**
+ * Loads a complete file into a std::string, no removal of whitespace or other
+ * special characters.
+ *
+ * NOTE: Throws a runtime error if file can't be opened, assumes prior validation
+ *
+ * @return	String object containing fileName's contents
+ */
 std::string	getFileAsString(std::string const &fileName, std::string searchDir)
 {
 	static std::string const	currentDir = std::filesystem::current_path();
@@ -205,9 +345,16 @@ std::string	getFileAsString(std::string const &fileName, std::string searchDir)
 	std::stringstream	buf;
 
 	buf << fileStream.rdbuf();
+
 	return buf.str();
 }
 
+/**
+ * NOTE:	Assumes that we won't be changing the current path while running our
+ *			program, otherwise currentDir won't be valid anymore.
+ *
+ * @return	String representation of the absolute path of fileName
+ */
 std::string	getAbsPath(std::string const &fileName, std::string searchDir)
 {
 	static std::string const	currentDir = std::filesystem::current_path();
@@ -218,6 +365,7 @@ std::string	getAbsPath(std::string const &fileName, std::string searchDir)
 		searchDir.pop_back();
 	if (fileName.front() == '/')
 		return searchDir + fileName;
+
 	return searchDir + "/" + fileName;
 }
 
@@ -252,6 +400,12 @@ int	main()
 	assert(uriFormatOk("abc") == true);
 	assert(uriFormatOk("") == false);
 	assert(uriFormatOk("//") == false);
+
+	assert(isValidImfFixdate("Tue, 15 Nov 1994 12:45:26 GMT") == true);
+	assert(isValidImfFixdate("tue, 15 Nov 1994 12:45:26 GMT") == false);
+	assert(isValidImfFixdate("Tue, 32 Nov 1994 12:45:26 GMT") == false);
+	assert(isValidImfFixdate("Tue, 15 Nov 1994 12:45:60 GMT") == false);
+	assert(isValidImfFixdate("Tue, 15 Nov 1994 12:45:26") == false);
 	return 0;
 }
 

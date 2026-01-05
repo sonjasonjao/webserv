@@ -1,7 +1,9 @@
 #pragma once
 
 #include <string>
+#include <cstddef>
 #include <unordered_map>
+#include <list>
 
 #define CACHE_SIZE_MAX	4194304	// 4 MiB
 
@@ -11,9 +13,11 @@ public:
 	static bool					isCached(std::string const &key);
 	static std::string const	&getPageContent(std::string const &key);
 	static void					clearCache();
-	static void					loadDefaults();		// NOTE: Would be nice if this function would know the config parser's context
+	static void					loadDefaults();
 
 private:
-	static std::unordered_map<std::string, std::string>	cache;
-	static size_t										cacheSize;
+	static std::unordered_map<std::string, std::string>			defaultPages;
+	static std::list<std::pair<std::string, std::string>>		cacheQueue;
+	static std::unordered_map<std::string, std::string const *>	cacheMap;
+	static size_t												cacheSize;
 };
