@@ -4,8 +4,8 @@
 #include <stdexcept>
 
 std::unordered_map<std::string, std::string>			Pages::defaultPages;
-std::unordered_map<std::string, std::string const *>	Pages::cacheMap;
 std::list<std::pair<std::string, std::string>>			Pages::cacheQueue;
+std::unordered_map<std::string, std::string const *>	Pages::cacheMap;
 size_t													Pages::cacheSize = 0;
 
 constexpr static char const * const	DEFAULT200	= \
@@ -103,14 +103,10 @@ void	Pages::loadDefaults()
 
 bool	Pages::isCached(std::string const &key)
 {
-	try {
-		cacheMap.at(key);
+	if (cacheMap.find(key) != cacheMap.end())
 		return true;
-	} catch (std::out_of_range const &e) {}
-	try {
-		defaultPages.at(key);
+	if (defaultPages.find(key) != defaultPages.end())
 		return true;
-	} catch (std::out_of_range const &e) {}
 	return false;
 }
 
@@ -127,12 +123,10 @@ std::string const	&Pages::getPageContent(std::string const &key)
 {
 	INFO_LOG("Retrieving " + key);
 
-	try {
+	if (defaultPages.find(key) != defaultPages.end())
 		return defaultPages.at(key);
-	} catch (std::out_of_range const &e) {}
-	try {
+	if (cacheMap.find(key) != cacheMap.end())
 		return *cacheMap.at(key);
-	} catch (std::out_of_range const &e) {}
 
 	std::string	page = getFileAsString(key, "/");	// Force absolute filepath for unique identifiers for resources
 
