@@ -16,6 +16,7 @@ constexpr char const * const	CRLF = "\r\n";
 Request::Request(int fd, int serverFd) : _fd(fd), _serverFd(serverFd), _keepAlive(false), _chunked(false), _completeHeaders(false) {
 	_request.method = RequestMethod::Unknown;
 	_status = RequestStatus::WaitingData;
+	_idleStart = std::chrono::high_resolution_clock::now();
 	_recvStart = {};
 	_sendStart = {};
 	_request.httpVersion = "HTTP/1.1";
@@ -66,16 +67,24 @@ void	Request::resetKeepAlive(void) {
 
 /**
  * In handleConnections, each client fd is checked for possible timeouts by comparing
- * the stored _recvStart and _sendStart with the current time stamp. Helper variable init is
- * used to check whether _recvStart or _sendStart has ever been updated after the initialization
- * to zero.
+ * the stored _idleStart, _recvStart, and _sendStart with the current time stamp. Helper
+ * variable init is used to check whether _recvStart or _sendStart has ever been updated
+ * after the initialization to zero.
  */
 void	Request::checkReqTimeouts(void) {
 	auto		now = std::chrono::high_resolution_clock::now();
-	auto		diff = now - _recvStart;
+	auto		diff = now - _idleStart;
 	auto		durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	timePoint	init = {};
-	if (_recvStart != init && durMs.count() > REQ_TIMEOUT) {
+	if (durMs.count() > IDLE_TIMEOUT) {
+		_status = RequestStatus::IdleTimeout;
+		DEBUG_LOG("Idle timeout with client fd " + std::to_string(_fd));
+		_keepAlive = false;
+		return ;
+	}
+	diff = now - _recvStart;
+	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
+	if (_recvStart != init && durMs.count() > RECV_TIMEOUT) {
 		_status = RequestStatus::RecvTimeout;
 		DEBUG_LOG("Recv timeout with client fd " + std::to_string(_fd));
 		_keepAlive = false;
@@ -83,7 +92,7 @@ void	Request::checkReqTimeouts(void) {
 	}
 	diff = now - _sendStart;
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
-	if (_sendStart != init && durMs.count() > RESP_TIMEOUT) {
+	if (_sendStart != init && durMs.count() > SEND_TIMEOUT) {
 		_status = RequestStatus::SendTimeout;
 		DEBUG_LOG("Send timeout with client fd " + std::to_string(_fd));
 		_keepAlive = false;
@@ -527,6 +536,11 @@ void	Request::printData(void) const {
 	std::cout << "	Status?			";
 	printStatus(_status);
 	std::cout << "	Chunked?		" << _chunked << "\n\n";
+}
+
+void	Request::setIdleStart(void) {
+	_idleStart = std::chrono::high_resolution_clock::now();
+	DEBUG_LOG("Fd " + std::to_string(_fd) + " _idleStart set to " + std::to_string(_idleStart.time_since_epoch().count()));
 }
 
 void	Request::setRecvStart(void) {

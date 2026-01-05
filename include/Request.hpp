@@ -5,8 +5,9 @@
 #include <optional>
 #include <chrono>
 
-#define REQ_TIMEOUT 5000 // here for now, values to be decided, and should they be in Server.hpp?
-#define RESP_TIMEOUT 10000
+#define IDLE_TIMEOUT 10000 // timeout values to be decided, and should they be in Server.hpp?
+#define RECV_TIMEOUT 5000
+#define SEND_TIMEOUT 5000
 
 /**
  * Mandatory methods required in the subject, do we want to add more? -> Will affect
@@ -30,6 +31,7 @@ enum class RequestStatus
 	WaitingData,
 	CompleteReq,
 	ReadyForResponse,
+	IdleTimeout,
 	RecvTimeout,
 	SendTimeout,
 	Invalid,
@@ -61,6 +63,7 @@ class Request
 		bool					_chunked;
 		bool					_completeHeaders;
 		RequestStatus			_status;
+		timePoint				_idleStart;
 		timePoint				_recvStart;
 		timePoint				_sendStart;
 
@@ -86,6 +89,7 @@ class Request
 		void				reset(void);
 		void				resetKeepAlive(void);
 		void				checkReqTimeouts(void);
+		void				setIdleStart(void);
 		void				setRecvStart(void);
 		void				setSendStart(void);
 		void				resetSendStart(void);

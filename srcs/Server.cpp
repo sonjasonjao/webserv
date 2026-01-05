@@ -242,6 +242,7 @@ void	Server::handleClientData(size_t& i)
 			throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 				+ std::to_string(_pfds[i].fd)));
 
+		it->setIdleStart();
 		it->setRecvStart(); // do we want to reset the timer with every recv() or only when a new request is coming?
 		it->saveRequest(std::string(buf));
 
@@ -274,7 +275,7 @@ void	Server::handleClientData(size_t& i)
 			Config	 const &tmp = matchConfig(*it);
 			DEBUG_LOG("Matched config: " + tmp.host + " " + tmp.host_name + " " + std::to_string(tmp.ports[0]));
 
-			_responses[_pfds[i].fd].emplace_back(Response(*it)); //should config be sent to response?
+			_responses[_pfds[i].fd].emplace_back(Response(*it));
 			it->reset();
 			it->setStatus(RequestStatus::ReadyForResponse);
 			_pfds[i].events |= POLLOUT;
@@ -352,12 +353,14 @@ void	Server::sendResponse(size_t& i)
 	}
 
 	if (it->getStatus() != RequestStatus::ReadyForResponse
+		&& it->getStatus() != RequestStatus::IdleTimeout
 		&& it->getStatus() != RequestStatus::RecvTimeout)
 		return ;
 
 	auto	&res = _responses.at(_pfds[i].fd).front();
 
 	INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
+	it->setIdleStart();
 	it->setSendStart();
 	res.sendToClient();
 	if (!res.sendIsComplete())
@@ -402,10 +405,10 @@ ReqIter	Server::getRequestByFd(int fd)
 }
 
 /**
- * On each poll round, checks whether any of the clients have experienced request or response
- * timeout. If a request receiving timeout occurs, calls Response constructor to form an error
- * page response, and sendResponse to send it and to disconnect client. In case of send timeout,
- * client is disconnected without sending a response (need to double check if that should happen!).
+ * On each poll round, checks whether any of the clients have experienced idle, receive, or
+ * send timeout. If an idle or receive timeout occurs, calls Response constructor to
+ * form an error page response, and sendResponse to send it and to disconnect client. In
+ * case of send timeout, client is disconnected without sending a response.
  */
 void	Server::checkTimeouts(void)
 {
@@ -416,7 +419,8 @@ void	Server::checkTimeouts(void)
 				throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 					+ std::to_string(_pfds[i].fd)));
 			it->checkReqTimeouts();
-			if (it->getStatus() == RequestStatus::RecvTimeout) {
+			if (it->getStatus() == RequestStatus::IdleTimeout
+				|| it->getStatus() == RequestStatus::RecvTimeout) {
 				_responses[_pfds[i].fd].emplace_back(Response(*it));
 				sendResponse(i);
 			}
@@ -451,7 +455,7 @@ bool	Server::isServerFd(int fd)
  * incoming request. If the fd that had a new event is one of the server fds, it's a new client
  * wanting to connect to that server. If it's not a server fd, it is an existing client that has
  * sent data. Thirdly tracks POLLOUT to recognize when server has a response ready to be sent to
- * that client. Fourthly, goes to check all client fds for request or response timeout.
+ * that client. Fourthly, goes to check all client fds for timeouts.
  */
 void	Server::handleConnections(void)
 {
