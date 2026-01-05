@@ -99,4 +99,8 @@ class Parser {
        size_t getNumberOfServerConfigs(void);
 
        Config convertToServerData(const Token& server);
+
+       //std::string getValueBykey(const Token& root, const std::string& key, TokenType type);
+
+       std::vector<std::string> getCollectionBykey(const Token& root, const std::string& key);
 };

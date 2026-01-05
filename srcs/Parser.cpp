@@ -40,7 +40,12 @@ Parser::Parser(const std::string& file_name)
      * Sucessfully opening the file and tokenizing the content
      * all the toiken will be sacved into AST tree structure
     */
-    tokenizeFile();
+    try {    
+        tokenizeFile();
+    }
+    catch(const std::exception& e) {
+        std::cerr << e.what() << '\n';
+    }
 }
 
 Parser::~Parser() {
@@ -77,6 +82,8 @@ void Parser::tokenizeFile(void) {
     // create Token AST for validation
     Token root = createToken(output);
     // buliding configuration struct vector to holds all the configuration data
+    // configuration file hould conatins at least one srever configuration
+    // anything other than "server" as the key will throw an error 
     for(const auto& node : root.children) {
         if(getKey(node) == "server") {
             if(node.children.size() > 1) {
@@ -88,8 +95,18 @@ void Parser::tokenizeFile(void) {
                     }
                 }
             }
+        } else {
+            throw std::runtime_error("Incorrect confirguartion !");
         }
     }
+    // for(const auto& node : root.children) {
+    //     std::cout << getKey(node) << "\n";
+    //     if(node.children.size() > 1){
+    //         for(const auto& it : node.children){
+    //             printToken(it, 1);
+    //         }
+    //     }
+    // }
 }
 
 /**
@@ -119,27 +136,28 @@ size_t Parser::getNumberOfServerConfigs(void) {
  * @return value of the config create on the fly, will recreate the similar
  * data int the respective vector, temporary data so no reference
 */
-Config Parser::convertToServerData(const Token& server) {
+Config Parser::convertToServerData(const Token& block) {
     Config config;
-    for(auto item : server.children) {
-        std::string key = getKey(item);
-        if(key == "host") {
-            if(item.children.size() > 1) {
-                config.host = item.children.at(1).value;
-            }
-        } else if (key == "host_name") {
-            if(item.children.size() > 1) {
-                config.host_name = item.children.at(1).value;
-            }
-        } else if (key == "listen") {
+    std::vector<std::string> collection = getCollectionBykey(block, "listen");
+
+    for(auto it : collection) {
+        std::cout << it << "\n";
+    }
+    std::cout << "-------------------------------\n";
+    return (config);
+}
+
+std::vector<std::string> Parser::getCollectionBykey(const Token& root, const std::string& key) {
+    std::vector<std::string> collection;
+    for(auto item : root.children) {
+        std::string key_value = getKey(item);
+        if (key == key_value) {
             if(item.children.size() > 1) {
                 for(auto p : item.children.at(1).children) {
-                    config.ports.emplace_back(
-                        std::atoi(p.value.c_str())
-                    );
+                    collection.emplace_back(p.value);
                 }
             }
         }
     }
-    return (config);
-}
+    return (collection);
+}   
