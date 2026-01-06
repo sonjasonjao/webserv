@@ -6,11 +6,12 @@
 #include "Parser.hpp"
 
 enum ResponseCode : int {
-	Unassigned	= -1,
-	OK			= 200,
-	NoContent	= 204,
-	BadRequest	= 400,
-	NotFound	= 404,
+	Unassigned		= -1,
+	OK				= 200,
+	NoContent		= 204,
+	BadRequest		= 400,
+	NotFound		= 404,
+	RequestTimeout	= 408,
 };
 
 enum class ResponseError {

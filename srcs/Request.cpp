@@ -536,7 +536,7 @@ static void	printStatus(RequestStatus status)
  * Prints parsed data for debugging.
  */
 void	Request::printData(void) const {
-	std::cout << "---- Request line ----\nMethod: ";
+	std::cout << "\n---- Request line ----\nMethod: ";
 	switch(_request.method) {
 		case RequestMethod::Get:
 			std::cout << "Get";

@@ -237,7 +237,7 @@ void	Server::handleClientData(size_t& i)
 
 	buf[numBytes] = '\0';
 	INFO_LOG("Received client data from fd " + std::to_string(_pfds[i].fd));
-	std::cout << "\n---- Request data ----\n" << buf << '\n';
+	std::cout << "\n---- Request data ----\n" << buf << "----------------------\n\n";
 
 	if (!_clients.empty())
 	{

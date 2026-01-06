@@ -2,6 +2,8 @@
 #include "Log.hpp"
 #include "Utils.hpp"
 #include "Pages.hpp"
+#include <algorithm>
+#include <array>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -12,115 +14,65 @@
 
 constexpr char const * const	CRLF = "\r\n";
 
-/**
- * NOTE: Assumes that the programmer is using correct error page number strings as keys
- */
-static std::string const	&getErrorPageContent(std::string const &key, Config const &conf)
-{
-	// First look in error_pages container in conf
-	{
-		auto	it = conf.error_pages.find(key);
-
-		if (it != conf.error_pages.end() && resourceExists(it->second))
-			return Pages::getPageContent(it->second);
-	}
-	// Second look in routes
-	{
-		auto	it = conf.routes.find(key);
-
-		if (it != conf.routes.end() && resourceExists(it->second))
-			return Pages::getPageContent(it->second);
-	}
-
-	// Retrieve default
-	return Pages::getPageContent("default" + key);
-}
-
-
-static std::string	route(std::string target, Config const &conf)
-{
-	// Check for an exact route for target
-	auto	it = conf.routes.find(target);
-
-	if (it != conf.routes.end())
-		return it->second;
-
-	// Check for a partial route for target
-	for (auto const &[key, val] : conf.routes) {
-		if (key == "/")
-			continue;
-
-		auto	pos = target.find(key);
-
-		if (pos != std::string::npos) {
-			target.replace(pos, key.length(), val);
-			return target;
-		}
-	}
-
-	// If a route for "/" exists, add the value to the beginning of the target
-	it = conf.routes.find("/");
-
-	if (it != conf.routes.end()) {
-		std::string	route = it->second;
-
-		if (target[0] == '/')
-			target = target.substr(1);
-		if (route.back() == '/')
-			route.pop_back();
-		target = route + "/" + target;
-	}
-
-	return target;
-}
+static std::string const	&getResponsePageContent(std::string const &key, Config const &conf);
+static std::string	route(std::string target, Config const &conf);
 
 Response::Response(Request const &req, Config const &conf) : _req(req), _conf(conf)
 {
-	static std::string	currentDir = std::filesystem::current_path();
+	static std::string	startDir = std::filesystem::current_path();
 
 	// If request has already been flagged as bad don't continue
-	if (req.getStatus() == RequestStatus::Invalid
-		|| req.getStatus() == RequestStatus::IdleTimeout
-		|| req.getStatus() == RequestStatus::RecvTimeout) {
-		_statusCode	= BadRequest;
-		_body		= getErrorPageContent("400", _conf);
-
+	switch (req.getStatus()) {
+		case RequestStatus::Invalid:
+		case RequestStatus::IdleTimeout:
+			_statusCode = BadRequest;
+		break;
+		case RequestStatus::RecvTimeout:
+			_statusCode = RequestTimeout;
+		break;
+		default: break;
+	}
+	if (_statusCode != Unassigned) {
 		formResponse();
-
-		std::cout << "\n---- Response content ----\n" << _content << "\n";
+		std::cout << "\n---- Response content ----\n" << _content << "--------------------------\n\n";
 
 		return;
 	}
 
 	// Be prepared for shenanigans, validate URI format for target early
 	if (!uriFormatOk(req.getTarget()) || uriTargetAboveRoot(req.getTarget())) {
+		DEBUG_LOG("Bad target: " + req.getTarget());
 		_error		= ResponseError::BadTarget;
 		_statusCode	= BadRequest;
-		_body		= getErrorPageContent("400", _conf);
 
 		formResponse();
 
 		return;
 	}
 
-	// If the path has any ".." parts, remove them
+	// If the path has any ".." or "./" aka unnecessary parts, remove them
 	_target = std::filesystem::path(req.getTarget()).lexically_normal();
 
+	// Perform routing, aka mapping of a file or directory to another
 	_target = route(_target, _conf);
 
 	// Handle directory listing and/or autoindexing
 	if (std::filesystem::is_directory(_target)) {
+		DEBUG_LOG("Target '" + _target + "' is a directory" );
 		if (_target.back() == '/')
 			_target.pop_back();
 		_target = _target + "/" + "index.html";	// NOTE: this could be toggled by an option in the config
 	}
 
-	// NOTE:	Replace all current body functionality with content getter functions
-	//			that either read from a file or fetch a buffer from memory
+	std::string	searchDir = startDir;
+
+	// If the route contains a '/' at the beginning define the search dir as root
+	if (_target[0] == '/')
+		searchDir = "/";
 
 	switch (req.getRequestMethod()) {
 		case RequestMethod::Get:
-			if (!Pages::isCached(getAbsPath(_target)) && !resourceExists(_target, currentDir)) {
+			if (!Pages::isCached(getAbsPath(_target)) && !resourceExists(_target, searchDir)) {
 				INFO_LOG("Resource " + _target + " could not be found");
 				_statusCode = NotFound;
 				break;
@@ -133,7 +85,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 			_statusCode = OK;
 		break;
 		case RequestMethod::Delete:
-			if (!resourceExists(_target, currentDir)) {
+			if (!resourceExists(_target, searchDir)) {
 				INFO_LOG("Response: Resource " + _target + " could not be found");
 				_statusCode		 = NotFound;
 				break;
@@ -149,7 +101,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 
 	formResponse();
 
-	std::cout << "\n---- Response content ----\n" << _content << "\n";
+	std::cout << "\n---- Response content ----\n" << _content << "--------------------------\n\n";
 }
 
 Response::Response(Response const &other)
@@ -200,31 +152,97 @@ void	Response::formResponse()
 	switch (_statusCode) {
 		case 200:
 			_startLine	= _req.getHttpVersion() + " 200 OK";
-			if (!_target.empty())
+			if (!_target.empty() && _target[0] == '/')
+				_body	= Pages::getPageContent(_target);
+			else if (!_target.empty())
 				_body	= Pages::getPageContent(getAbsPath(_target));
 			else
-				_body	= Pages::getPageContent("default200");
+				_body	= getResponsePageContent("200", _conf);
 		break;
 		case 204:
 			_startLine	= _req.getHttpVersion() + " 204 No Content";
-			_body		= Pages::getPageContent("default204");
+			_body		= getResponsePageContent("204", _conf);
 		break;
 		case 400:
 			_startLine	= _req.getHttpVersion() + " 400 Bad Request";
-			_body		= Pages::getPageContent("default400");
+			_body		= getResponsePageContent("400", _conf);
 		break;
 		case 404:
 			_startLine	= _req.getHttpVersion() + " 404 Not Found";
-			_body		= Pages::getPageContent("default404");
+			_body		= getResponsePageContent("404", _conf);
 		break;
 		default:
 			_startLine	= _req.getHttpVersion() + " 400 Bad Request";
-			_body		= Pages::getPageContent("default400");
+			_body		= getResponsePageContent("400", _conf);
 	}
 
 	_headerSection += "Content-Length: " + std::to_string(_body.length()) + CRLF;
 
 	_content = _startLine + CRLF + _headerSection + CRLF + _body;
+}
+
+/**
+ * NOTE: Assumes that the programmer is using correct error page number strings as keys
+ */
+static std::string const	&getResponsePageContent(std::string const &key, Config const &conf)
+{
+	// Check in error page routes if the key is an error page
+	if (key.length() == 3 && std::all_of(key.begin(), key.end(), isdigit) && key[0] == '4') {
+		auto	it = conf.error_pages.find(key);
+
+		if (it != conf.error_pages.end() && resourceExists(it->second))
+			return Pages::getPageContent(getAbsPath(it->second));
+	} else {	// Othewise check normal routes
+		auto	it = conf.routes.find(key);
+
+		if (it != conf.routes.end() && resourceExists(it->second))
+			return Pages::getPageContent(getAbsPath(it->second));
+	}
+
+	// Retrieve default
+	return Pages::getPageContent("default" + key);
+}
+
+
+static std::string	route(std::string target, Config const &conf)
+{
+	// If the target isn't "/" remove any extra '/' characters, as they don't have any meaning (root access is forbidden)
+	if  (target.length() > 1 && target[0] == '/')
+		target = target.substr(1);
+
+	// Check for an exact route for target
+	auto	it = conf.routes.find(target);
+
+	if (it != conf.routes.end())
+		return it->second;
+
+	// Check for a partial route for target, exclude possible "/" substitution at this step
+	for (auto const &[key, val] : conf.routes) {
+		if (key == "/")
+			continue;
+
+		auto	pos = target.find(key);
+
+		if (pos != std::string::npos) {
+			target.replace(pos, key.length(), val);
+			return target;
+		}
+	}
+
+	// If a route for "/" exists, add the value to the beginning of the target
+	it = conf.routes.find("/");
+
+	if (it != conf.routes.end()) {
+		std::string	route = it->second;
+
+		if (target[0] == '/')
+			target = target.substr(1);
+		if (route.back() == '/')
+			route.pop_back();
+		target = route + "/" + target;
+	}
+
+	return target;
 }
 
 void	Response::sendToClient()
