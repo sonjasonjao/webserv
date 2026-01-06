@@ -9,8 +9,7 @@ std::unordered_map<std::string, std::string const *>	Pages::cacheMap;
 size_t													Pages::cacheSize = 0;
 
 constexpr static char const * const	DEFAULT200	= \
-R"(
-<!DOCTYPE html>
+R"(<!DOCTYPE html>
 <html>
 	<head>
 	</head>
@@ -21,8 +20,7 @@ R"(
 )";
 
 constexpr static char const * const	DEFAULT204	= \
-R"(
-<!DOCTYPE html>
+R"(<!DOCTYPE html>
 <html>
 	<head>
 	</head>
@@ -33,8 +31,7 @@ R"(
 )";
 
 constexpr static char const * const	DEFAULT400	= \
-R"(
-<!DOCTYPE html>
+R"(<!DOCTYPE html>
 <html>
 	<head>
 		<style>
@@ -63,8 +60,7 @@ R"(
 )";
 
 constexpr static char const * const	DEFAULT404	= \
-R"(
-<!DOCTYPE html>
+R"(<!DOCTYPE html>
 <html>
 	<head>
 		<style>
@@ -88,6 +84,28 @@ R"(
 	</head>
 	<body>
 		<p>404: resource not found</p>
+	</body>
+</html>
+)";
+
+constexpr static char const * const	DEFAULT408	= \
+R"(<!DOCTYPE html>
+<html>
+	<head>
+	</head>
+	<body>
+		<p>408: Request Timeout</p>
+	</body>
+</html>
+)";
+
+constexpr static char const * const	DEFAULT500	= \
+R"(<!DOCTYPE html>
+<html>
+	<head>
+	</head>
+	<body>
+		<p>500: Internal Server Error</p>
 	</body>
 </html>
 )";

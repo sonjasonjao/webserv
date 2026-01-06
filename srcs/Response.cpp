@@ -171,9 +171,13 @@ void	Response::formResponse()
 			_startLine	= _req.getHttpVersion() + " 404 Not Found";
 			_body		= getResponsePageContent("404", _conf);
 		break;
+		case 408:
+			_startLine	= _req.getHttpVersion() + " 408 Request Timeout";
+			_body		= getResponsePageContent("408", _conf);
+		break;
 		default:
-			_startLine	= _req.getHttpVersion() + " 400 Bad Request";
-			_body		= getResponsePageContent("400", _conf);
+			_startLine	= _req.getHttpVersion() + " 500 Internal Server Error";
+			_body		= getResponsePageContent("500", _conf);
 	}
 
 	_headerSection += "Content-Length: " + std::to_string(_body.length()) + CRLF;
