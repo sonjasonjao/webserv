@@ -90,8 +90,18 @@ void Parser::tokenizeFile(void) {
                 const Token& content = node.children[1];
                 if(!content.children.empty()) {
                     for(const auto& block : content.children) {
+                        // first isolate al the ports related to a server config
+                        std::vector<std::string> collection = getCollectionBykey(block, "listen");
+                        // retrive all the other data except ports
                         Config config = convertToServerData(block);
-                        _server_configs.emplace_back(config);
+                        // add port one by one and create a copy of config
+                        if(!collection.empty()) {
+                            for(auto item : collection) {
+                                auto port = std::stoi(item);
+                                config.port = port;
+                                _server_configs.emplace_back(config);
+                            }
+                        }
                     }
                 }
             }
@@ -99,14 +109,6 @@ void Parser::tokenizeFile(void) {
             throw std::runtime_error("Incorrect confirguartion !");
         }
     }
-    // for(const auto& node : root.children) {
-    //     std::cout << getKey(node) << "\n";
-    //     if(node.children.size() > 1){
-    //         for(const auto& it : node.children){
-    //             printToken(it, 1);
-    //         }
-    //     }
-    // }
 }
 
 /**
@@ -138,12 +140,18 @@ size_t Parser::getNumberOfServerConfigs(void) {
 */
 Config Parser::convertToServerData(const Token& block) {
     Config config;
-    std::vector<std::string> collection = getCollectionBykey(block, "listen");
-
-    for(auto it : collection) {
-        std::cout << it << "\n";
+    for(auto item : block.children) {
+        std::string key = getKey(item);
+        if(key == "host") {
+            if(item.children.size() > 1) {
+                config.host = item.children.at(1).value;
+            }
+        } else if (key == "host_name") {
+            if(item.children.size() > 1) {
+                config.host_name = item.children.at(1).value;
+            }
+        }
     }
-    std::cout << "-------------------------------\n";
     return (config);
 }
 

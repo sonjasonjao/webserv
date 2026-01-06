@@ -40,7 +40,7 @@ struct Route {
 
 struct Config {
     std::string                         host;                   // IP or hostname on which this server listens, e.g. "0.0.0.0" or "127.0.0.1"
-    std::vector<uint16_t>               ports;                   // Port on which this server listens
+    uint16_t                            port;                   // Port on which this server listens
     std::string                         host_name;           // List of server names (virtual hosts) handled by this server eg : {"example.com", "www.example.com"}
     // will uncomment when we ready to use below
     //std::map<uint16_t, std::string>     error_pages;            // Mapping from HTTP error status code to custom error page path.
