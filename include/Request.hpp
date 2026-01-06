@@ -78,6 +78,7 @@ class Request
 		void				fillHost(void);
 		void				parseRequestLine(std::istringstream &req);
 		void				parseHeaders(std::string &str);
+		bool				fillKeepAlive(void);
 		bool				validateHeaders(void);
 		void				parseChunked(void);
 		void				printData(void) const;

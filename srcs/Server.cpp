@@ -243,7 +243,7 @@ void	Server::handleClientData(size_t& i)
 				+ std::to_string(_pfds[i].fd)));
 
 		it->setIdleStart();
-		it->setRecvStart(); // do we want to reset the timer with every recv() or only when a new request is coming?
+		it->setRecvStart();
 		it->saveRequest(std::string(buf));
 
 		while (!(it->getBuffer().empty()))
@@ -279,6 +279,8 @@ void	Server::handleClientData(size_t& i)
 			it->reset();
 			it->setStatus(RequestStatus::ReadyForResponse);
 			_pfds[i].events |= POLLOUT;
+			if (!it->getKeepAlive())
+				break;
 		}
 	}
 }
@@ -351,26 +353,27 @@ void	Server::sendResponse(size_t& i)
 		ERROR_LOG("Could not find a response to send to this client");
 		return ;
 	}
-
 	if (it->getStatus() != RequestStatus::ReadyForResponse
 		&& it->getStatus() != RequestStatus::IdleTimeout
 		&& it->getStatus() != RequestStatus::RecvTimeout)
 		return ;
 
-	auto	&res = _responses.at(_pfds[i].fd).front();
-
-	INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
-	it->setIdleStart();
-	it->setSendStart();
-	res.sendToClient();
-	if (!res.sendIsComplete())
+	for (auto res = _responses.at(_pfds[i].fd).begin(); _responses.at(_pfds[i].fd).size() > 0; res++)
 	{
-		INFO_LOG("Response partially sent, waiting for server to complete response sending");
-		return ;
-	}
+		INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
+		it->setIdleStart();
+		it->setSendStart();
+		res->sendToClient();
+		if (!res->sendIsComplete())
+		{
+			INFO_LOG("Response partially sent, waiting for server to complete response sending");
+			return ;
+		}
 
-	it->resetSendStart();
-	int	tmp = _pfds[i].fd;
+		_responses.at(_pfds[i].fd).pop_front();
+
+		it->resetSendStart();
+	}
 
 	_pfds[i].events &= ~POLLOUT;
 
@@ -382,12 +385,9 @@ void	Server::sendResponse(size_t& i)
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 		_clients.erase(it);
 
-		_responses.at(tmp).pop_front();
-
 		return ;
 	}
 	it->resetKeepAlive();
-	_responses.at(tmp).pop_front();
 	it->setStatus(RequestStatus::WaitingData);
 }
 
