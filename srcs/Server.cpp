@@ -202,6 +202,11 @@ void	Server::handleNewClient(int listener)
 /**
  * Receives data from the client that poll() has recognized ready. Message (= request)
  * will be parsed and response formed.
+ *
+ * If buffer initially had more than one complete request, and so it's not empty after handling
+ * one request, request handling loop continues, multiple responses will be formed and put into
+ * the response queue. But if the current request has _keepAlive set to false, possible remaining
+ * data in buffer will not be handled.
  */
 void	Server::handleClientData(size_t& i)
 {
@@ -340,11 +345,12 @@ void	Server::removeClientFromPollFds(size_t& i)
 }
 
 /**
- * Sets the starting time for send timeout tracking and calls sendToClient() to send the response.
- * If the response was completely sent with one call, resets the send timeout tracker to 0, removes
- * POLLOUT from  events, and in case of keepAlive being false, disconnects and removes the client.
- * Finally removes sent response from _responses and in case of keepAlive, sets client status back
- * to default.
+ * Loops through all responses in the current client's response queue (in order of received requests)
+ * and for each response, sets the starting time for send timeout tracking and calls sendToClient().
+ * If the response was completely sent with one call,  removes sent response from _response queue and
+ * resets the send timeout tracker to 0. When response queue is emptied, removes POLLOUT from  events.
+ * In case of keepAlive being false, disconnects and removes the client; in case of keepAlive, sets
+ * client status back to default.
  */
 void	Server::sendResponse(size_t& i)
 {
