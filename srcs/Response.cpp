@@ -13,7 +13,7 @@
 constexpr char const * const	CRLF = "\r\n";
 
 /**
- * Idle and recv timeouts will now cause Bad Request response, but will be differentiated later
+ * Idle and recv timeouts currently cause Bad Request response, but will be differentiated later
  */
 Response::Response(Request const &req) : _req(req)
 {

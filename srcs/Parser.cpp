@@ -5,14 +5,14 @@ Parser::Parser(const std::string& file_name)
         std::error_code ec;
         /**
          * Try to locate the file in the current file system, will throw an error
-         * if file is not exsists
+         * if file does not exist
         */
         if(!std::filesystem::exists(_file_name, ec) || ec) {
             throw ParserException("File not exist : " + file_name);
         }
         /**
-         * Will compare the file extesnsion with the standard one and will throw
-         * an error in case mismatch. Subsequent characters in the file_name after
+         * Will compare the file extension with the standard one and will throw
+         * an error in case of mismatch. Subsequent characters in the file_name after
          * the last occurence of '.'
         */
         size_t pos = _file_name.rfind('.');
@@ -31,21 +31,21 @@ Parser::Parser(const std::string& file_name)
         }
 
         /**
-         * If the file pointed by the file_name is empty, will throw and error
+         * If the file pointed by the file_name is empty, will throw an error
          */
         if(std::filesystem::file_size(_file_name) == 0) {
             throw ParserException("Empty file : " + _file_name);
         }
     /**
      * Sucessfully opening the file and tokenizing the content
-     * all the toiken will be sacved into AST tree structure
+     * all the tokens will be saved into AST tree structure
     */
     tokenizeFile();
 }
 
 Parser::~Parser() {
     /**
-     * At the end if the file descriptor is still open, it will  be closed gracefully
+     * At the end if the file descriptor is still open, it will be closed gracefully
     */
     if(_file.is_open()) {
         _file.close();
@@ -54,9 +54,9 @@ Parser::~Parser() {
 
 /**
  * Will open the configuration file and read line by line, every line will be break down
- * to tokens base on spaces/tabs
+ * to tokens based on spaces/tabs
  * @param void - class method will have access to all the class attributes
- * @return void - all the token will save to an internal container
+ * @return void - all the tokens will be saved to an internal container
 */
 void Parser::tokenizeFile(void) {
     std::string line;
@@ -76,7 +76,7 @@ void Parser::tokenizeFile(void) {
     }
     // create Token AST for validation
     Token root = createToken(output);
-    // buliding configuration struct vector to holds all the configuration data
+    // buliding configuration struct vector to hold all the configuration data
     for(const auto& node : root.children) {
         if(getKey(node) == "server") {
             if(node.children.size() > 1) {
@@ -93,11 +93,11 @@ void Parser::tokenizeFile(void) {
 }
 
 /**
- * this will return the srever configuration info to any valid request,
+ * this will return the server configuration info to any valid request,
  * pointed by index
- * @exception will throw and out of bound exception in case reqeust invalid index
+ * @exception will throw an out of bound exception in case request invalid index
  * caller has to handle the exception
- * @param index unisigned int value which represent the index of the server
+ * @param index unsigned int value which represents the index of the server
  * config struct data
  * @return const reference to the requested data structure
 */
@@ -113,7 +113,7 @@ const std::vector<Config>	&Parser::getServerConfigs(void) const {
 }
 
 /**
- * will return the size of the inetrnal container, usefull info when required
+ * will return the size of the internal container, useful info when required
  * to loop through the entire vector
 */
 size_t Parser::getNumberOfServerConfigs(void) {
@@ -121,9 +121,9 @@ size_t Parser::getNumberOfServerConfigs(void) {
 }
 
 /**
- * this fucntion will conver a srever data token to a srever data struct
+ * this function will convert a server data token to a server data struct
  * @param server block of data in the AST need to convert
- * @return value of the config create on the fly, will recreate the similar
+ * @return value of the config created on the fly, will recreate the similar
  * data int the respective vector, temporary data so no reference
 */
 Config Parser::convertToServerData(const Token& server) {

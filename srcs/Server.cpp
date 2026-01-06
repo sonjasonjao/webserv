@@ -23,8 +23,6 @@ using ReqIter = std::vector<Request>::iterator;
 void	handleSignal(int sig)
 {
 	g_endSignal = sig;
-	if (sig == SIGINT)
-		INFO_LOG("Server closed with SIGINT signal");
 }
 
 /**
@@ -171,6 +169,8 @@ void	Server::run(void)
 		}
 		handleConnections();
 	}
+	if (g_endSignal == SIGINT)
+		INFO_LOG("Server closed with SIGINT signal");
 }
 
 /**
