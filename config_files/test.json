@@ -10,8 +10,9 @@
             "autoindex"         : "off",
 
             "routes"          : {
-                "/" : "www",
-                "uploads" : "www/uploads"
+                "/"         : "www",
+                "secret"    : "/home/jvarila/Documents/minimal.html",
+                "uploads"   : "www/uploads"
             },
 
             "error_pages"       : {
