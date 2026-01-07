@@ -358,7 +358,8 @@ void	Request::parseChunked(void) {
 
 bool	Request::fillKeepAlive(void) {
 	auto	it = _headers.find("connection");
-	bool	hasClose, hasKeepAlive = false;
+	bool	hasClose = false;
+	bool	hasKeepAlive = false;
 	if (it != _headers.end()) {
 		for (auto value = it->second.begin(); value != it->second.end(); value++)
 		{
@@ -413,8 +414,11 @@ bool	Request::validateHeaders(void) {
 		}
 	}
 	it = _headers.find("transfer-encoding");
-	if (it != _headers.end() && it->second.front() == "chunked")
+	if (it != _headers.end() && it->second.front() == "chunked") {
+		if (_request.httpVersion == "HTTP/1.0")
+			return false;
 		_chunked = true;
+	}
 	return true;
 }
 
