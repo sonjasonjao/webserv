@@ -5,13 +5,16 @@
 #include <sstream>
 #include <filesystem>
 #include <cstdint>
+#include <cctype>
 #include <string>
 #include <vector>
+#include <stack>
 #include <map>
 
 #include "CustomException.hpp"
 #include "JSON.hpp"
 #include "../include/Log.hpp"
+#include "../include/Utils.hpp"
 
 /**
  * Default file_name extension for the configuration file, with out correct extension
@@ -40,7 +43,7 @@ struct Route {
 
 struct Config {
     std::string                         host;                   // IP or hostname on which this server listens, e.g. "0.0.0.0" or "127.0.0.1"
-    std::vector<uint16_t>               ports;                   // Port on which this server listens
+    uint16_t                            port;                   // Port on which this server listens
     std::string                         host_name;           // List of server names (virtual hosts) handled by this server eg : {"example.com", "www.example.com"}
     // will uncomment when we ready to use below
     std::map<std::string, std::string>	status_pages;				// Mapping from HTTP status code to custom page path.
@@ -101,4 +104,12 @@ class Parser {
        size_t getNumberOfServerConfigs(void);
 
        Config convertToServerData(const Token& server);
+
+       //std::string getValueBykey(const Token& root, const std::string& key, TokenType type);
+
+       std::vector<std::string> getCollectionBykey(const Token& root, const std::string& key);
+
+       bool isValidJSONString(std::string_view sv);
+
+       bool isPrimitiveValue(std::string_view sv);
 };

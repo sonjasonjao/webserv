@@ -41,7 +41,7 @@ Parser::Parser(const std::string& file_name)
     /**
      * Sucessfully opening the file and tokenizing the content
      * all the tokens will be saved into AST tree structure
-    */
+    */   
     tokenizeFile();
 }
 
@@ -63,6 +63,7 @@ Parser::~Parser() {
 void Parser::tokenizeFile(void) {
     std::string line;
     std::string output;
+
     // read a line
     while(getline(_file, line)) {
         // remove leading/trailing white spaces
@@ -76,22 +77,58 @@ void Parser::tokenizeFile(void) {
             line.clear();
         }
     }
+
+    // JSON string validation
+    if(!isValidJSONString(output)) {
+        throw ParserException("Incorrect configuration!");
+    }
+
     // create Token AST for validation
     Token root = createToken(output);
-    // buliding configuration struct vector to hold all the configuration data
+
+    /**
+     * buliding configuration struct vector to holds all the configuration data
+     * configuration file hould conatins at least one srever configuration
+     * anything other than "server" as the key will throw an error 
+     * buliding configuration struct vector to hold all the configuration data
+    */
     for(const auto& node : root.children) {
-        if(getKey(node) != "server" || node.children.size() < 2)
-			continue;
+        // check the if the node is a server block 
+        if(getKey(node) == "server") {
+            // if node has a value
+            if(node.children.size() > 1) {
+                //extract first children
+                const Token& content = node.children[1];
 
-		const Token& content = node.children[1];
+                if(!content.children.empty()) {
 
-		if (content.children.empty())
-			continue;
+                    for(const auto& block : content.children) {
 
-		for(const auto& block : content.children) {
-			Config config = convertToServerData(block);
-			_server_configs.emplace_back(config);
-		}
+                        // first isolate al the ports related to a server config
+                        std::vector<std::string> collection = getCollectionBykey(block, "listen");
+                        
+                        // retrive all the other data except ports
+                        Config config = convertToServerData(block);
+                        
+                        // add port one by one and create a copy of config
+                        if(!collection.empty()) {
+                            
+                            for(auto item : collection) {
+                                if(!isValidPort(item)) {
+                                    _server_configs.clear();
+                                    throw ParserException("Invalid port value!");
+                                } else {
+                                    config.port = static_cast<uint16_t>(std::stoi(item));
+                                    _server_configs.emplace_back(config);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            throw ParserException("Incorrect configuration!");
+        }
     }
 }
 
@@ -131,32 +168,37 @@ size_t Parser::getNumberOfServerConfigs(void) {
  * @return	value of the config created on the fly, will recreate the similar
  *			data int the respective vector, temporary data so no reference
 */
-Config Parser::convertToServerData(const Token& server) {
+Config Parser::convertToServerData(const Token& block) {
 
     Config config;
 
-	DEBUG_LOG("\tConverting server config tokens to server data");
-    for (auto item : server.children) {
-
+    DEBUG_LOG("\tConverting server config tokens to server data");
+    
+    for (auto item : block.children) {
+        // extract the value of the key from the AST
         std::string key = getKey(item);
+        
+        // set host or the IP address value
+        if(key == "host") {
+            if(item.children.size() > 1) {
+                std::string str = item.children.at(1).value;
+                DEBUG_LOG("\t\tAdding host " + str);
+                if(!isValidIPv4(str)) {
+                    throw ParserException("Invalid IPv4 address value !");
+                } 
+                config.host = str;
+            }
+        }
 
-		if (item.children.size() < 2)
-			continue;
+        // set host name value
+        if (key == "host_name") {
+            if(item.children.size() > 1) {
+                DEBUG_LOG("\t\tAdding host_name " + item.children.at(1).value);
+                config.host_name = item.children.at(1).value;
+            }
+        }
 
-        if (key == "host") {
-			DEBUG_LOG("\t\tAdding host " + item.children.at(1).value);
-			config.host = item.children.at(1).value;
-        } else if (key == "host_name") {
-			DEBUG_LOG("\t\tAdding host_name " + item.children.at(1).value);
-			config.host_name = item.children.at(1).value;
-        } else if (key == "listen") {
-			for (auto p : item.children.at(1).children) {
-				DEBUG_LOG("\t\tAdding listening port " + std::to_string(std::atoi(p.value.c_str())));
-				config.ports.emplace_back(
-					std::atoi(p.value.c_str())
-				);
-			}
-        } else if (key == "status_pages") {
+        if (key == "status_pages") {
 			for (auto e : item.children.at(1).children) {
 				if (e.children.size() < 2 || e.children.at(1).type != TokenType::Value)
 					continue;
@@ -165,7 +207,9 @@ Config Parser::convertToServerData(const Token& server) {
 							+ " to " + e.children.at(1).value);
 				config.status_pages[e.children.at(0).value] = e.children.at(1).value;
 			}
-		} else if (key == "routes") {
+        }
+        
+		if (key == "routes") {
 			for (auto r : item.children.at(1).children) {
 				if (r.children.size() < 2 || r.children.at(1).type != TokenType::Value)
 					continue;
@@ -173,6 +217,163 @@ Config Parser::convertToServerData(const Token& server) {
 				config.routes[r.children.at(0).value] = r.children.at(1).value;
 			}
 		}
+        
     }
     return (config);
+}
+
+/**
+ * this fucntion extract collection of values from the AST and created a vector of strings
+ * @param root, key block of data in the AST need to convert
+ * @return vector of strings 
+*/
+std::vector<std::string> Parser::getCollectionBykey(const Token& root, const std::string& key) {
+    std::vector<std::string> collection;
+    for(auto item : root.children) {
+        std::string key_value = getKey(item);
+        if (key == key_value) {
+            if(item.children.size() > 1) {
+                for(auto p : item.children.at(1).children) {
+                    collection.emplace_back(p.value);
+                }
+            }
+        }
+    }
+    return (collection);
+}
+
+/**
+ * this function will check and return if a string is a valid JSON string in respcet of
+ * brackets, quotes, sperators and primitive values
+ */
+bool Parser::isValidJSONString(std::string_view sv) {
+    std::stack<char> brackets;
+    std::string buffer;
+
+    bool inQuotes = false;
+    char prevChar = '\0';
+    
+    for(size_t i = 0; i < sv.size(); ++i) {
+        char c = sv[i];
+
+        /**
+         * if there is double quotes with out escape charater, then will toggle
+         * inQuotes
+        */
+        if(c == '"' && prevChar != '\\') {
+            inQuotes = !inQuotes;
+            prevChar = c;
+            continue;
+        }
+
+        /**
+         * if already inside the quotes any character is allowed, 
+         * simply update the previous char and continue
+        */
+        if(inQuotes) {
+            prevChar = c;
+            continue;
+        }
+
+        /**
+         * isolating sperators
+        */
+        bool isSperator = (std::isspace(c) || c == ':' || c == ',' || c == '}' || c == ']');
+
+        /**
+         * check for valid values that are not expected to surrounded by quotes
+        */
+        if(isSperator && !buffer.empty()) {
+            if(!isPrimitiveValue(buffer)) {
+                std::cerr << "Error: Invalid value format -> " << buffer << "\n";
+                return false;
+            }
+            buffer.clear();
+        }
+        
+        /**
+         * all the isspace characters even outside the double quotes will skip 
+        */
+        if(std::isspace(c)) {
+            prevChar = c;
+            continue;
+        }
+
+        switch (c)
+        {
+            case '{':
+                brackets.push(c);
+                break;
+            case '[':
+                brackets.push(c);
+                break;
+            case '}':
+                if( brackets.empty() || brackets.top() != '{') {
+                    return (false);
+                } else {
+                    brackets.pop();
+                }
+                break;
+            case ']':
+                if( brackets.empty() || brackets.top() != '[') {
+                    return (false);
+                } else {
+                    brackets.pop();
+                }
+                break;
+            case ':': // allowing to have contiguous ':' for IPv6 validation 
+                if(prevChar == ',') {
+                    return (false);
+                }
+                break;
+            case ',':
+                if(prevChar == ':' || prevChar == ',') {
+                    return (false);
+                }
+                break;
+            default:
+                buffer += c;
+                break;
+        }
+        prevChar = c;
+    }
+
+    if(inQuotes) {
+        std::cerr << "Un-closed double quotations !\n";
+        return (false);
+    }
+
+    if(!brackets.empty()) {
+        std::cerr << "Un-closed brackets " << brackets.top() << "!\n";
+        return (false);
+    }
+    return (true);
+  
+}
+
+/**
+ * this fucntion will check if a given string is a valid primitive value
+ * an integer, a fractional value, IPv4 or IPv6 address, true or false
+*/
+bool Parser::isPrimitiveValue(std::string_view sv) {
+     if(sv.empty()) {
+        return (false);
+    }
+
+    if(sv == "true" || sv == "false") {
+        return (true);
+    }
+
+    bool hasDigit = false;
+
+    for(size_t i = 0; i < sv.size(); ++i) {
+        char c = sv[i];
+        if (c == '.' || c == '+' || c == '-' || std::isdigit(c)) {
+            if(std::isdigit(c)) hasDigit = true;
+            continue;
+        } else {
+            return (false);
+        }
+    }
+    return (hasDigit);
 }
