@@ -1,4 +1,6 @@
 #include "Parser.hpp"
+#include <cerrno>
+#include <cstring>
 
 Parser::Parser(const std::string& file_name)
     :_file_name(file_name), _file() {
@@ -39,13 +41,8 @@ Parser::Parser(const std::string& file_name)
     /**
      * Sucessfully opening the file and tokenizing the content
      * all the tokens will be saved into AST tree structure
-    */
-    try {    
-        tokenizeFile();
-    }
-    catch(const std::exception& e) {
-        std::cerr << e.what() << '\n';
-    }
+    */   
+    tokenizeFile();
 }
 
 Parser::~Parser() {
@@ -66,6 +63,7 @@ Parser::~Parser() {
 void Parser::tokenizeFile(void) {
     std::string line;
     std::string output;
+
     // read a line
     while(getline(_file, line)) {
         // remove leading/trailing white spaces
@@ -88,21 +86,33 @@ void Parser::tokenizeFile(void) {
     // create Token AST for validation
     Token root = createToken(output);
 
-    // buliding configuration struct vector to holds all the configuration data
-    // configuration file hould conatins at least one srever configuration
-    // anything other than "server" as the key will throw an error 
+    /**
+     * buliding configuration struct vector to holds all the configuration data
+     * configuration file hould conatins at least one srever configuration
+     * anything other than "server" as the key will throw an error 
+     * buliding configuration struct vector to hold all the configuration data
+    */
     for(const auto& node : root.children) {
+        // check the if the node is a server block 
         if(getKey(node) == "server") {
+            // if node has a value
             if(node.children.size() > 1) {
+                //extract first children
                 const Token& content = node.children[1];
+
                 if(!content.children.empty()) {
+
                     for(const auto& block : content.children) {
+
                         // first isolate al the ports related to a server config
                         std::vector<std::string> collection = getCollectionBykey(block, "listen");
+                        
                         // retrive all the other data except ports
                         Config config = convertToServerData(block);
+                        
                         // add port one by one and create a copy of config
                         if(!collection.empty()) {
+                            
                             for(auto item : collection) {
                                 if(!isValidPort(item)) {
                                     _server_configs.clear();
@@ -152,27 +162,62 @@ size_t Parser::getNumberOfServerConfigs(void) {
 
 /**
  * this function will convert a server data token to a server data struct
- * @param server block of data in the AST need to convert
- * @return value of the config created on the fly, will recreate the similar
- * data int the respective vector, temporary data so no reference
+ *
+ * @param server	block of data in the AST need to convert
+ *
+ * @return	value of the config created on the fly, will recreate the similar
+ *			data int the respective vector, temporary data so no reference
 */
 Config Parser::convertToServerData(const Token& block) {
+
     Config config;
-    for(auto item : block.children) {
+
+    DEBUG_LOG("\tConverting server config tokens to server data");
+    
+    for (auto item : block.children) {
+        // extract the value of the key from the AST
         std::string key = getKey(item);
+        
+        // set host or the IP address value
         if(key == "host") {
             if(item.children.size() > 1) {
                 std::string str = item.children.at(1).value;
+                DEBUG_LOG("\t\tAdding host " + str);
                 if(!isValidIPv4(str)) {
                     throw ParserException("Invalid IPv4 address value !");
                 } 
                 config.host = str;
             }
-        } else if (key == "host_name") {
+        }
+
+        // set host name value
+        if (key == "host_name") {
             if(item.children.size() > 1) {
+                DEBUG_LOG("\t\tAdding host_name " + item.children.at(1).value);
                 config.host_name = item.children.at(1).value;
             }
         }
+
+        if (key == "status_pages") {
+			for (auto e : item.children.at(1).children) {
+				if (e.children.size() < 2 || e.children.at(1).type != TokenType::Value)
+					continue;
+				DEBUG_LOG("\t\tMapping status page "
+							+ std::to_string(std::stoi(e.children.at(0).value))
+							+ " to " + e.children.at(1).value);
+				config.status_pages[e.children.at(0).value] = e.children.at(1).value;
+			}
+        }
+        
+		if (key == "routes") {
+			for (auto r : item.children.at(1).children) {
+				if (r.children.size() < 2 || r.children.at(1).type != TokenType::Value)
+					continue;
+				DEBUG_LOG("\t\tAdding route " + r.children.at(0).value + " -> " + r.children.at(1).value);
+				config.routes[r.children.at(0).value] = r.children.at(1).value;
+			}
+		}
+        
     }
     return (config);
 }

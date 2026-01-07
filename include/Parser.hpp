@@ -46,9 +46,9 @@ struct Config {
     uint16_t                            port;                   // Port on which this server listens
     std::string                         host_name;           // List of server names (virtual hosts) handled by this server eg : {"example.com", "www.example.com"}
     // will uncomment when we ready to use below
-    //std::map<uint16_t, std::string>     error_pages;            // Mapping from HTTP error status code to custom error page path.
-    //std::map<uint16_t, Route>         routes;                 // Set of routes (location blocks) defined for this server.
-    //size_t                              client_max_body_size;   // Default maximum allowed size (in bytes) of the request body for this server
+    std::map<std::string, std::string>	status_pages;				// Mapping from HTTP status code to custom page path.
+    std::map<std::string, std::string>	routes;						// Set of routes (URI -> path definitions) for this server.
+    //size_t                              client_max_body_size;		// Default maximum allowed size (in bytes) of the request body for this server
 };
 
 class Parser {

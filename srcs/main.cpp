@@ -1,4 +1,5 @@
 #include "../include/Server.hpp"
+#include "../include/Log.hpp"
 #include "Pages.hpp"
 
 /**
@@ -8,25 +9,67 @@
  */
 int	main(int argc, char **argv)
 {
-	if (argc != 2)
-	{
-		std::cout << "Usage: ./webserv [configuration file]\n";
-		return 0;
+	// case : more than 03 arguments
+	if (argc > 3) {
+		std::cout << "Usage: ./webserv [configuration file] [output log file]\n";
+		return (EXIT_FAILURE);
 	}
 
-	try
-	{
-		// Log::setOutputFile("webserv.log");
-		Parser	parser(argv[1]);
-		Config config = parser.getServerConfig(0);
-		std::cout << "\nHost		: " << config.host << "\n";
-		std::cout << "Host Name	: " << config.host_name << "\n";
-		std::cout << "Listen		: " << config.port << "\n\n";
-		Server	server(parser);
-		Pages::loadDefaults();
-		server.run();
-	}
-	catch(const std::exception& e) {}
+	std::string	confFile 	= "./config_files/test.json"; // default configuration file
 
-	return 0;
+	// exactly 02 arguments then second argument becomw the configuration file
+	if (argc == 1) {
+		std::cout << "No Config file provided, using default : " << confFile <<  "\n";
+		std::cout << "WARNING : No Log file provided!" << "\n\n";
+	}
+
+	// exactly 02 arguments then second argument becomw the configuration file
+	if (argc == 2) {
+		std::cout << "WARNING : No Log file provided!" << "\n\n";
+		confFile = argv[1];
+	}
+	
+	try {
+			if( argc == 3) {
+				Log::setOutputFile(argv[2]);
+			}
+			
+			Parser	parser(confFile);
+			
+			size_t configCount = parser.getNumberOfServerConfigs();
+
+			std::cout << "\n--- Active servers ---\n\n";
+			std::cout << "No of active srever : " << configCount << "\n";
+			
+			for (size_t i = 0; i < configCount; ++i) {
+				Config config = parser.getServerConfig(i);
+				std::cout << "Host		: " << config.host << "\n";
+				std::cout << "Host Name	: " << config.host_name << "\n";
+				std::cout << "Listen		: ";
+				std::cout << config.port << " ";
+				std::cout << "\n\n";
+			}
+			
+			std::cout << "----------------------\n\n";
+
+			Server	server(parser);
+			Pages::loadDefaults();
+			server.run();
+
+	} catch (const Parser::ParserException& e) {
+
+		std::cerr << "Error : " << e.what() << "\n";
+		INFO_LOG(e.what());
+		
+		return (EXIT_FAILURE);
+	
+	} catch (const std::exception& e) {
+		
+		std::cerr << "Error setting output file: " << e.what() << "\n";
+		std::cerr << "Logging to std::cerr instead\n\n";
+		
+		return (EXIT_FAILURE);		
+	
+	} 
+	return (EXIT_SUCCESS);
 }
