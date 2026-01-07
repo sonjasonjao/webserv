@@ -117,7 +117,7 @@ void Parser::tokenizeFile(void) {
                 }
             }
         } else {
-            throw ParserException("Incorrect confirguartion !");
+            throw ParserException("Incorrect configuration!");
         }
     }
 }
