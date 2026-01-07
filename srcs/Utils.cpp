@@ -359,6 +359,9 @@ std::string	getAbsPath(std::string const &fileName, std::string searchDir)
 {
 	static std::string const	currentDir = std::filesystem::current_path();
 
+	if (!fileName.empty() && fileName[0] == '/')
+		return fileName;
+
 	if (searchDir.empty())
 		searchDir = currentDir;
 	if (searchDir.back() == '/')
