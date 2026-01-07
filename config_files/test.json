@@ -9,16 +9,22 @@
             "directory_listing" : "on",
             "autoindex"         : "off",
 
-            "routes"          : {
-                "/"         : "www",
+            "upload_dir"        : "www/uploads",
+
+            "routes" : {
+                "/"         : "www/pages",
                 "secret"    : "/home/jvarila/Documents/minimal.html",
-                "uploads"   : "www/uploads"
+                "img"       : "www/images",
+                "future_syntax_possibly" : {
+                    "target"            : "www/pages",
+                    "allowed_methods"   : ["GET", "POST", "DELETE"]
+                }
             },
 
-            "error_pages"       : {
-                "400" : "index.html",
-                "404" : "index.html",
-                "404" : ["one", "two", "three"]
+            "status_pages" : {
+                "200" : "wwww/status_pages/200.html",
+                "400" : "www/status_pages/400.html",
+                "404" : "www/status_pages/404.html"
             }
         },
         {

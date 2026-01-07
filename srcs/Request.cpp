@@ -539,27 +539,27 @@ void	Request::printData(void) const {
 	std::cout << "\n---- Request line ----\nMethod: ";
 	switch(_request.method) {
 		case RequestMethod::Get:
-			std::cout << "Get";
+			std::cout << "GET";
 			break ;
 		case RequestMethod::Post:
-			std::cout << "Post";
+			std::cout << "POST";
 			break ;
 		case RequestMethod::Delete:
-			std::cout << "Delete";
+			std::cout << "DELETE";
 			break ;
 		default:
 			throw std::runtime_error("HTTP request method unknown\n");
 	}
-	std::cout << ", target: "
-		<< _request.target << ", HTTP version: " << _request.httpVersion << "\n\n";
+	std::cout << "\nTarget: " << _request.target << "\nHTTP version: " << _request.httpVersion << "\n";
 	if (_request.query.has_value())
 		std::cout << "Query: " << _request.query.value() << '\n';
+	std::cout << "----------------------\n\n";
 	std::cout << "---- Header keys ----\n";
 	for (auto it = _headers.begin(); it != _headers.end(); it++)
 		std::cout << it->first << '\n';
-	std::cout << "\n";
+	std::cout << "---------------------\n\n";
 	if (!_body.empty())
-		std::cout << "---- Body ----\n" << _body << '\n';
+		std::cout << "---- Body ----\n" << _body << "----------------\n\n";
 	std::cout << "	Keep alive?		" << _keepAlive << '\n';
 	std::cout << "	Complete headers?	" << _completeHeaders << '\n';
 	std::cout << "	Status?			";

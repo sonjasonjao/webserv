@@ -80,17 +80,18 @@ void Parser::tokenizeFile(void) {
     Token root = createToken(output);
     // buliding configuration struct vector to hold all the configuration data
     for(const auto& node : root.children) {
-        if(getKey(node) == "server") {
-            if(node.children.size() > 1) {
-                const Token& content = node.children[1];
-                if(!content.children.empty()) {
-                    for(const auto& block : content.children) {
-                        Config config = convertToServerData(block);
-                        _server_configs.emplace_back(config);
-                    }
-                }
-            }
-        }
+        if(getKey(node) != "server" || node.children.size() < 2)
+			continue;
+
+		const Token& content = node.children[1];
+
+		if (content.children.empty())
+			continue;
+
+		for(const auto& block : content.children) {
+			Config config = convertToServerData(block);
+			_server_configs.emplace_back(config);
+		}
     }
 }
 
@@ -156,15 +157,15 @@ Config Parser::convertToServerData(const Token& server) {
                     );
                 }
             }
-        } else if (key == "error_pages") {
+        } else if (key == "status_pages") {
 			if (item.children.size() > 1) {
 				for (auto e : item.children.at(1).children) {
 					if (e.children.size() < 2 || e.children.at(1).type != TokenType::Value)
 						continue;
-					DEBUG_LOG("\t\tMapping error page "
+					DEBUG_LOG("\t\tMapping status page "
 								+ std::to_string(std::stoi(e.children.at(0).value))
 								+ " to " + e.children.at(1).value);
-					config.error_pages[e.children.at(0).value] = e.children.at(1).value;
+					config.status_pages[e.children.at(0).value] = e.children.at(1).value;
 				}
 			}
 		} else if (key == "routes") {

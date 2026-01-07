@@ -24,7 +24,6 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	// If request has already been flagged as bad don't continue
 	switch (req.getStatus()) {
 		case RequestStatus::Invalid:
-		case RequestStatus::IdleTimeout:
 			_statusCode = BadRequest;
 		break;
 		case RequestStatus::RecvTimeout:
@@ -190,11 +189,11 @@ void	Response::formResponse()
  */
 static std::string const	&getResponsePageContent(std::string const &key, Config const &conf)
 {
-	// Check in error page routes if the key is an error page
-	if (key.length() == 3 && std::all_of(key.begin(), key.end(), isdigit) && key[0] == '4') {
-		auto	it = conf.error_pages.find(key);
+	// Check status pages if the key is a three digit number
+	if (key.length() == 3 && std::all_of(key.begin(), key.end(), isdigit)) {
+		auto	it = conf.status_pages.find(key);
 
-		if (it != conf.error_pages.end() && resourceExists(it->second))
+		if (it != conf.status_pages.end() && resourceExists(it->second))
 			return Pages::getPageContent(getAbsPath(it->second));
 	} else {	// Othewise check normal routes
 		auto	it = conf.routes.find(key);
