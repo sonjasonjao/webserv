@@ -5,8 +5,10 @@
 #include <sstream>
 #include <filesystem>
 #include <cstdint>
+#include <cctype>
 #include <string>
 #include <vector>
+#include <stack>
 #include <map>
 
 #include "CustomException.hpp"
@@ -103,4 +105,8 @@ class Parser {
        //std::string getValueBykey(const Token& root, const std::string& key, TokenType type);
 
        std::vector<std::string> getCollectionBykey(const Token& root, const std::string& key);
+
+       bool isValidJSONString(std::string_view sv);
+
+       bool isPrimitiveValue(std::string_view sv);
 };

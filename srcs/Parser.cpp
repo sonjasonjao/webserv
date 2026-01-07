@@ -79,6 +79,12 @@ void Parser::tokenizeFile(void) {
             line.clear();
         }
     }
+
+    // JSON string validation
+    if(!isValidJSONString(output)) {
+        throw std::runtime_error("Incorrect confirguartion !");
+    }
+
     // create Token AST for validation
     Token root = createToken(output);
     // buliding configuration struct vector to holds all the configuration data
@@ -155,6 +161,11 @@ Config Parser::convertToServerData(const Token& block) {
     return (config);
 }
 
+/**
+ * this fucntion extract collection of values from the AST and created a vector of strings
+ * @param root, key block of data in the AST need to convert
+ * @return vector of strings 
+*/
 std::vector<std::string> Parser::getCollectionBykey(const Token& root, const std::string& key) {
     std::vector<std::string> collection;
     for(auto item : root.children) {
@@ -168,4 +179,136 @@ std::vector<std::string> Parser::getCollectionBykey(const Token& root, const std
         }
     }
     return (collection);
-}   
+}
+
+/**
+ * this function will check and return if a string is a valid JSON string in respcet of
+ * brackets, quotes, sperators and primitive values
+ */
+bool Parser::isValidJSONString(std::string_view sv) {
+    std::stack<char> brackets;
+    std::string buffer;
+
+    bool inQuotes = false;
+    char prevChar = '\0';
+    
+    for(size_t i = 0; i < sv.size(); ++i) {
+        char c = sv[i];
+
+        /**
+         * if there is double quotes with out escape charater, then will toggle
+         * inQuotes
+        */
+        if(c == '"' && prevChar != '\\') {
+            inQuotes = !inQuotes;
+            prevChar = c;
+            continue;
+        }
+
+        /**
+         * if already inside the quotes any character is allowed, 
+         * simply update the previous char and continue
+        */
+        if(inQuotes) {
+            prevChar = c;
+            continue;
+        }
+
+        /**
+         * isolating sperators
+        */
+        bool isSperator = (std::isspace(c) || c == ':' || c == ',' || c == '}' || c == ']');
+
+        /**
+         * check for valid values that are not expected to surrounded by quotes
+        */
+        if(isSperator && !buffer.empty()) {
+            if(!isPrimitiveValue(buffer)) {
+                std::cerr << "Error: Invalid value format -> " << buffer << "\n";
+                return false;
+            }
+            buffer.clear();
+        }
+        
+        /**
+         * all the isspace characters even outside the double quotes will skip 
+        */
+        if(std::isspace(c)) {
+            prevChar = c;
+            continue;
+        }
+
+        switch (c)
+        {
+            case '{':
+                brackets.push(c);
+                break;
+            case '[':
+                brackets.push(c);
+                break;
+            case '}':
+                if( brackets.empty() || brackets.top() != '{') {
+                    return (false);
+                } else {
+                    brackets.pop();
+                }
+                break;
+            case ']':
+                if( brackets.empty() || brackets.top() != '[') {
+                    return (false);
+                } else {
+                    brackets.pop();
+                }
+                break;
+            case ':': // allowing to have contiguous ':' for IPv6 validation 
+                if(prevChar == ',') {
+                    return (false);
+                }
+                break;
+            case ',':
+                if(prevChar == ':' || prevChar == ',') {
+                    return (false);
+                }
+                break;
+            default:
+                buffer += c;
+                break;
+        }
+        prevChar = c;
+    }
+
+    if(inQuotes) {
+        std::cerr << "Un-closed double quotations !\n";
+        return (false);
+    }
+
+    if(!brackets.empty()) {
+        std::cerr << "Un-closed brackets " << brackets.top() << "!\n";
+        return (false);
+    }
+    return (true);
+  
+}
+
+/**
+ * this fucntion will check if a given string is a valid primitive value
+ * an integer, a fractional value, IPv4 or IPv6 address, true or false
+*/
+bool Parser::isPrimitiveValue(std::string_view sv) {
+     if(sv.empty()) {
+        return (true);
+    }
+
+    if(sv == "true" || sv == "false") {
+        return (true);
+    }
+
+    for(size_t i = 0; i < sv.size(); ++i) {
+        char c = sv[i];
+        if ((c != '.' || c != '+' || c != '-' || !std::isdigit(c))) {
+            return (false);
+        }
+    }
+
+    return (true);
+}

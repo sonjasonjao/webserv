@@ -21,7 +21,7 @@ int	main(int argc, char **argv)
 		Config config = parser.getServerConfig(0);
 		std::cout << "\nHost		: " << config.host << "\n";
 		std::cout << "Host Name	: " << config.host_name << "\n";
-		std::cout << "Listen		: " << config.ports.at(0) << "\n\n";
+		std::cout << "Listen		: " << config.port << "\n\n";
 		Server	server(parser);
 		Pages::loadDefaults();
 		server.run();
