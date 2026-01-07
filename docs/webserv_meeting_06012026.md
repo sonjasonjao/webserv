@@ -1,0 +1,23 @@
+# Currently in the works
+- Routes and making response forming more robust
+- Connecting autoindexing and directory listing to the conf
+- POST request & CGI intergration into the current code
+- Request parsing update with one config per port
+- Make timeouts more robust
+- Fix for possible new error with partial request detection
+# Coming/still missing
+- Size limits for requests (headers and body) and sending
+- File upload, access of uploaded files, deleting uploaded files
+	- Have to adapt caching to work with deleting files
+- More robust defaults
+- Clear mandatory fields, and validation
+- Testing testing testing
+	- Look for errors everywhere (empty input, bad input, timeouts etc.)
+- More pages, more error codes
+	- Server error 500 must be implemented just in case
+- Create default configuration file at some wise path
+- For uploads figure out how to define upload folder (specific mapping in config, or default if given one doesn't work, or nothing specified)
+- Implementation of DELETE method
+- Add port validation, preferably in the config file
+- Configuration file validation
+	- Missing brackets, wrong or missing values, valid port numbers, possible overflows

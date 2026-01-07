@@ -9,32 +9,31 @@ std::unordered_map<std::string, std::string const *>	Pages::cacheMap;
 size_t													Pages::cacheSize = 0;
 
 constexpr static char const * const	DEFAULT200	= \
-R"(
-<!DOCTYPE html>
+R"(<!DOCTYPE html>
 <html>
 	<head>
 	</head>
 	<body>
-		<p>200: OK</p>
+		<h1>200: OK</h1>
+		<p>Default fallback page</p>
 	</body>
 </html>
 )";
 
 constexpr static char const * const	DEFAULT204	= \
-R"(
-<!DOCTYPE html>
+R"(<!DOCTYPE html>
 <html>
 	<head>
 	</head>
 	<body>
-		<p>204: no content</p>
+		<h1>204: No Content</h1>
+		<p>Default fallback page</p>
 	</body>
 </html>
 )";
 
 constexpr static char const * const	DEFAULT400	= \
-R"(
-<!DOCTYPE html>
+R"(<!DOCTYPE html>
 <html>
 	<head>
 		<style>
@@ -57,14 +56,14 @@ R"(
 		</style>
 	</head>
 	<body>
-		<p>400: bad request</p>
+		<h1>400: Bad Request</h1>
+		<p>Default fallback page</p>
 	</body>
 </html>
 )";
 
 constexpr static char const * const	DEFAULT404	= \
-R"(
-<!DOCTYPE html>
+R"(<!DOCTYPE html>
 <html>
 	<head>
 		<style>
@@ -87,7 +86,32 @@ R"(
 		</style>
 	</head>
 	<body>
-		<p>404: resource not found</p>
+		<h1>404: Resource Not Found</h1>
+		<p>Default fallback page</p>
+	</body>
+</html>
+)";
+
+constexpr static char const * const	DEFAULT408	= \
+R"(<!DOCTYPE html>
+<html>
+	<head>
+	</head>
+	<body>
+		<h1>408: Request Timeout</h1>
+		<p>Default fallback page</p>
+	</body>
+</html>
+)";
+
+constexpr static char const * const	DEFAULT500	= \
+R"(<!DOCTYPE html>
+<html>
+	<head>
+	</head>
+	<body>
+		<h1>500: Internal Server Error</h1>
+		<p>Default fallback page</p>
 	</body>
 </html>
 )";
@@ -99,6 +123,8 @@ void	Pages::loadDefaults()
 	defaultPages["default204"] = DEFAULT204;
 	defaultPages["default400"] = DEFAULT400;
 	defaultPages["default404"] = DEFAULT404;
+	defaultPages["default408"] = DEFAULT408;
+	defaultPages["default500"] = DEFAULT500;
 }
 
 bool	Pages::isCached(std::string const &key)

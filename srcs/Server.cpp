@@ -237,7 +237,7 @@ void	Server::handleClientData(size_t& i)
 
 	buf[numBytes] = '\0';
 	INFO_LOG("Received client data from fd " + std::to_string(_pfds[i].fd));
-	std::cout << "\n---- Request data ----\n" << buf << '\n';
+	std::cout << "\n---- Request data ----\n" << buf << "----------------------\n\n";
 
 	if (!_clients.empty())
 	{
@@ -277,10 +277,11 @@ void	Server::handleClientData(size_t& i)
 
 			INFO_LOG("Building response to client fd " + std::to_string(_pfds[i].fd));
 
-			Config	 const &tmp = matchConfig(*it);
-			DEBUG_LOG("Matched config: " + tmp.host + " " + tmp.host_name + " " + std::to_string(tmp.ports[0]));
+			Config const	&conf = matchConfig(*it);
 
-			_responses[_pfds[i].fd].emplace_back(Response(*it));
+			DEBUG_LOG("Matched config: " + conf.host + " " + conf.host_name + " " + std::to_string(conf.ports[0]));
+
+			_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
 			it->reset();
 			it->setStatus(RequestStatus::ReadyForResponse);
 			_pfds[i].events |= POLLOUT;
@@ -360,7 +361,6 @@ void	Server::sendResponse(size_t& i)
 		return ;
 	}
 	if (it->getStatus() != RequestStatus::ReadyForResponse
-		&& it->getStatus() != RequestStatus::IdleTimeout
 		&& it->getStatus() != RequestStatus::RecvTimeout)
 		return ;
 
@@ -425,12 +425,12 @@ void	Server::checkTimeouts(void)
 				throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 					+ std::to_string(_pfds[i].fd)));
 			it->checkReqTimeouts();
-			if (it->getStatus() == RequestStatus::IdleTimeout
-				|| it->getStatus() == RequestStatus::RecvTimeout) {
-				_responses[_pfds[i].fd].emplace_back(Response(*it));
+			if (it->getStatus() == RequestStatus::RecvTimeout) {
+				_responses[_pfds[i].fd].emplace_back(Response(*it, matchConfig(*it)));
 				sendResponse(i);
 			}
-			if (it->getStatus() == RequestStatus::SendTimeout) {
+			if (it->getStatus() == RequestStatus::SendTimeout
+				|| it->getStatus() == RequestStatus::IdleTimeout) {
 				removeClientFromPollFds(i);
 				INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 				_clients.erase(it);
