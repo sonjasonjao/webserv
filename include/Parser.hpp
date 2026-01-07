@@ -96,6 +96,8 @@ class Parser {
         */
        const Config& getServerConfig(size_t index);
 
+	   const std::vector<Config>	&getServerConfigs(void) const;
+
        size_t getNumberOfServerConfigs(void);
 
        Config convertToServerData(const Token& server);
