@@ -360,7 +360,6 @@ void	Server::sendResponse(size_t& i)
 		return ;
 	}
 	if (it->getStatus() != RequestStatus::ReadyForResponse
-		&& it->getStatus() != RequestStatus::IdleTimeout
 		&& it->getStatus() != RequestStatus::RecvTimeout)
 		return ;
 
@@ -425,12 +424,12 @@ void	Server::checkTimeouts(void)
 				throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 					+ std::to_string(_pfds[i].fd)));
 			it->checkReqTimeouts();
-			if (it->getStatus() == RequestStatus::IdleTimeout
-				|| it->getStatus() == RequestStatus::RecvTimeout) {
+			if (it->getStatus() == RequestStatus::RecvTimeout) {
 				_responses[_pfds[i].fd].emplace_back(Response(*it));
 				sendResponse(i);
 			}
-			if (it->getStatus() == RequestStatus::SendTimeout) {
+			if (it->getStatus() == RequestStatus::IdleTimeout
+				|| it->getStatus() == RequestStatus::SendTimeout) {
 				removeClientFromPollFds(i);
 				INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 				_clients.erase(it);
