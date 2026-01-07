@@ -87,6 +87,7 @@ void Parser::tokenizeFile(void) {
 
     // create Token AST for validation
     Token root = createToken(output);
+
     // buliding configuration struct vector to holds all the configuration data
     // configuration file hould conatins at least one srever configuration
     // anything other than "server" as the key will throw an error 
@@ -103,9 +104,13 @@ void Parser::tokenizeFile(void) {
                         // add port one by one and create a copy of config
                         if(!collection.empty()) {
                             for(auto item : collection) {
-                                auto port = std::stoi(item);
-                                config.port = port;
-                                _server_configs.emplace_back(config);
+                                if(!isValidPort(item)) {
+                                    _server_configs.clear();
+                                    throw std::runtime_error("Invalid port value !");
+                                } else {
+                                    config.port = std::stoi(item);
+                                    _server_configs.emplace_back(config);
+                                }
                             }
                         }
                     }
@@ -150,7 +155,11 @@ Config Parser::convertToServerData(const Token& block) {
         std::string key = getKey(item);
         if(key == "host") {
             if(item.children.size() > 1) {
-                config.host = item.children.at(1).value;
+                std::string str = item.children.at(1).value;
+                if(!isValidIPv4(str)) {
+                    throw std::runtime_error("Invalid IPv4 address value !");
+                } 
+                config.host = str;
             }
         } else if (key == "host_name") {
             if(item.children.size() > 1) {
@@ -305,7 +314,9 @@ bool Parser::isPrimitiveValue(std::string_view sv) {
 
     for(size_t i = 0; i < sv.size(); ++i) {
         char c = sv[i];
-        if ((c != '.' || c != '+' || c != '-' || !std::isdigit(c))) {
+        if (c == '.' || c == '+' || c == '-' || std::isdigit(c)) {
+            continue;
+        } else {
             return (false);
         }
     }

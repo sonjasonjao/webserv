@@ -3,17 +3,17 @@
         {
             "host"      : "127.0.0.1",
             "host_name" : "localhost",
-            "listen"    : ["8081"]
+            "listen"    : [8081]
         },
         {
             "host"      : "127.0.0.1",
             "host_name" : "www.test.com",
-            "listen"    : ["8081"]
+            "listen"    : [8081]
         },
         {
             "host"      : "127.0.0.1",
             "host_name" : "www.webserv.com",
-            "listen"    : ["2025", "2026", "2027", "2028", "2029"]
+            "listen"    : [2025, 2026, 2027, 2028, -2029]
         }
     ]
 }

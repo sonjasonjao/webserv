@@ -36,6 +36,8 @@ std::string typeToString(TokenType type) {
             return ("Object");
         case (TokenType::Value):
             return ("Value");
+        case (TokenType::Primitive):
+            return ("Primitive");
         case (TokenType::Null):
             return ("Null");
     }
@@ -120,7 +122,7 @@ TokenType getTokenType(const std::string& str) {
     if(str.front() == '"' && str.back() == '"') {
         return (TokenType::Value);
     }
-    return (TokenType::Identifier);
+    return (TokenType::Primitive);
 }
 
 /**
@@ -230,6 +232,11 @@ Token createToken(const std::string& str) {
     if(type == TokenType::Value) {
         token.type = TokenType::Value;
         token.value = removeQuotes(str);
+    }
+
+    if(type == TokenType::Primitive) {
+        token.type = TokenType::Primitive;
+        token.value = str;
     }
 
     return (token);
