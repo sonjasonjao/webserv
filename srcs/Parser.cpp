@@ -124,7 +124,7 @@ size_t Parser::getNumberOfServerConfigs(void) {
 }
 
 /**
- * this fucntion will conver a server data token to a server data struct
+ * this function will convert a server data token to a server data struct
  *
  * @param server	block of data in the AST need to convert
  *
