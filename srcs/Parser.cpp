@@ -124,11 +124,11 @@ size_t Parser::getNumberOfServerConfigs(void) {
 }
 
 /**
- * this fucntion will conver a server data token to a server data struct
+ * this function will convert a server data token to a server data struct
  *
  * @param server	block of data in the AST need to convert
  *
- * @return	value of the config create on the fly, will recreate the similar
+ * @return	value of the config created on the fly, will recreate the similar
  *			data int the respective vector, temporary data so no reference
 */
 Config Parser::convertToServerData(const Token& server) {
@@ -137,45 +137,40 @@ Config Parser::convertToServerData(const Token& server) {
 
 	DEBUG_LOG("\tConverting server config tokens to server data");
     for (auto item : server.children) {
+
         std::string key = getKey(item);
+
+		if (item.children.size() < 2)
+			continue;
+
         if (key == "host") {
-            if (item.children.size() > 1) {
-				DEBUG_LOG("\t\tAdding host " + item.children.at(1).value);
-                config.host = item.children.at(1).value;
-            }
+			DEBUG_LOG("\t\tAdding host " + item.children.at(1).value);
+			config.host = item.children.at(1).value;
         } else if (key == "host_name") {
-            if (item.children.size() > 1) {
-				DEBUG_LOG("\t\tAdding host_name " + item.children.at(1).value);
-                config.host_name = item.children.at(1).value;
-            }
+			DEBUG_LOG("\t\tAdding host_name " + item.children.at(1).value);
+			config.host_name = item.children.at(1).value;
         } else if (key == "listen") {
-            if (item.children.size() > 1) {
-                for (auto p : item.children.at(1).children) {
-					DEBUG_LOG("\t\tAdding listening port " + std::to_string(std::atoi(p.value.c_str())));
-                    config.ports.emplace_back(
-                        std::atoi(p.value.c_str())
-                    );
-                }
-            }
+			for (auto p : item.children.at(1).children) {
+				DEBUG_LOG("\t\tAdding listening port " + std::to_string(std::atoi(p.value.c_str())));
+				config.ports.emplace_back(
+					std::atoi(p.value.c_str())
+				);
+			}
         } else if (key == "status_pages") {
-			if (item.children.size() > 1) {
-				for (auto e : item.children.at(1).children) {
-					if (e.children.size() < 2 || e.children.at(1).type != TokenType::Value)
-						continue;
-					DEBUG_LOG("\t\tMapping status page "
-								+ std::to_string(std::stoi(e.children.at(0).value))
-								+ " to " + e.children.at(1).value);
-					config.status_pages[e.children.at(0).value] = e.children.at(1).value;
-				}
+			for (auto e : item.children.at(1).children) {
+				if (e.children.size() < 2 || e.children.at(1).type != TokenType::Value)
+					continue;
+				DEBUG_LOG("\t\tMapping status page "
+							+ std::to_string(std::stoi(e.children.at(0).value))
+							+ " to " + e.children.at(1).value);
+				config.status_pages[e.children.at(0).value] = e.children.at(1).value;
 			}
 		} else if (key == "routes") {
-			if (item.children.size() > 1) {
-				for (auto r : item.children.at(1).children) {
-					if (r.children.size() < 2 || r.children.at(1).type != TokenType::Value)
-						continue;
-					DEBUG_LOG("\t\tAdding route " + r.children.at(0).value + " -> " + r.children.at(1).value);
-					config.routes[r.children.at(0).value] = r.children.at(1).value;
-				}
+			for (auto r : item.children.at(1).children) {
+				if (r.children.size() < 2 || r.children.at(1).type != TokenType::Value)
+					continue;
+				DEBUG_LOG("\t\tAdding route " + r.children.at(0).value + " -> " + r.children.at(1).value);
+				config.routes[r.children.at(0).value] = r.children.at(1).value;
 			}
 		}
     }
