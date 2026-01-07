@@ -1,7 +1,7 @@
 # Currently in the works
 - Routes and making response forming more robust
 - Connecting autoindexing and directory listing to the conf
-- POST request & CGI intergration into the current code
+- POST request & CGI integration into the current code
 - Request parsing update with one config per port
 - Make timeouts more robust
 - Fix for possible new error with partial request detection
