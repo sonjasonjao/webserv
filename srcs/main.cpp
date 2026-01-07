@@ -17,13 +17,13 @@ int	main(int argc, char **argv)
 
 	std::string	confFile 	= "./config_files/test.json"; // default configuration file
 
-	// exactly 02 arguments then second argument becomw the configuration file
+	// no arguments provided, use default configuration
 	if (argc == 1) {
 		std::cout << "No Config file provided, using default : " << confFile <<  "\n";
 		std::cout << "WARNING : No Log file provided!" << "\n\n";
 	}
 
-	// exactly 02 arguments then second argument becomw the configuration file
+	// exactly 02 arguments: second argument becomes the configuration file
 	if (argc == 2) {
 		std::cout << "WARNING : No Log file provided!" << "\n\n";
 		confFile = argv[1];
@@ -39,7 +39,7 @@ int	main(int argc, char **argv)
 			size_t configCount = parser.getNumberOfServerConfigs();
 
 			std::cout << "\n--- Active servers ---\n\n";
-			std::cout << "No of active srever : " << configCount << "\n";
+			std::cout << "No of active servers: " << configCount << "\n";
 			
 			for (size_t i = 0; i < configCount; ++i) {
 				Config config = parser.getServerConfig(i);

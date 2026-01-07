@@ -199,6 +199,11 @@ Config Parser::convertToServerData(const Token& block) {
         }
 
         if (key == "status_pages") {
+            
+            if(item.children.size() < 2) {
+                continue;
+            }
+            
 			for (auto e : item.children.at(1).children) {
 				if (e.children.size() < 2 || e.children.at(1).type != TokenType::Value)
 					continue;
@@ -210,7 +215,12 @@ Config Parser::convertToServerData(const Token& block) {
         }
         
 		if (key == "routes") {
-			for (auto r : item.children.at(1).children) {
+            
+            if(item.children.size() < 2) {
+                continue;
+            }
+			
+            for (auto r : item.children.at(1).children) {
 				if (r.children.size() < 2 || r.children.at(1).type != TokenType::Value)
 					continue;
 				DEBUG_LOG("\t\tAdding route " + r.children.at(0).value + " -> " + r.children.at(1).value);
