@@ -12,29 +12,35 @@
 #include <fcntl.h>
 #include <cstring>
 
+volatile sig_atomic_t	g_endSignal = false;
+
 using ReqIter = std::vector<Request>::iterator;
 
 /**
- * At construction, _configs will be fetched from parser.
- *
- * For now, we manually fetch the three configs that test.json/servergrups.json has, and move on
- * to group the configs.
+ * Handles SIGINT signal by updating the value of global endSignal variable (to stop poll() loop
+ * and eventually close the server).
+ */
+void	handleSignal(int sig)
+{
+	g_endSignal = sig;
+}
+
+/**
+ * At construction, server starts listening to SIGINT, and _configs will be fetched from parser.
  */
 Server::Server(Parser& parser)
 {
-	//_configs = parser.getConfigs();
-	Config tmp = parser.getServerConfig(0);
-	_configs.emplace_back(tmp);
-	tmp = parser.getServerConfig(1);
-	_configs.emplace_back(tmp);
-	tmp = parser.getServerConfig(2);
-	_configs.emplace_back(tmp);
+	signal(SIGINT, handleSignal);
+	_configs = parser.getServerConfigs();
 	groupConfigs();
 }
 
 /**
  * Looks through existing serverGroups and checks whether any of them shares the same
  * IP and port with this current config.
+ *
+ * Ports will be replaced with a single port, as parser will create a unique config for each
+ * port in case one IP has many.
  */
 bool	Server::isGroupMember(Config& conf)
 {
@@ -65,16 +71,6 @@ void	Server::groupConfigs(void)
 			_serverGroups.emplace_back(newServGroup);
 		}
 	}
-}
-
-/**
- * This needs to be checked: can we loop through the fds, and how to avoid closing
- * something that's not open?
- */
-void	Server::closePfds(void)
-{
-	for (auto it = _pfds.begin(); it != _pfds.end(); it++)
-		close(it->fd);
 }
 
 /**
@@ -155,21 +151,26 @@ void	Server::createServerSockets(void)
 }
 
 /**
- * Calls getServerSockets() to create listener sockets, starts poll() loop.
+ * Calls getServerSockets() to create listener sockets, starts poll() loop. If a signal is detected,
+ * it gets caught with poll returning -1 with errno set to EINTR --> continues to next loop round,
+ * on which endSignal won't be false, and loop will finish.
  */
 void	Server::run(void)
 {
 	createServerSockets();
-	while (true)
+	while (g_endSignal == false)
 	{
 		int	pollCount = poll(_pfds.data(), _pfds.size(), POLL_TIMEOUT);
 		if (pollCount < 0)
 		{
-			closePfds();
+			if (errno == EINTR)
+				continue ;
 			throw std::runtime_error(ERROR_LOG("poll: " + std::string(strerror(errno))));
 		}
 		handleConnections();
 	}
+	if (g_endSignal == SIGINT)
+		INFO_LOG("Server closed with SIGINT signal");
 }
 
 /**
@@ -184,15 +185,11 @@ void	Server::handleNewClient(int listener)
 
 	clientFd = accept(listener, (struct sockaddr*)&newClient, &addrLen);
 	if (clientFd < 0)
-	{
-		closePfds();
 		throw std::runtime_error(ERROR_LOG("accept: " + std::string(strerror(errno))));
-	}
 
 	if (fcntl(clientFd, F_SETFL, O_NONBLOCK) < 0)
 	{
 		close(clientFd);
-		closePfds();
 		throw std::runtime_error(ERROR_LOG("fcntl: " + std::string(strerror(errno))));
 	}
 
@@ -205,6 +202,11 @@ void	Server::handleNewClient(int listener)
 /**
  * Receives data from the client that poll() has recognized ready. Message (= request)
  * will be parsed and response formed.
+ *
+ * If buffer initially had more than one complete request, and so it's not empty after handling
+ * one request, request handling loop continues, multiple responses will be formed and put into
+ * the response queue. But if the current request has _keepAlive set to false, possible remaining
+ * data in buffer will not be handled.
  */
 void	Server::handleClientData(size_t& i)
 {
@@ -245,7 +247,8 @@ void	Server::handleClientData(size_t& i)
 			throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 				+ std::to_string(_pfds[i].fd)));
 
-		it->setRecvStart(); // do we want to reset the timer with every recv() or only when a new request is coming?
+		it->setIdleStart();
+		it->setRecvStart();
 		it->saveRequest(std::string(buf));
 
 		while (!(it->getBuffer().empty()))
@@ -277,10 +280,12 @@ void	Server::handleClientData(size_t& i)
 			Config	 const &tmp = matchConfig(*it);
 			DEBUG_LOG("Matched config: " + tmp.host + " " + tmp.host_name + " " + std::to_string(tmp.ports[0]));
 
-			_responses[_pfds[i].fd].emplace_back(Response(*it)); //should config be sent to response?
+			_responses[_pfds[i].fd].emplace_back(Response(*it));
 			it->reset();
 			it->setStatus(RequestStatus::ReadyForResponse);
 			_pfds[i].events |= POLLOUT;
+			if (!it->getKeepAlive())
+				break;
 		}
 	}
 }
@@ -340,11 +345,12 @@ void	Server::removeClientFromPollFds(size_t& i)
 }
 
 /**
- * Sets the starting time for send timeout tracking and calls sendToClient() to send the response.
- * If the response was completely sent with one call, resets the send timeout tracker to 0, removes
- * POLLOUT from  events, and in case of keepAlive being false, disconnects and removes the client.
- * Finally removes sent response from _responses and in case of keepAlive, sets client status back
- * to default.
+ * Loops through all responses in the current client's response queue (in order of received requests)
+ * and for each response, sets the starting time for send timeout tracking and calls sendToClient().
+ * If the response was completely sent with one call,  removes sent response from _response queue and
+ * resets the send timeout tracker to 0. When response queue is emptied, removes POLLOUT from  events.
+ * In case of keepAlive being false, disconnects and removes the client; in case of keepAlive, sets
+ * client status back to default.
  */
 void	Server::sendResponse(size_t& i)
 {
@@ -353,24 +359,27 @@ void	Server::sendResponse(size_t& i)
 		ERROR_LOG("Could not find a response to send to this client");
 		return ;
 	}
-
 	if (it->getStatus() != RequestStatus::ReadyForResponse
+		&& it->getStatus() != RequestStatus::IdleTimeout
 		&& it->getStatus() != RequestStatus::RecvTimeout)
 		return ;
 
-	auto	&res = _responses.at(_pfds[i].fd).front();
-
-	INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
-	it->setSendStart();
-	res.sendToClient();
-	if (!res.sendIsComplete())
+	for (auto res = _responses.at(_pfds[i].fd).begin(); _responses.at(_pfds[i].fd).size() > 0; res++)
 	{
-		INFO_LOG("Response partially sent, waiting for server to complete response sending");
-		return ;
-	}
+		INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
+		it->setIdleStart();
+		it->setSendStart();
+		res->sendToClient();
+		if (!res->sendIsComplete())
+		{
+			INFO_LOG("Response partially sent, waiting for server to complete response sending");
+			return ;
+		}
 
-	it->resetSendStart();
-	int	tmp = _pfds[i].fd;
+		_responses.at(_pfds[i].fd).pop_front();
+
+		it->resetSendStart();
+	}
 
 	_pfds[i].events &= ~POLLOUT;
 
@@ -382,12 +391,9 @@ void	Server::sendResponse(size_t& i)
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 		_clients.erase(it);
 
-		_responses.at(tmp).pop_front();
-
 		return ;
 	}
 	it->resetKeepAlive();
-	_responses.at(tmp).pop_front();
 	it->setStatus(RequestStatus::WaitingData);
 }
 
@@ -405,10 +411,10 @@ ReqIter	Server::getRequestByFd(int fd)
 }
 
 /**
- * On each poll round, checks whether any of the clients have experienced request or response
- * timeout. If a request receiving timeout occurs, calls Response constructor to form an error
- * page response, and sendResponse to send it and to disconnect client. In case of send timeout,
- * client is disconnected without sending a response (need to double check if that should happen!).
+ * On each poll round, checks whether any of the clients have experienced idle, receive, or
+ * send timeout. If an idle or receive timeout occurs, calls Response constructor to
+ * form an error page response, and sendResponse to send it and to disconnect client. In
+ * case of send timeout, client is disconnected without sending a response.
  */
 void	Server::checkTimeouts(void)
 {
@@ -419,7 +425,8 @@ void	Server::checkTimeouts(void)
 				throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 					+ std::to_string(_pfds[i].fd)));
 			it->checkReqTimeouts();
-			if (it->getStatus() == RequestStatus::RecvTimeout) {
+			if (it->getStatus() == RequestStatus::IdleTimeout
+				|| it->getStatus() == RequestStatus::RecvTimeout) {
 				_responses[_pfds[i].fd].emplace_back(Response(*it));
 				sendResponse(i);
 			}
@@ -454,7 +461,7 @@ bool	Server::isServerFd(int fd)
  * incoming request. If the fd that had a new event is one of the server fds, it's a new client
  * wanting to connect to that server. If it's not a server fd, it is an existing client that has
  * sent data. Thirdly tracks POLLOUT to recognize when server has a response ready to be sent to
- * that client. Fourthly, goes to check all client fds for request or response timeout.
+ * that client. Fourthly, goes to check all client fds for timeouts.
  */
 void	Server::handleConnections(void)
 {
@@ -484,7 +491,11 @@ std::vector<Config> const&	Server::getConfigs() const
 	return _configs;
 }
 
+/**
+ * At destruction, all file descriptors in _pfds will be closed.
+ */
 Server::~Server()
 {
-	closePfds();
+	for (auto it = _pfds.begin(); it != _pfds.end(); it++)
+		close(it->fd);
 }

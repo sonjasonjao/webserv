@@ -16,6 +16,7 @@ constexpr char const * const	CRLF = "\r\n";
 Request::Request(int fd, int serverFd) : _fd(fd), _serverFd(serverFd), _keepAlive(false), _chunked(false), _completeHeaders(false) {
 	_request.method = RequestMethod::Unknown;
 	_status = RequestStatus::WaitingData;
+	_idleStart = std::chrono::high_resolution_clock::now();
 	_recvStart = {};
 	_sendStart = {};
 	_request.httpVersion = "HTTP/1.1";
@@ -30,11 +31,15 @@ void	Request::saveRequest(std::string const& buf) {
 
 /**
  * Checks whether the buffer so far includes "\r\n\r\n". If not, and the headers section hasn't
- * been received completely (ending with "\r\n\r\n"), we assume the request is partial.
+ * been received completely (ending with "\r\n\r\n"), we assume the request is partial. In that
+ * case, Host header is filled, so if the completing part of request never arrives, Host is
+ * available for error page response forming.
  */
 void	Request::handleRequest(void) {
-	if (_buffer.find("\r\n\r\n") == std::string::npos && !_completeHeaders)
+	if (_buffer.find("\r\n\r\n") == std::string::npos && !_completeHeaders) {
+		fillHost();
 		_status = RequestStatus::WaitingData;
+	}
 	else
 		parseRequest();
 }
@@ -66,16 +71,24 @@ void	Request::resetKeepAlive(void) {
 
 /**
  * In handleConnections, each client fd is checked for possible timeouts by comparing
- * the stored _recvStart and _sendStart with the current time stamp. Helper variable init is
- * used to check whether _recvStart or _sendStart has ever been updated after the initialization
- * to zero.
+ * the stored _idleStart, _recvStart, and _sendStart with the current time stamp. Helper
+ * variable init is used to check whether _recvStart or _sendStart has ever been updated
+ * after the initialization to zero.
  */
 void	Request::checkReqTimeouts(void) {
 	auto		now = std::chrono::high_resolution_clock::now();
-	auto		diff = now - _recvStart;
+	auto		diff = now - _idleStart;
 	auto		durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	timePoint	init = {};
-	if (_recvStart != init && durMs.count() > REQ_TIMEOUT) {
+	if (durMs.count() > IDLE_TIMEOUT) {
+		_status = RequestStatus::IdleTimeout;
+		DEBUG_LOG("Idle timeout with client fd " + std::to_string(_fd));
+		_keepAlive = false;
+		return ;
+	}
+	diff = now - _recvStart;
+	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
+	if (_recvStart != init && durMs.count() > RECV_TIMEOUT) {
 		_status = RequestStatus::RecvTimeout;
 		DEBUG_LOG("Recv timeout with client fd " + std::to_string(_fd));
 		_keepAlive = false;
@@ -83,7 +96,7 @@ void	Request::checkReqTimeouts(void) {
 	}
 	diff = now - _sendStart;
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
-	if (_sendStart != init && durMs.count() > RESP_TIMEOUT) {
+	if (_sendStart != init && durMs.count() > SEND_TIMEOUT) {
 		_status = RequestStatus::SendTimeout;
 		DEBUG_LOG("Send timeout with client fd " + std::to_string(_fd));
 		_keepAlive = false;
@@ -143,7 +156,7 @@ void	Request::parseRequest(void) {
 		_buffer.clear();
 		return ;
 	}
-	if (_buffer.empty() && !_contentLen.has_value() && !_chunked)
+	if (!_contentLen.has_value() && !_chunked)
 		_status = RequestStatus::CompleteReq;
 	else if (!_buffer.empty() && (_contentLen.has_value() && _body.size() < _contentLen.value())) {
 		size_t	missingLen = _contentLen.value() - _body.size();
@@ -261,8 +274,11 @@ void	Request::parseHeaders(std::string& str) {
 			}
 			std::istringstream	values(value);
 			std::string	oneValue;
-			while (getline(values, oneValue, ','))
+			while (getline(values, oneValue, ',')) {
+				if (oneValue[0] == ' ')
+					oneValue = oneValue.substr(1);
 				_headers[key].emplace_back(oneValue);
+			}
 		}
 	}
 	if (!_completeHeaders)
@@ -340,6 +356,35 @@ void	Request::parseChunked(void) {
 	}
 }
 
+bool	Request::fillKeepAlive(void) {
+	auto	it = _headers.find("connection");
+	bool	hasClose, hasKeepAlive = false;
+	if (it != _headers.end()) {
+		for (auto value = it->second.begin(); value != it->second.end(); value++)
+		{
+			if (*value == "close") {
+				hasClose = true;
+			}
+			if (*value == "keep-alive") {
+				hasKeepAlive = true;
+			}
+		}
+		if (hasClose && hasKeepAlive)
+			return false;
+		else if (hasClose)
+			_keepAlive = false;
+		else if (hasKeepAlive)
+			_keepAlive = true;
+	}
+	if (it == _headers.end() || (!hasClose && !hasKeepAlive)) {
+		if (_request.httpVersion == "HTTP/1.1")
+			_keepAlive = true;
+		if (_request.httpVersion == "HTTP/1.0")
+			_keepAlive = false;
+	}
+	return true;
+}
+
 /**
  * Checks if the headers include "host" (considered mandatory), and if unique headers only have one
  * value each (actually now we don't even store most of them, as they are not needed, so will
@@ -354,15 +399,8 @@ bool	Request::validateHeaders(void) {
 		if (values.size() > 1 && isUniqueHeader(key))
 			return false;
 	}
-	it = _headers.find("connection");
-	if (it != _headers.end()) {
-		for (auto con = it->second.begin(); con != it->second.end(); con++) {
-			if (*con == "keep-alive") {
-				_keepAlive = true;
-				break ;
-			}
-		}
-	}
+	if (!fillKeepAlive())
+		return false;
 	it = _headers.find("content-length");
 	if (it != _headers.end()) {
 		try
@@ -527,6 +565,11 @@ void	Request::printData(void) const {
 	std::cout << "	Status?			";
 	printStatus(_status);
 	std::cout << "	Chunked?		" << _chunked << "\n\n";
+}
+
+void	Request::setIdleStart(void) {
+	_idleStart = std::chrono::high_resolution_clock::now();
+	DEBUG_LOG("Fd " + std::to_string(_fd) + " _idleStart set to " + std::to_string(_idleStart.time_since_epoch().count()));
 }
 
 void	Request::setRecvStart(void) {

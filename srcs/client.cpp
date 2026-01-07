@@ -16,7 +16,6 @@
 #include <vector>
 #include <poll.h>
 
-
 /**
  * This is a simple client program to test different cases, such as sending partial requests,
  * chunked requests, etc.
@@ -57,10 +56,10 @@ int main(int argc, char **argv)
 	freeaddrinfo(res);
 	std::vector<pollfd>	pfd;
 	pfd.push_back({ sockfd, POLLOUT, 0 });
-	char msg[61] =
-	"GET / HTTP/1.0\r\nConnection: Keep-alive\r\nHost: www.test.com\r\n";
-	char msg2[66] =
-	"Transfer-encoding: Chunked\r\n\r\n9\r\nThis is b\r\n0F\r\nThis is another\r\n";
+	char msg[70] =
+	"GET / HTTP/1.1\r\nHost: www.test.com\r\n";
+	char msg2[104] =
+	"GET / HTTP/1.0\r\nHost: localhost\r\nTransfer-encoding: Chunked\r\n\r\n9\r\nThis is b\r\n0F\r\nThis is another\r\n0\r\n\r\n";
 	// char msg3[72] =
 	// "POST / HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-length: 15\r\n\r\nWe test this!!!";
 	int		i = 0;
@@ -71,13 +70,13 @@ int main(int argc, char **argv)
 			perror("poll");
 			break ;
 		}
-		if ((pfd[0].revents & POLLOUT) && i < 2) {
+		if ((pfd[0].revents & POLLOUT) && i < 1) {
 			if (i == 0)
 				ret = send(sockfd, msg, strlen(msg), 0);
-			if (i == 1) {
-				ret = send(sockfd, msg2, strlen(msg2), 0);
-				pfd[0].events |= POLLIN;
-			}
+			// if (i == 1) {
+			// 	ret = send(sockfd, msg2, strlen(msg2), 0);
+			pfd[0].events |= POLLIN;
+			// }
 			// if (i == 2) {
 			// 	ret = send(sockfd, msg3, strlen(msg3), 0);
 			// 	pfd[0].events |= POLLIN;

@@ -52,7 +52,6 @@ class Server
 		void			sendResponse(size_t &i);
 		void			checkTimeouts(void);
 		void			handleConnections(void);
-		void			closePfds(void);
 		void			groupConfigs(void);
 		bool			isGroupMember(Config &conf);
 		bool			isServerFd(int fd);

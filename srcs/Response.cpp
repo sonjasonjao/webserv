@@ -12,11 +12,15 @@
 
 constexpr char const * const	CRLF = "\r\n";
 
+/**
+ * Idle and recv timeouts currently cause Bad Request response, but will be differentiated later
+ */
 Response::Response(Request const &req) : _req(req)
 {
 	static std::string	currentDir = std::filesystem::current_path();
 
 	if (req.getStatus() == RequestStatus::Invalid
+		|| req.getStatus() == RequestStatus::IdleTimeout
 		|| req.getStatus() == RequestStatus::RecvTimeout) {
 		// Why isn't it valid? -> Find out!
 
