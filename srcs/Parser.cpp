@@ -82,7 +82,7 @@ void Parser::tokenizeFile(void) {
 
     // JSON string validation
     if(!isValidJSONString(output)) {
-        throw std::runtime_error("Incorrect confirguartion !");
+        throw ParserException("Incorrect configuration!");
     }
 
     // create Token AST for validation
@@ -106,9 +106,9 @@ void Parser::tokenizeFile(void) {
                             for(auto item : collection) {
                                 if(!isValidPort(item)) {
                                     _server_configs.clear();
-                                    throw std::runtime_error("Invalid port value !");
+                                    throw ParserException("Invalid port value!");
                                 } else {
-                                    config.port = std::stoi(item);
+                                    config.port = static_cast<uint16_t>(std::stoi(item));
                                     _server_configs.emplace_back(config);
                                 }
                             }
@@ -117,7 +117,7 @@ void Parser::tokenizeFile(void) {
                 }
             }
         } else {
-            throw std::runtime_error("Incorrect confirguartion !");
+            throw ParserException("Incorrect confirguartion !");
         }
     }
 }
@@ -157,7 +157,7 @@ Config Parser::convertToServerData(const Token& block) {
             if(item.children.size() > 1) {
                 std::string str = item.children.at(1).value;
                 if(!isValidIPv4(str)) {
-                    throw std::runtime_error("Invalid IPv4 address value !");
+                    throw ParserException("Invalid IPv4 address value !");
                 } 
                 config.host = str;
             }
@@ -305,21 +305,23 @@ bool Parser::isValidJSONString(std::string_view sv) {
 */
 bool Parser::isPrimitiveValue(std::string_view sv) {
      if(sv.empty()) {
-        return (true);
+        return (false);
     }
 
     if(sv == "true" || sv == "false") {
         return (true);
     }
 
+    bool hasDigit = false;
+
     for(size_t i = 0; i < sv.size(); ++i) {
         char c = sv[i];
         if (c == '.' || c == '+' || c == '-' || std::isdigit(c)) {
+            if(std::isdigit(c)) hasDigit = true;
             continue;
         } else {
             return (false);
         }
     }
-
-    return (true);
+    return (hasDigit);
 }
