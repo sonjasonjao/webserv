@@ -288,12 +288,12 @@ bool Parser::isValidJSONString(std::string_view sv) {
         /**
          * isolating sperators
         */
-        bool isSperator = (std::isspace(c) || c == ':' || c == ',' || c == '}' || c == ']');
+        bool isSeparator = (std::isspace(c) || c == ':' || c == ',' || c == '}' || c == ']');
 
         /**
          * check for valid values that are not expected to surrounded by quotes
         */
-        if(isSperator && !buffer.empty()) {
+        if(isSeparator && !buffer.empty()) {
             if(!isPrimitiveValue(buffer)) {
                 std::cerr << "Error: Invalid value format -> " << buffer << "\n";
                 return false;
