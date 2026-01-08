@@ -253,7 +253,7 @@ std::vector<std::string> Parser::getCollectionBykey(const Token& root, const std
 }
 
 /**
- * this function will check and return if a string is a valid JSON string in respcet of
+ * this function will check and return if a string is a valid JSON string in respect of
  * brackets, quotes, sperators and primitive values
  */
 bool Parser::isValidJSONString(std::string_view sv) {
