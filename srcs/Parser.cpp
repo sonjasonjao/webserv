@@ -111,10 +111,10 @@ void Parser::tokenizeFile(void) {
                         
                         // add port one by one and create a copy of config
                         if(collection.empty()) {
-                            throw ParserException("Missng ports in config files!");
+                            throw ParserException("Missing ports in config files!");
                         }
                             
-                        for(auto item : collection) {
+                        for(auto& item : collection) {
                             if(!isValidPort(item)) {
                                 _server_configs.clear();
                                 throw ParserException("Invalid port value!");
