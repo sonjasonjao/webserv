@@ -90,7 +90,6 @@ void Parser::tokenizeFile(void) {
      * buliding configuration struct vector to holds all the configuration data
      * configuration file hould conatins at least one server configuration
      * anything other than "server" as the key will throw an error 
-     * buliding configuration struct vector to hold all the configuration data
     */
     for(const auto& node : root.children) {
         // check the if the node is a server block 
