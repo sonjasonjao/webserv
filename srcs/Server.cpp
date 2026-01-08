@@ -194,8 +194,7 @@ void	Server::handleNewClient(int listener)
 	}
 
 	_pfds.push_back({ clientFd, POLLIN, 0 });
-	Request	req(clientFd, listener);
-	_clients.emplace_back(req);
+	_clients.emplace_back(clientFd, listener);
 	INFO_LOG("New client accepted, assigned fd " + std::to_string(clientFd));
 }
 
@@ -361,7 +360,7 @@ void	Server::sendResponse(size_t& i)
 		&& it->getStatus() != RequestStatus::RecvTimeout)
 		return ;
 
-	auto &res = _responses.at(_pfds[i].fd).front();
+	auto	&res = _responses.at(_pfds[i].fd).front();
 
 	INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
 	it->setIdleStart();
@@ -373,6 +372,7 @@ void	Server::sendResponse(size_t& i)
 		return ;
 	}
 
+	DEBUG_LOG("Removing front element of _responses container for fd " + std::to_string(_pfds[i].fd));
 	_responses.at(_pfds[i].fd).pop_front();
 
 	it->resetSendStart();

@@ -40,7 +40,7 @@ private:
 
 	void	formResponse();
 
-	Request const	&_req;
+	Request			_req;
 	Config const	&_conf;
 	strVecMap		_headers;
 	std::string		_target;
