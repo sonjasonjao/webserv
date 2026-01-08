@@ -106,7 +106,7 @@ void Parser::tokenizeFile(void) {
                         // first isolate al the ports related to a server config
                         std::vector<std::string> collection = getCollectionBykey(block, "listen");
                         
-                        // retrive all the other data except ports
+                        // retrieve all the other data except ports
                         Config config = convertToServerData(block);
                         
                         // add port one by one and create a copy of config
