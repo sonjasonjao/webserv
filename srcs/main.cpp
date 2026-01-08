@@ -19,7 +19,7 @@ int	main(int argc, char **argv)
 
 	// no arguments provided, use default configuration
 	if (argc == 1) {
-		std::cout << "No Config file provided, using default : " << confFile <<  "\n";
+		std::cout << "No config file provided, using default : " << confFile <<  "\n";
 		std::cout << "WARNING : No Log file provided!" << "\n\n";
 	}
 
