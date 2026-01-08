@@ -105,8 +105,6 @@ class Parser {
 
        Config convertToServerData(const Token& server);
 
-       //std::string getValueBykey(const Token& root, const std::string& key, TokenType type);
-
        std::vector<std::string> getCollectionBykey(const Token& root, const std::string& key);
 
        bool isValidJSONString(std::string_view sv);
