@@ -266,7 +266,7 @@ bool Parser::isValidJSONString(std::string_view sv) {
         char c = sv[i];
 
         /**
-         * if there is double quotes with out escape charater, then will toggle
+         * if there is double quotes with out escape character, then will toggle
          * inQuotes
         */
         if(c == '"' && prevChar != '\\') {
