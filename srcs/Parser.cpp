@@ -361,7 +361,7 @@ bool Parser::isValidJSONString(std::string_view sv) {
 }
 
 /**
- * this fucntion will check if a given string is a valid primitive value
+ * this function will check if a given string is a valid primitive value
  * an integer, a fractional value, IPv4 or IPv6 address, true or false
 */
 bool Parser::isPrimitiveValue(std::string_view sv) {
