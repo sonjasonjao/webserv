@@ -51,11 +51,20 @@ gdb: $(NAME)
 	gdb -tui $(NAME)
 
 ddb: debug gdb
+
+valgrind:
+	valgrind \
+		--leak-check=full \
+		--show-leak-kinds=all \
+		--track-fds=yes \
+		--track-origins=yes \
+		--fair-sched=yes \
+		./$(NAME)
 # ---------------------------------------------------------------------------- #
 debug: CXX_FLAGS += $(DEBUG_FLAGS)
 debug: fclean all
 # ---------------------------------------------------------------------------- #
-.PHONY: all clean fclean re debug run gdb ddb
+.PHONY: all clean fclean re debug run gdb ddb valgrind
 # ---------------------------------------------------------------------------- #
 -include $(DEP)
 # ---------------------------------------------------------------------------- #

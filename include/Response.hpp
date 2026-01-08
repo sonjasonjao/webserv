@@ -3,13 +3,15 @@
 #include <string>
 #include <vector>
 #include "Request.hpp"
+#include "Parser.hpp"
 
 enum ResponseCode : int {
-	Unassigned	= -1,
-	OK			= 200,
-	NoContent	= 204,
-	BadRequest	= 400,
-	NotFound	= 404,
+	Unassigned		= -1,
+	OK				= 200,
+	NoContent		= 204,
+	BadRequest		= 400,
+	NotFound		= 404,
+	RequestTimeout	= 408,
 };
 
 enum class ResponseError {
@@ -21,7 +23,7 @@ class Response {
 
 public:
 	Response() = delete;
-	Response(Request const &req);
+	Response(Request const &req, Config const &conf);
 	Response(Response const &other);
 	~Response() = default;
 
@@ -39,6 +41,7 @@ private:
 	void	formResponse();
 
 	Request const	&_req;
+	Config const	&_conf;
 	strVecMap		_headers;
 	std::string		_target;
 	std::string		_startLine;

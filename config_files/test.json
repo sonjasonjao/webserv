@@ -1,9 +1,31 @@
 {
     "server" : [
         {
-            "host"      : "127.0.0.1",
-            "host_name" : "localhost",
-            "listen"    : ["8081"]
+            "host"              : "127.0.0.1",
+            "host_name"         : "localhost",
+            "listen"            : ["8081"],
+            "allowed_methods"   : ["GET", "POST"],
+
+            "directory_listing" : "on",
+            "autoindex"         : "off",
+
+            "upload_dir"        : "www/uploads",
+
+            "routes" : {
+                "/"         : "www/pages",
+                "secret"    : "/home/jvarila/Documents/minimal.html",
+                "img"       : "www/images",
+                "future_syntax_possibly" : {
+                    "target"            : "www/pages",
+                    "allowed_methods"   : ["GET", "POST", "DELETE"]
+                }
+            },
+
+            "status_pages" : {
+                "200" : "www/status_pages/200.html",
+                "400" : "www/status_pages/400.html",
+                "404" : "www/status_pages/404.html"
+            }
         },
         {
             "host"      : "127.0.0.1",
