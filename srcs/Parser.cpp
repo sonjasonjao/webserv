@@ -110,18 +110,20 @@ void Parser::tokenizeFile(void) {
                         Config config = convertToServerData(block);
                         
                         // add port one by one and create a copy of config
-                        if(!collection.empty()) {
+                        if(collection.empty()) {
+                            throw ParserException("Missng ports in config files!");
+                        }
                             
-                            for(auto item : collection) {
-                                if(!isValidPort(item)) {
-                                    _server_configs.clear();
-                                    throw ParserException("Invalid port value!");
-                                } else {
-                                    config.port = static_cast<uint16_t>(std::stoi(item));
-                                    _server_configs.emplace_back(config);
-                                }
+                        for(auto item : collection) {
+                            if(!isValidPort(item)) {
+                                _server_configs.clear();
+                                throw ParserException("Invalid port value!");
+                            } else {
+                                config.port = static_cast<uint16_t>(std::stoi(item));
+                                _server_configs.emplace_back(config);
                             }
                         }
+                        
                     }
                 }
             }
