@@ -194,8 +194,7 @@ void	Server::handleNewClient(int listener)
 	}
 
 	_pfds.push_back({ clientFd, POLLIN, 0 });
-	Request	req(clientFd, listener);
-	_clients.emplace_back(req);
+	_clients.emplace_back(clientFd, listener);
 	INFO_LOG("New client accepted, assigned fd " + std::to_string(clientFd));
 }
 
@@ -376,6 +375,7 @@ void	Server::sendResponse(size_t& i)
 			return ;
 		}
 
+		DEBUG_LOG("Removing front element of resposes container for fd " + std::to_string(_pfds[i].fd));
 		_responses.at(_pfds[i].fd).pop_front();
 
 		it->resetSendStart();

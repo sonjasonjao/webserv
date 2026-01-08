@@ -1,20 +1,77 @@
 #include "Response.hpp"
-#include "Log.hpp"
 #include "Utils.hpp"
+#include "Log.hpp"
 #include "Pages.hpp"
 #include <algorithm>
 #include <cstring>
+#include <sstream>
 #include <string>
 #include <vector>
 #include <iostream>
 #include <filesystem>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <array>
 
 constexpr char const * const	CRLF = "\r\n";
 
 static std::string const	&getResponsePageContent(std::string const &key, Config const &conf);
-static std::string	route(std::string target, Config const &conf);
+static std::string			getDirectoryList(std::string_view target, std::string_view route);
+static std::string			getContentType(std::string sv);
+static std::string			route(std::string target, Config const &conf);
+static void					listify(std::vector<std::string> const &vec, size_t offset, std::stringstream &stream);
+
+static void					listify(std::vector<std::string> const &vec, size_t offset, std::stringstream &stream)
+{
+	stream << "<ul>\n";
+
+	for (const auto &v : vec) {
+		stream << "<li>";
+		stream << "<a href=\"" << v.substr(offset) << "\">";
+		stream << v.substr(offset);
+		stream << "</a>";
+		stream << "</li>\n";
+	}
+	stream << "</ul>\n";
+}
+
+static std::string	getDirectoryList(std::string_view target, std::string_view route)
+{
+	std::vector<std::string>	files;
+	std::vector<std::string>	directories;
+	std::stringstream			stream;
+
+	stream << "<!DOCTYPE html><html><head></head><body>\n";
+
+	stream << "<h1>" << target << "</h1>";
+
+	for (const auto &e : std::filesystem::directory_iterator(route)) {
+
+		std::string	name = e.path().string();
+
+		if (e.is_regular_file()) {
+			auto	pos = std::upper_bound(files.begin(), files.end(), name);
+			files.insert(pos, name);
+		} else if (e.is_directory()) {
+			auto	pos = std::upper_bound(directories.begin(), directories.end(), name);
+			directories.insert(pos, name);
+		}
+	}
+
+	if (!directories.empty()) {
+		stream << "<h2>Directories</h2>\n";
+		listify(directories, route.length() + 1, stream);
+	}
+
+	if (!files.empty()) {
+		stream << "\n<h2>Files</h2>\n";
+		listify(files, route.length() + 1, stream);
+	}
+
+	stream << "</body></html>\n";
+
+	return stream.str();
+}
 
 Response::Response(Request const &req, Config const &conf) : _req(req), _conf(conf)
 {
@@ -37,9 +94,11 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		return;
 	}
 
+	std::string	reqTarget = req.getTarget();
+
 	// Be prepared for shenanigans, validate URI format for target early
-	if (!uriFormatOk(req.getTarget()) || uriTargetAboveRoot(req.getTarget())) {
-		DEBUG_LOG("Bad target: " + req.getTarget());
+	if (!uriFormatOk(reqTarget) || uriTargetAboveRoot(reqTarget)) {
+		DEBUG_LOG("Bad target: " + reqTarget);
 		_error		= ResponseError::BadTarget;
 		_statusCode	= BadRequest;
 
@@ -49,17 +108,32 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	}
 
 	// If the path has any ".." or "./" aka unnecessary parts, remove them
-	_target = std::filesystem::path(req.getTarget()).lexically_normal();
+	_target = std::filesystem::path(reqTarget).lexically_normal();
+
+	// Save original request target before routing
+	reqTarget = _target;
+	if (reqTarget != "/" && reqTarget.size() > 1 && reqTarget[0] == '/')
+		reqTarget = reqTarget.substr(1);
 
 	// Perform routing, aka mapping of a file or directory to another
 	_target = route(_target, _conf);
 
+	INFO_LOG("Routing " + reqTarget + " to " + _target);
+
+	// NOTE: Plug in configuration later
+	bool	directoryListing	= true;
+	bool	autoindexing		= true;
+
 	// Handle directory listing and/or autoindexing
 	if (std::filesystem::is_directory(_target)) {
 		DEBUG_LOG("Target '" + _target + "' is a directory" );
-		if (_target.back() == '/')
-			_target.pop_back();
-		_target = _target + "/" + "index.html";	// NOTE: this could be toggled by an option in the config
+		if (autoindexing && !directoryListing) {
+			if (_target.back() == '/')
+				_target.pop_back();
+			_target = _target + "/" + "index.html";	// NOTE: this could be toggled by an option in the config
+		} else if (directoryListing) {
+			_body = getDirectoryList(reqTarget, _target);
+		}
 	}
 
 	std::string	searchDir = startDir;
@@ -145,7 +219,20 @@ void	Response::formResponse()
 {
 	_headerSection =	std::string("Server: ") + _req.getHost() + CRLF;
 	_headerSection +=	"Date: " + getImfFixdate() + CRLF;
-	_headerSection +=	"Content-Type: text/html" + std::string(CRLF);
+
+	// If the body is non empty it means directory listing has been activated
+	if (!_body.empty()) {
+		_startLine = _req.getHttpVersion() + " 200 OK";
+		_headerSection += "Content-Type: text/html" + std::string(CRLF);
+		_headerSection += "Content-Length: " + std::to_string(_body.length()) + CRLF;
+		_content = _startLine + CRLF + _headerSection + CRLF + _body;
+
+		return;
+	}
+
+	std::string	contentType = getContentType(_target);
+
+	_headerSection += "Content-Type: " + contentType + std::string(CRLF);
 
 	switch (_statusCode) {
 		case 200:
@@ -183,28 +270,30 @@ void	Response::formResponse()
 	_content = _startLine + CRLF + _headerSection + CRLF + _body;
 }
 
-/**
- * NOTE: Assumes that the programmer is using correct error page number strings as keys
- */
-static std::string const	&getResponsePageContent(std::string const &key, Config const &conf)
+void	Response::sendToClient()
 {
-	// Check status pages if the key is a three digit number
-	if (key.length() == 3 && std::all_of(key.begin(), key.end(), isdigit)) {
-		auto	it = conf.status_pages.find(key);
+	size_t	bytesToSend = _content.length() - _bytesSent;
 
-		if (it != conf.status_pages.end() && resourceExists(it->second))
-			return Pages::getPageContent(getAbsPath(it->second));
-	} else {	// Othewise check normal routes
-		auto	it = conf.routes.find(key);
+	if (bytesToSend == 0)
+		return;
 
-		if (it != conf.routes.end() && resourceExists(it->second))
-			return Pages::getPageContent(getAbsPath(it->second));
-	}
+	char const	*bufferPosition	= _content.c_str() + _bytesSent;
 
-	// Retrieve default
-	return Pages::getPageContent("default" + key);
+	DEBUG_LOG("Calling send to fd " + std::to_string(_req.getFd()));
+	ssize_t		bytesSent		= send(_req.getFd(), bufferPosition, bytesToSend, MSG_DONTWAIT);
+
+	if (bytesSent < 0)
+		throw std::runtime_error(ERROR_LOG("send: " + std::string(strerror(errno))));
+
+	_bytesSent += bytesSent;
 }
 
+bool	Response::sendIsComplete()
+{
+	return _bytesSent >= _content.length();
+}
+
+/* -------------------------------------------------------------------------- */
 
 static std::string	route(std::string target, Config const &conf)
 {
@@ -247,23 +336,51 @@ static std::string	route(std::string target, Config const &conf)
 	return target;
 }
 
-void	Response::sendToClient()
+static std::string	getContentType(std::string target)
 {
-	size_t	bytesToSend = _content.length() - _bytesSent;
+	std::string	contentType			= "text/html";
+	auto		pos					= target.find_last_of(".");
 
-	if (bytesToSend == 0)
-		return;
+	if (pos == std::string::npos)
+		return contentType;
 
-	char const	*bufferPosition	= _content.c_str() + _bytesSent;
-	ssize_t		bytesSent		= send(_req.getFd(), bufferPosition, bytesToSend, MSG_DONTWAIT);
+	auto		filenameExtension	= target.substr(pos);
 
-	if (bytesSent < 0)
-		throw std::runtime_error(ERROR_LOG("send: " + std::string(strerror(errno))));
+	for (auto &c : filenameExtension)
+		c = std::tolower(c);
 
-	_bytesSent += bytesSent;
+	if (filenameExtension != ".html") {
+		if (	 filenameExtension == ".jpeg"
+			||	 filenameExtension == ".jpg")	contentType = "image/jpeg";
+		else if	(filenameExtension == ".webp")	contentType = "image/webp";
+		else if	(filenameExtension == ".png")	contentType = "image/png";
+		else if	(filenameExtension == ".gif")	contentType = "image/gif";
+		else if	(filenameExtension == ".css")	contentType = "text/css";
+		else if	(filenameExtension == ".js")	contentType = "text/javascript";
+		else if	(filenameExtension == ".json")	contentType = "application/json";
+	}
+
+	return contentType;
 }
 
-bool	Response::sendIsComplete()
+/**
+ * NOTE: Assumes that the programmer is using correct error page number strings as keys
+ */
+static std::string const	&getResponsePageContent(std::string const &key, Config const &conf)
 {
-	return _bytesSent >= _content.length();
+	// Check status pages if the key is a three digit number
+	if (key.length() == 3 && std::all_of(key.begin(), key.end(), isdigit)) {
+		auto	it = conf.status_pages.find(key);
+
+		if (it != conf.status_pages.end() && resourceExists(it->second))
+			return Pages::getPageContent(getAbsPath(it->second));
+	} else {	// Othewise check normal routes
+		auto	it = conf.routes.find(key);
+
+		if (it != conf.routes.end() && resourceExists(it->second))
+			return Pages::getPageContent(getAbsPath(it->second));
+	}
+
+	// Retrieve default
+	return Pages::getPageContent("default" + key);
 }
