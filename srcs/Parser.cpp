@@ -222,7 +222,7 @@ Config Parser::convertToServerData(const Token& block) {
 }
 
 /**
- * this fucntion extract collection of values from the AST and created a vector of strings
+ * this function extract collection of values from the AST and created a vector of strings
  * @param root, key block of data in the AST need to convert
  * @return vector of strings
 */
