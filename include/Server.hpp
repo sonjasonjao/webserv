@@ -1,20 +1,20 @@
 #pragma once
 #include "Parser.hpp"
-#include "Log.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
 #include <vector>
+#include <list>
 #include <deque>
 #include <unordered_map>
-#include <exception>
 #include <poll.h>
 #include <csignal>
 
 class Request;
 
-#define MAX_PENDING 20 // all of these to be decided
-#define RECV_BUF_SIZE 4096
-#define POLL_TIMEOUT 100
+#define MAX_PENDING		20 // all of these to be decided
+#define RECV_BUF_SIZE	4096
+#define POLL_TIMEOUT	100
+#define MAX_CLIENTS		65535
 
 struct ServerGroup
 {
@@ -25,13 +25,13 @@ struct ServerGroup
 
 class Server
 {
-	using ReqIter = std::vector<Request>::iterator;
+	using ReqIter = std::list<Request>::iterator;
 
 	private:
 		std::vector<Config>								_configs;
 		std::vector<pollfd>								_pfds;
 		std::vector<ServerGroup>						_serverGroups;
-		std::vector<Request>							_clients;
+		std::list<Request>								_clients;
 		std::unordered_map<int, std::deque<Response>>	_responses;
 
 	public:

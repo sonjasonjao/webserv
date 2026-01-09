@@ -16,63 +16,11 @@
 
 constexpr char const * const	CRLF = "\r\n";
 
-static std::string const	&getResponsePageContent(std::string const &key, Config const &conf);
-static std::string			getDirectoryList(std::string_view target, std::string_view route);
-static std::string			getContentType(std::string sv);
 static std::string			route(std::string target, Config const &conf);
+static std::string const	&getResponsePageContent(std::string const &key, Config const &conf);
+static std::string			getContentType(std::string sv);
+static std::string			getDirectoryList(std::string_view target, std::string_view route);
 static void					listify(std::vector<std::string> const &vec, size_t offset, std::stringstream &stream);
-
-static void					listify(std::vector<std::string> const &vec, size_t offset, std::stringstream &stream)
-{
-	stream << "<ul>\n";
-
-	for (const auto &v : vec) {
-		stream << "<li>";
-		stream << "<a href=\"" << v.substr(offset) << "\">";
-		stream << v.substr(offset);
-		stream << "</a>";
-		stream << "</li>\n";
-	}
-	stream << "</ul>\n";
-}
-
-static std::string	getDirectoryList(std::string_view target, std::string_view route)
-{
-	std::vector<std::string>	files;
-	std::vector<std::string>	directories;
-	std::stringstream			stream;
-
-	stream << "<!DOCTYPE html><html><head></head><body>\n";
-
-	stream << "<h1>" << target << "</h1>";
-
-	for (const auto &e : std::filesystem::directory_iterator(route)) {
-
-		std::string	name = e.path().string();
-
-		if (e.is_regular_file()) {
-			auto	pos = std::upper_bound(files.begin(), files.end(), name);
-			files.insert(pos, name);
-		} else if (e.is_directory()) {
-			auto	pos = std::upper_bound(directories.begin(), directories.end(), name);
-			directories.insert(pos, name);
-		}
-	}
-
-	if (!directories.empty()) {
-		stream << "<h2>Directories</h2>\n";
-		listify(directories, route.length() + 1, stream);
-	}
-
-	if (!files.empty()) {
-		stream << "\n<h2>Files</h2>\n";
-		listify(files, route.length() + 1, stream);
-	}
-
-	stream << "</body></html>\n";
-
-	return stream.str();
-}
 
 Response::Response(Request const &req, Config const &conf) : _req(req), _conf(conf)
 {
@@ -122,15 +70,16 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	INFO_LOG("Routing " + reqTarget + " to " + _target);
 
 	// NOTE: Plug in configuration later
-	bool	directoryListing	= true;
+	bool	directoryListing	= false;
 	bool	autoindexing		= true;
 
 	// Handle directory listing and/or autoindexing
 	if (std::filesystem::is_directory(_target)) {
 		DEBUG_LOG("Target '" + _target + "' is a directory" );
+		if (_target.back() == '/')
+			_target.pop_back();
+
 		if (autoindexing && !directoryListing) {
-			if (_target.back() == '/')
-				_target.pop_back();
 			_target = _target + "/" + "index.html";	// NOTE: this could be toggled by an option in the config
 		} else if (directoryListing) {
 			_body = getDirectoryList(reqTarget, _target);
@@ -143,6 +92,8 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	if (_target[0] == '/')
 		searchDir = "/";
 
+	// Check if resource can be found and set status code
+	// NOTE: Match allowed methods from route
 	switch (req.getRequestMethod()) {
 		case RequestMethod::Get:
 			if (!Pages::isCached(getAbsPath(_target)) && !resourceExists(_target, searchDir)) {
@@ -160,15 +111,15 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		case RequestMethod::Delete:
 			if (!resourceExists(_target, searchDir)) {
 				INFO_LOG("Response: Resource " + _target + " could not be found");
-				_statusCode		 = NotFound;
+				_statusCode = NotFound;
 				break;
 			}
 			INFO_LOG("Resource " + _target + " deleted (not really but in the future)");
-			_statusCode		 = NoContent;
+			_statusCode = NoContent;
 		break;
 		default:
-			INFO_LOG("Bad request");
-			_statusCode		 = BadRequest;
+			INFO_LOG("Unknown request method, response status defaulting to bad request");
+			_statusCode = BadRequest;
 		break;
 	}
 
@@ -384,4 +335,56 @@ static std::string const	&getResponsePageContent(std::string const &key, Config 
 
 	// Retrieve default
 	return Pages::getPageContent("default" + key);
+}
+
+static std::string	getDirectoryList(std::string_view target, std::string_view route)
+{
+	std::vector<std::string>	files;
+	std::vector<std::string>	directories;
+	std::stringstream			stream;
+
+	stream << "<!DOCTYPE html><html><head></head><body>\n";
+
+	stream << "<h1>" << target << "</h1>";
+
+	for (const auto &e : std::filesystem::directory_iterator(route)) {
+
+		std::string	name = e.path().string();
+
+		if (e.is_regular_file()) {
+			auto	pos = std::upper_bound(files.begin(), files.end(), name);
+			files.insert(pos, name);
+		} else if (e.is_directory()) {
+			auto	pos = std::upper_bound(directories.begin(), directories.end(), name);
+			directories.insert(pos, name);
+		}
+	}
+
+	if (!directories.empty()) {
+		stream << "<h2>Directories</h2>\n";
+		listify(directories, route.length() + 1, stream);
+	}
+
+	if (!files.empty()) {
+		stream << "\n<h2>Files</h2>\n";
+		listify(files, route.length() + 1, stream);
+	}
+
+	stream << "</body></html>\n";
+
+	return stream.str();
+}
+
+static void	listify(std::vector<std::string> const &vec, size_t offset, std::stringstream &stream)
+{
+	stream << "<ul>\n";
+
+	for (const auto &v : vec) {
+		stream << "<li>";
+		stream << "<a href=\"" << v.substr(offset) << "\">";
+		stream << v.substr(offset);
+		stream << "</a>";
+		stream << "</li>\n";
+	}
+	stream << "</ul>\n";
 }

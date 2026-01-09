@@ -14,7 +14,7 @@
 
 volatile sig_atomic_t	g_endSignal = false;
 
-using ReqIter = std::vector<Request>::iterator;
+using ReqIter = std::list<Request>::iterator;
 
 /**
  * Handles SIGINT signal by updating the value of global endSignal variable (to stop poll() loop
@@ -183,6 +183,10 @@ void	Server::handleNewClient(int listener)
 	socklen_t				addrLen = sizeof(newClient);
 	int						clientFd;
 
+	if (_clients.size() > MAX_CLIENTS) {
+		DEBUG_LOG("Connected clients limit reached, unable to accept new client");
+		return;
+	}
 	clientFd = accept(listener, (struct sockaddr*)&newClient, &addrLen);
 	if (clientFd < 0)
 		throw std::runtime_error(ERROR_LOG("accept: " + std::string(strerror(errno))));

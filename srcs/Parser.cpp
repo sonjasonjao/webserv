@@ -156,7 +156,11 @@ Config Parser::convertToServerData(const Token& server) {
 					std::atoi(p.value.c_str())
 				);
 			}
-        } else if (key == "status_pages") {
+        } else if (key == "directory_listing") {
+			// NOTE: Implement for next PR
+        } else if (key == "autoindexing") {
+			// NOTE: Implement for next PR
+		} else if (key == "status_pages") {
 			for (auto e : item.children.at(1).children) {
 				if (e.children.size() < 2 || e.children.at(1).type != TokenType::Value)
 					continue;

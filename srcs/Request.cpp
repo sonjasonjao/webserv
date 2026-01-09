@@ -409,7 +409,7 @@ bool	Request::fillKeepAlive(void) {
  */
 bool	Request::validateHeaders(void) {
 	auto	it = _headers.find("host");
-	if ( _request.httpVersion == "HTTP/1.1" && (it == _headers.end() || it->second.empty()))
+	if (_request.httpVersion == "HTTP/1.1" && (it == _headers.end() || it->second.empty()))
 		return false;
 	for (auto const& [key, values] : _headers) {
 		if (values.size() > 1 && isUniqueHeader(key))
@@ -608,7 +608,8 @@ void	Request::printData(void) const
 	printStatus(_status);
 	std::cout << "	Chunked?		" << _chunked << "\n";
 	if (_boundary.has_value())
-		std::cout << "	Boundary:		'" << _boundary.value() << "'\n\n";
+		std::cout << "	Boundary:		'" << _boundary.value() << "'\n";
+	std::cout << "\n";
 }
 
 void	Request::setIdleStart(void) {
