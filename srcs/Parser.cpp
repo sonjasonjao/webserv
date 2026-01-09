@@ -103,7 +103,7 @@ void Parser::tokenizeFile(void) {
 
 					for (const auto& block : content.children) {
 
-						// first isolate al the ports related to a server config
+						// first isolate all the ports related to a server config
 						std::vector<std::string> collection = getCollectionBykey(block, "listen");
 
 						// retrieve all the other data except ports
