@@ -82,7 +82,7 @@ class Parser {
         */
         struct ParserException : public CustomException {
             ParserException(const std::string& str):
-                CustomException(str){}
+                CustomException(str) {}
         };
 
         /**

@@ -4,15 +4,15 @@
  * this function will print the AST recursively, pure debugging function
 */
 void printToken(const Token& root, int indent) {
-    for(int i = 0; i < indent; ++i){
+    for (int i = 0; i < indent; ++i) {
         std::cout << " ";
     }
     std::cout << typeToString(root.type);
-    if(!root.value.empty()) {
+    if (!root.value.empty()) {
         std::cout << "(" << root.value << ")";
     }
     std::cout << "\n";
-    for(size_t i = 0; i < root.children.size();++i) {
+    for (size_t i = 0; i < root.children.size();++i) {
         printToken(root.children[i], indent + 1);
     }
 }
@@ -52,7 +52,7 @@ std::string typeToString(TokenType type) {
 */
 std::string trim(std::string_view sv) {
     const size_t start = sv.find_first_not_of(" \t\n");
-    if(start == std::string::npos) {
+    if (start == std::string::npos) {
         return ("");
     }
     const size_t end = sv.find_last_not_of(" \t\n");
@@ -72,27 +72,27 @@ size_t unquotedDelimiter(std::string_view sv, const char c) {
     bool in_quote       = false;
     int curly_braces_depth    = 0;
     int squar_braces_depth    = 0;
-    for(size_t i = 0; i < sv.size(); ++i) {
-        if(sv[i] == '"'  && (i == 0 || sv[i - 1] != '\\')){
+    for (size_t i = 0; i < sv.size(); ++i) {
+        if (sv[i] == '"'  && (i == 0 || sv[i - 1] != '\\')) {
             in_quote = !in_quote;
         }
-        if(sv[i] == '{'){
+        if (sv[i] == '{') {
             curly_braces_depth++;
         }
-        if(sv[i] == '}'){
+        if (sv[i] == '}') {
             curly_braces_depth--;
         }
-        if(sv[i] == '['){
+        if (sv[i] == '[') {
             squar_braces_depth++;
         }
-        if(sv[i] == ']'){
+        if (sv[i] == ']') {
             squar_braces_depth--;
         }
-        if(sv[i] == c
+        if (sv[i] == c
             && !in_quote
             && curly_braces_depth == 0
             && squar_braces_depth == 0
-        ){
+        ) {
             pos = i;
             break;
         }
@@ -107,19 +107,19 @@ size_t unquotedDelimiter(std::string_view sv, const char c) {
  * @return TokenType enum value base on the format of the string
 */
 TokenType getTokenType(const std::string& str) {
-    if(str.empty()) {
+    if (str.empty()) {
         return (TokenType::Null);
     }
-    if(str.front() == '{' && str.back() == '}') {
+    if (str.front() == '{' && str.back() == '}') {
         return (TokenType::Object);
     }
-    if(str.front() == '[' && str.back() == ']') {
+    if (str.front() == '[' && str.back() == ']') {
         return (TokenType::Array);
     }
-    if(unquotedDelimiter(str, ':') != std::string::npos) {
+    if (unquotedDelimiter(str, ':') != std::string::npos) {
         return (TokenType::Element);
     }
-    if(str.front() == '"' && str.back() == '"') {
+    if (str.front() == '"' && str.back() == '"') {
         return (TokenType::Value);
     }
     return (TokenType::Primitive);
@@ -136,15 +136,15 @@ std::vector<std::string> splitElements(std::string_view sv) {
 
     std::vector<std::string> tokens;
 
-    if(unquotedDelimiter(sv, ',') != std::string::npos) {
+    if (unquotedDelimiter(sv, ',') != std::string::npos) {
         std::string buffer(sv);
         size_t pos = unquotedDelimiter(buffer, ',');
-        while(!buffer.empty() && pos != std::string::npos) {
+        while (!buffer.empty() && pos != std::string::npos) {
             tokens.emplace_back(buffer.substr(0, pos));
             buffer = buffer.substr(pos + 1);
             pos = unquotedDelimiter(buffer, ',');
         }
-        if(!buffer.empty()){
+        if (!buffer.empty()) {
             tokens.emplace_back(buffer);
         }
     } else {
@@ -160,7 +160,7 @@ std::vector<std::string> splitElements(std::string_view sv) {
 */
 Token createToken(const std::string& str, TokenType type) {
     Token token;
-    if(type == TokenType::Identifier || type == TokenType::Value) {
+    if (type == TokenType::Identifier || type == TokenType::Value) {
         token.type = type;
         token.value = removeQuotes(str);
     } else {
@@ -183,14 +183,14 @@ Token createToken(const std::string& str) {
     size_t len = str.length();
     TokenType type = getTokenType(str);
 
-    if(type == TokenType::Object) {
+    if (type == TokenType::Object) {
         token.type = TokenType::Object;
         token.value = "";
         std::vector<std::string> values = splitElements(
             trim(std::string(str.substr(1, len - 2)))
         );
-        for(auto it : values) {
-            if(len > 2) {
+        for (auto it : values) {
+            if (len > 2) {
                 token.children.emplace_back(
                     createToken(trim(it))
                 );
@@ -198,14 +198,14 @@ Token createToken(const std::string& str) {
         }
     }
 
-    if(type == TokenType::Array) {
+    if (type == TokenType::Array) {
         token.type = TokenType::Array;
         token.value = "";
         std::vector<std::string> values = splitElements(
             trim(std::string(str.substr(1, len - 2)))
         );
-        for(auto it : values) {
-            if(len > 2) {
+        for (auto it : values) {
+            if (len > 2) {
                 token.children.emplace_back(
                     createToken(trim(it))
                 );
@@ -213,7 +213,7 @@ Token createToken(const std::string& str) {
         }
     }
 
-    if(type == TokenType::Element) {
+    if (type == TokenType::Element) {
 
         token.type = TokenType::Element;
         size_t pos = unquotedDelimiter(str, ':');
@@ -229,12 +229,12 @@ Token createToken(const std::string& str) {
         );
     }
 
-    if(type == TokenType::Value) {
+    if (type == TokenType::Value) {
         token.type = TokenType::Value;
         token.value = removeQuotes(str);
     }
 
-    if(type == TokenType::Primitive) {
+    if (type == TokenType::Primitive) {
         token.type = TokenType::Primitive;
         token.value = str;
     }
@@ -249,14 +249,14 @@ Token createToken(const std::string& str) {
  * @return value of the key component
 */
 std::string getKey(const Token& token) {
-    if(token.type != TokenType::Element) {
+    if (token.type != TokenType::Element) {
         return ("");
     }
-    if(token.children.empty()) {
+    if (token.children.empty()) {
         return ("");
     }
     const Token& child = token.children.at(0);
-    if(child.type != TokenType::Identifier){
+    if (child.type != TokenType::Identifier) {
         return ("");
     }
     return (child.value);
@@ -268,7 +268,7 @@ std::string getKey(const Token& token) {
  * @return new string with out any '"' marks
 */
 std::string removeQuotes(const std::string& str) {
-    if(str.length() >= 2 && str.front() == '"' && str.back() == '"') {
+    if (str.length() >= 2 && str.front() == '"' && str.back() == '"') {
         return (trim(str.substr(1, str.length() - 2)));
     }
     return (str);
