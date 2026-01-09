@@ -276,19 +276,34 @@ void	Request::parseHeaders(std::string& str) {
 		for (size_t i = 0; i < key.size(); i++)
 			key[i] = std::tolower(static_cast<unsigned char>(key[i]));
 		std::string value = line.substr(point + 2, line.size() - (point + 2));
-		for (size_t i = 0; i < value.size(); i++)
-			value[i] = std::tolower(static_cast<unsigned char>(value[i]));
+		if (key != "content-type") {
+			for (size_t i = 0; i < value.size(); i++)
+				value[i] = std::tolower(static_cast<unsigned char>(value[i]));
+		}
 		if (isNeededHeader(key)) {
-			if (value.find(",") == std::string::npos) {
-				_headers[key].emplace_back(value);
-				continue;
-			}
 			std::istringstream	values(value);
 			std::string	oneValue;
-			while (getline(values, oneValue, ',')) {
-				if (oneValue[0] == ' ')
-					oneValue = oneValue.substr(1);
-				_headers[key].emplace_back(oneValue);
+			if (key == "content-type") {
+				if (value.find(";") == std::string::npos) {
+					_headers[key].emplace_back(value);
+					continue;
+				}
+				while (getline(values, oneValue, ';')) {
+					if (oneValue[0] == ' ')
+						oneValue = oneValue.substr(1);
+					_headers[key].emplace_back(oneValue);
+				}
+			}
+			else {
+				if (value.find(",") == std::string::npos) {
+					_headers[key].emplace_back(value);
+					continue;
+				}
+				while (getline(values, oneValue, ',')) {
+					if (oneValue[0] == ' ')
+						oneValue = oneValue.substr(1);
+					_headers[key].emplace_back(oneValue);
+				}
 			}
 		}
 	}
@@ -369,7 +384,8 @@ void	Request::parseChunked(void) {
 
 bool	Request::fillKeepAlive(void) {
 	auto	it = _headers.find("connection");
-	bool	hasClose, hasKeepAlive = false;
+	bool	hasClose = false;
+	bool	hasKeepAlive = false;
 	if (it != _headers.end()) {
 		for (auto value = it->second.begin(); value != it->second.end(); value++)
 		{
@@ -424,8 +440,25 @@ bool	Request::validateHeaders(void) {
 		}
 	}
 	it = _headers.find("transfer-encoding");
-	if (it != _headers.end() && it->second.front() == "chunked")
+	if (it != _headers.end() && it->second.front() == "chunked") {
+		if (_request.httpVersion == "HTTP/1.0")
+			return false;
 		_chunked = true;
+	}
+	it = _headers.find("content-type");
+	if (it != _headers.end()) {
+		if (std::find(it->second.begin(), it->second.end(), "multipart/form-data") != it->second.end()) {
+			auto	value = it->second.begin();
+			for (value = it->second.begin(); value != it->second.end(); value++) {
+				if (value->substr(0, 9) == "boundary=") {
+					_boundary = value->substr(9);
+					break ;
+				}
+			}
+			if (value == it->second.end())
+				return false;
+		}
+	}
 	return true;
 }
 
@@ -547,21 +580,22 @@ static void	printStatus(RequestStatus status)
  * Prints parsed data for debugging.
  */
 void	Request::printData(void) const {
-	std::cout << "\n---- Request line ----\nMethod: ";
+	std::cout << "---- Request line ----\nMethod: ";
 	switch(_request.method) {
 		case RequestMethod::Get:
-			std::cout << "GET";
+			std::cout << "Get";
 			break ;
 		case RequestMethod::Post:
-			std::cout << "POST";
+			std::cout << "Post";
 			break ;
 		case RequestMethod::Delete:
-			std::cout << "DELETE";
+			std::cout << "Delete";
 			break ;
 		default:
 			throw std::runtime_error("HTTP request method unknown\n");
 	}
-	std::cout << "\nTarget: " << _request.target << "\nHTTP version: " << _request.httpVersion << "\n";
+	std::cout << ", target: "
+		<< _request.target << ", HTTP version: " << _request.httpVersion << "\n\n";
 	if (_request.query.has_value())
 		std::cout << "Query: " << _request.query.value() << '\n';
 	std::cout << "----------------------\n\n";
@@ -576,12 +610,14 @@ void	Request::printData(void) const {
 		
 	std::cout << "---------------------\n\n";
 	if (!_body.empty())
-		std::cout << "---- Body ----\n" << _body << "----------------\n\n";
+		std::cout << "---- Body ----\n" << _body << '\n';
 	std::cout << "	Keep alive?		" << _keepAlive << '\n';
 	std::cout << "	Complete headers?	" << _completeHeaders << '\n';
 	std::cout << "	Status?			";
 	printStatus(_status);
-	std::cout << "	Chunked?		" << _chunked << "\n\n";
+	std::cout << "	Chunked?		" << _chunked << "\n";
+	if (_boundary.has_value())
+		std::cout << "	Boundary:		'" << _boundary.value() << "'\n\n";
 }
 
 void	Request::setIdleStart(void) {
@@ -601,6 +637,14 @@ void	Request::setSendStart(void) {
 
 void	Request::resetSendStart(void) {
 	_sendStart = {};
+}
+
+void	Request::resetBuffer(void) {
+	if (!_buffer.empty()) {
+		std::cout << "BUFFER IS: '" << _buffer << "'\n";
+		INFO_LOG("The remaining request data in buffer following one compele request will be discarded");
+		_buffer.clear();
+	}
 }
 
 std::string	Request::getHost(void) const {
