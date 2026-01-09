@@ -24,7 +24,7 @@ int	main(int argc, char **argv)
 		std::cout << "No log file provided, using standard output\n\n";
 	if (argc > 1)
 		confFile = argv[1];
-	if( argc == 3) {
+	if (argc == 3) {
 		try {
 			Log::setOutputFile(argv[2]);
 		} catch (std::exception const &e) {
