@@ -608,7 +608,8 @@ void	Request::printData(void) const
 	printStatus(_status);
 	std::cout << "	Chunked?		" << _chunked << "\n";
 	if (_boundary.has_value())
-		std::cout << "	Boundary:		'" << _boundary.value() << "'\n\n";
+		std::cout << "	Boundary:		'" << _boundary.value() << "'\n";
+	std::cout << "\n";
 }
 
 void	Request::setIdleStart(void) {

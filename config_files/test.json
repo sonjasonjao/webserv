@@ -6,8 +6,8 @@
             "listen"            : ["8081"],
             "allowed_methods"   : ["GET", "POST"],
 
-            "directory_listing" : "on",
-            "autoindex"         : "off",
+            "directory_listing" : true,
+            "autoindex"         : false,
 
             "upload_dir"        : "www/uploads",
 
@@ -36,6 +36,6 @@
             "host"      : "127.0.0.1",
             "host_name" : "www.webserv.com",
             "listen"    : ["2025", "2026", "2027", "2028", "2029"]
-        },
+        }
     ]
 }
