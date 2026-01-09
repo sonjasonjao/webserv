@@ -142,6 +142,17 @@ bool	isNeededHeader(std::string& key)
  */
 void	Request::parseRequest(void) {
 	if (_request.method == RequestMethod::Unknown) {
+
+		// Ignoring empty lines (CRLF) before the request-line
+		while (_buffer.substr(0, 2) == CRLF) {
+            _buffer = _buffer.substr(2);
+        }
+
+        // If buffer is empty after skipping CRLFs, wait for more data
+        if (_buffer.empty()) {
+            return;
+        }
+
 		std::string	reqLine = splitReqLine(_buffer, CRLF);
 		std::istringstream	req(reqLine);
 		parseRequestLine(req);
@@ -554,9 +565,15 @@ void	Request::printData(void) const {
 	if (_request.query.has_value())
 		std::cout << "Query: " << _request.query.value() << '\n';
 	std::cout << "----------------------\n\n";
+	
 	std::cout << "---- Header keys ----\n";
-	for (auto it = _headers.begin(); it != _headers.end(); it++)
-		std::cout << it->first << '\n';
+	for (auto const& [key, val] : _headers) {
+		std::cout << key << ": ";
+    	for (const auto& v : val)
+			std::cout << v << ", ";
+    	std::cout << "\n";
+	}
+		
 	std::cout << "---------------------\n\n";
 	if (!_body.empty())
 		std::cout << "---- Body ----\n" << _body << "----------------\n\n";
