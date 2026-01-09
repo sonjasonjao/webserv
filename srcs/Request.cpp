@@ -188,6 +188,32 @@ void	Request::parseRequest(void) {
 	else if (_chunked)
 		parseChunked();
 	printData();
+	if(_request.method == RequestMethod::Post) {
+		auto it = _headers.find("content-type");
+		if(it != _headers.end() && it->second.front().find("multipart/form-data") != std::string::npos) {
+			
+			std::cout << "######### INSIDE POST REQUEST ######## \n";
+			std::string search_key = "--" + _boundary.value();
+			std::string str(_body);
+
+			std::vector<std::string> blocks;
+
+			size_t start = 0, end = str.find(search_key);
+
+			while(end != std::string::npos) {
+				blocks.push_back(str.substr(start, end - start));
+				start = end + 1 + search_key.length();
+				end = str.find(search_key, start);
+			}
+
+			blocks.push_back(str.substr(start));
+
+			for(auto it : blocks) {
+				if(it.empty()) continue;
+				std::cout << " item : " << it << "\n";
+			}
+		}
+	}
 }
 
 /**
