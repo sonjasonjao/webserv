@@ -211,7 +211,7 @@ Config Parser::convertToServerData(const Token& block) {
 
 		if (key == "routes") {
 			for (auto r : item.children.at(1).children) {
-				if (r.children.size() < 2 || r.children.at(1).type != TokenType::Value)
+				if (r.children.at(1).type != TokenType::Value)
 					continue;
 				DEBUG_LOG("\t\tAdding route " + r.children.at(0).value + " -> " + r.children.at(1).value);
 				config.routes[r.children.at(0).value] = r.children.at(1).value;
