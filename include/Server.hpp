@@ -15,6 +15,7 @@ class Request;
 #define MAX_PENDING 20 // all of these to be decided
 #define RECV_BUF_SIZE 4096
 #define POLL_TIMEOUT 100
+#define MAX_CLIENTS 65535
 
 struct ServerGroup
 {

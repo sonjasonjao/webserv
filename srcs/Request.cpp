@@ -1,7 +1,6 @@
 #include "../include/Request.hpp"
 #include "../include/Log.hpp"
 #include <regex>
-#include <sstream>
 #include <iostream>
 #include <unordered_set>
 #include <chrono>
@@ -13,7 +12,8 @@ constexpr char const * const	CRLF = "\r\n";
  * so if the http version given in the request is invalid, 1.1 will be used to send the error page
  * response.
  */
-Request::Request(int fd, int serverFd) : _fd(fd), _serverFd(serverFd), _keepAlive(false), _chunked(false), _completeHeaders(false) {
+Request::Request(int fd, int serverFd) : _fd(fd), _serverFd(serverFd), _headerSize(0),
+	_keepAlive(false), _chunked(false), _completeHeaders(false) {
 	_request.method = RequestMethod::Unknown;
 	_status = RequestStatus::WaitingData;
 	_idleStart = std::chrono::high_resolution_clock::now();
@@ -54,6 +54,7 @@ void	Request::reset(void) {
 	_request.httpVersion.clear();
 	_request.query.reset();
 	_headers.clear();
+	_headerSize = 0;
 	_body.clear();
 	_contentLen.reset();
 	_chunked = false;
@@ -110,7 +111,7 @@ void	Request::checkReqTimeouts(void) {
 std::string	splitReqLine(std::string& orig, std::string delim)
 {
 	auto it = orig.find(delim);
-	std::string tmp;
+	std::string tmp = "";
 	if (it != std::string::npos)
 	{
 		tmp = orig.substr(0, it);
@@ -143,8 +144,7 @@ bool	isNeededHeader(std::string& key)
 void	Request::parseRequest(void) {
 	if (_request.method == RequestMethod::Unknown) {
 		std::string	reqLine = splitReqLine(_buffer, CRLF);
-		std::istringstream	req(reqLine);
-		parseRequestLine(req);
+		parseRequestLine(reqLine);
 		if (_status == RequestStatus::Invalid) {
 			_buffer.clear();
 			return ;
@@ -158,6 +158,13 @@ void	Request::parseRequest(void) {
 	}
 	if (!_contentLen.has_value() && !_chunked)
 		_status = RequestStatus::CompleteReq;
+	else if (_contentLen.has_value() && _contentLen.value() > CLIENT_MAX_BODY_SIZE)
+	{
+		_status = RequestStatus::Invalid;
+		_keepAlive = false;
+		_buffer.clear();
+		return ;
+	}
 	else if (!_buffer.empty() && (_contentLen.has_value() && _body.size() < _contentLen.value())) {
 		size_t	missingLen = _contentLen.value() - _body.size();
 		if (missingLen < _buffer.size()) {
@@ -203,15 +210,12 @@ void	Request::fillHost(void) {
  * Splits the request line into tokens, recognises method, and validates target path
  * and HTTP version.
  */
-void	Request::parseRequestLine(std::istringstream& req) {
+void	Request::parseRequestLine(std::string &req) {
 	std::string method, target, httpVersion;
 	std::vector<std::string>	methods = { "GET", "POST", "DELETE" };
-	if (!(req >> method >> target >> httpVersion))
-	{
-		_status = RequestStatus::Invalid;
-		fillHost();
-		return ;
-	}
+	method = splitReqLine(req, " ");
+	target = splitReqLine(req, " ");
+	httpVersion = req;
 	size_t i ;
 	for (i = 0; i < methods.size(); i++)
 	{
@@ -248,6 +252,16 @@ void	Request::parseRequestLine(std::istringstream& req) {
  */
 void	Request::parseHeaders(std::string& str) {
 	std::string	line;
+	size_t	headEnd = str.find("\r\n\r\n");
+	if (headEnd == std::string::npos)
+		headEnd = str.size();
+	_headerSize += headEnd;
+	if (_headerSize > HEADERS_MAX_SIZE) {
+		_status = RequestStatus::Invalid;
+		_keepAlive = false;
+		fillHost();
+		return ;
+	}
 	while (!str.empty()) {
 		if (str.substr(0, 2) == CRLF) {
 			str = str.substr(2);
@@ -367,6 +381,12 @@ void	Request::parseChunked(void) {
 			}
 			_body += splitReqLine(_buffer, "0\r\n\r\n");
 			_status = RequestStatus::CompleteReq;
+		}
+		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
+			_status = RequestStatus::Invalid;
+			_keepAlive = false;
+			_buffer.clear();
+			return;
 		}
 	}
 }
@@ -627,7 +647,6 @@ void	Request::resetSendStart(void) {
 
 void	Request::resetBuffer(void) {
 	if (!_buffer.empty()) {
-		std::cout << "BUFFER IS: '" << _buffer << "'\n";
 		INFO_LOG("The remaining request data in buffer following one compele request will be discarded");
 		_buffer.clear();
 	}

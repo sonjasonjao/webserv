@@ -183,6 +183,11 @@ void	Server::handleNewClient(int listener)
 	socklen_t				addrLen = sizeof(newClient);
 	int						clientFd;
 
+	if (_clients.size() >= MAX_CLIENTS) {
+		ERROR_LOG("Connected clients limit reached, unable to accept a new client");
+		return ;
+	}
+
 	clientFd = accept(listener, (struct sockaddr*)&newClient, &addrLen);
 	if (clientFd < 0)
 		throw std::runtime_error(ERROR_LOG("accept: " + std::string(strerror(errno))));
@@ -210,6 +215,15 @@ void	Server::handleNewClient(int listener)
  */
 void	Server::handleClientData(size_t& i)
 {
+	auto it = getRequestByFd(_pfds[i].fd);
+
+	if (it == _clients.end())
+		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
+			+ std::to_string(_pfds[i].fd)));
+
+	if (it->getStatus() != RequestStatus::WaitingData)
+		return ;
+
 	char	buf[RECV_BUF_SIZE + 1];
 
 	int		numBytes = recv(_pfds[i].fd, buf, RECV_BUF_SIZE, 0);
@@ -221,13 +235,7 @@ void	Server::handleClientData(size_t& i)
 		else
 			ERROR_LOG("recv: " + std::string(strerror(errno)));
 
-		auto it = getRequestByFd(_pfds[i].fd);
-
 		removeClientFromPollFds(i);
-
-		if (it == _clients.end())
-			throw std::runtime_error(ERROR_LOG("Could not find request with fd "
-				+ std::to_string(_pfds[i].fd)));
 
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 		_clients.erase(it);
@@ -241,12 +249,6 @@ void	Server::handleClientData(size_t& i)
 
 	if (!_clients.empty())
 	{
-		auto it = getRequestByFd(_pfds[i].fd);
-
-		if (it ==_clients.end())
-			throw std::runtime_error(ERROR_LOG("Could not find request with fd "
-				+ std::to_string(_pfds[i].fd)));
-
 		it->setIdleStart();
 		it->setRecvStart();
 		it->saveRequest(std::string(buf));

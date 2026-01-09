@@ -8,6 +8,10 @@
 #define IDLE_TIMEOUT 10000 // timeout values to be decided, and should they be in Server.hpp?
 #define RECV_TIMEOUT 5000
 #define SEND_TIMEOUT 5000
+#define HEADERS_MAX_SIZE 8000
+#ifndef CLIENT_MAX_BODY_SIZE
+ #define CLIENT_MAX_BODY_SIZE 1000000
+#endif
 
 /**
  * Mandatory methods required in the subject, do we want to add more? -> Will affect
@@ -57,6 +61,7 @@ class Request
 		std::string					_buffer;
 		struct RequestLine			_request;
 		stringMap					_headers;
+		size_t						_headerSize;
 		std::string					_body;
 		std::optional<size_t>		_contentLen;
 		std::optional<std::string>	_boundary;
@@ -77,7 +82,7 @@ class Request
 		void				handleRequest(void);
 		void				parseRequest(void);
 		void				fillHost(void);
-		void				parseRequestLine(std::istringstream &req);
+		void				parseRequestLine(std::string &req);
 		void				parseHeaders(std::string &str);
 		bool				fillKeepAlive(void);
 		bool				validateHeaders(void);
