@@ -186,7 +186,7 @@ Config Parser::convertToServerData(const Token& block) {
 		if (key == "host") {
 			std::string str = item.children.at(1).value;
 			DEBUG_LOG("\t\tAdding host " + str);
-			if (!isValidIPv4(str)) {
+			if (str != "localhost" && !isValidIPv4(str)) {
 				throw ParserException(ERROR_LOG("Invalid IPv4 address value: " + str));
 			}
 			config.host = str;
