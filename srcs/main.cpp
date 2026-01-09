@@ -1,5 +1,5 @@
-#include "../include/Server.hpp"
-#include "../include/Log.hpp"
+#include "Server.hpp"
+#include "Log.hpp"
 #include "Pages.hpp"
 
 /**
@@ -28,9 +28,7 @@ int	main(int argc, char **argv)
 		try {
 			Log::setOutputFile(argv[2]);
 		} catch (std::exception const &e) {
-			std::cerr << "Exiting\n";
-
-			return EXIT_FAILURE;
+			std::cerr << "Failed to set output file, logging to standard output instead\n";
 		}
 	}
 

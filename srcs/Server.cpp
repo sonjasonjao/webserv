@@ -237,7 +237,7 @@ void	Server::handleClientData(size_t& i)
 
 	buf[numBytes] = '\0';
 	INFO_LOG("Received client data from fd " + std::to_string(_pfds[i].fd));
-	std::cout << "\n---- Request data ----\n" << buf << "----------------------\n\n";
+	std::cout << "\n---- Request data ----\n" << buf << '\n';
 
 	if (!_clients.empty())
 	{
@@ -251,43 +251,40 @@ void	Server::handleClientData(size_t& i)
 		it->setRecvStart();
 		it->saveRequest(std::string(buf));
 
-		while (!(it->getBuffer().empty()))
+		it->handleRequest();
+
+		if (it->getStatus() == RequestStatus::Error)
 		{
-			it->handleRequest();
+			ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
+				+ " connection dropped: suspicious request");
 
-			if (it->getStatus() == RequestStatus::Error)
-			{
-				ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
-					+ " connection dropped: suspicious request");
+			removeClientFromPollFds(i);
 
-				removeClientFromPollFds(i);
+			INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
+			_clients.erase(it);
 
-				INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
-				_clients.erase(it);
-
-				return ;
-			}
-
-			if (it->getStatus() == RequestStatus::WaitingData)
-			{
-				INFO_LOG("Waiting for more data to complete partial request");
-
-				return ;
-			}
-
-			INFO_LOG("Building response to client fd " + std::to_string(_pfds[i].fd));
-
-			Config const	&conf = matchConfig(*it);
-
-			DEBUG_LOG("Matched config: " + conf.host + " " + conf.host_name + " " + std::to_string(conf.port));
-
-			_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
-			it->reset();
-			it->setStatus(RequestStatus::ReadyForResponse);
-			_pfds[i].events |= POLLOUT;
-			if (!it->getKeepAlive())
-				break;
+			return ;
 		}
+
+		if (it->getStatus() == RequestStatus::WaitingData)
+		{
+			INFO_LOG("Waiting for more data to complete partial request");
+
+			return ;
+		}
+
+		INFO_LOG("Building response to client fd " + std::to_string(_pfds[i].fd));
+
+		Config	 const &conf = matchConfig(*it);
+
+		DEBUG_LOG("Matched config: " + conf.host + " " + conf.host_name + " " + std::to_string(conf.port));
+
+		_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
+		it->reset();
+		it->setStatus(RequestStatus::ReadyForResponse);
+		_pfds[i].events |= POLLOUT;
+
+		it->resetBuffer();
 	}
 }
 
@@ -364,22 +361,21 @@ void	Server::sendResponse(size_t& i)
 		&& it->getStatus() != RequestStatus::RecvTimeout)
 		return ;
 
-	for (auto res = _responses.at(_pfds[i].fd).begin(); _responses.at(_pfds[i].fd).size() > 0; res++)
+	auto &res = _responses.at(_pfds[i].fd).front();
+
+	INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
+	it->setIdleStart();
+	it->setSendStart();
+	res.sendToClient();
+	if (!res.sendIsComplete())
 	{
-		INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
-		it->setIdleStart();
-		it->setSendStart();
-		res->sendToClient();
-		if (!res->sendIsComplete())
-		{
-			INFO_LOG("Response partially sent, waiting for server to complete response sending");
-			return ;
-		}
-
-		_responses.at(_pfds[i].fd).pop_front();
-
-		it->resetSendStart();
+		INFO_LOG("Response partially sent, waiting for server to complete response sending");
+		return ;
 	}
+
+	_responses.at(_pfds[i].fd).pop_front();
+
+	it->resetSendStart();
 
 	_pfds[i].events &= ~POLLOUT;
 
@@ -426,11 +422,13 @@ void	Server::checkTimeouts(void)
 					+ std::to_string(_pfds[i].fd)));
 			it->checkReqTimeouts();
 			if (it->getStatus() == RequestStatus::RecvTimeout) {
-				_responses[_pfds[i].fd].emplace_back(Response(*it, matchConfig(*it)));
+				Config	 const &conf = matchConfig(*it);
+				DEBUG_LOG("Matched config: " + conf.host + " " + conf.host_name + " " + std::to_string(conf.ports[0]));
+				_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
 				sendResponse(i);
 			}
-			if (it->getStatus() == RequestStatus::SendTimeout
-				|| it->getStatus() == RequestStatus::IdleTimeout) {
+			if (it->getStatus() == RequestStatus::IdleTimeout
+				|| it->getStatus() == RequestStatus::SendTimeout) {
 				removeClientFromPollFds(i);
 				INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 				_clients.erase(it);
