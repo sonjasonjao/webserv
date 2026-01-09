@@ -1,5 +1,6 @@
 #include "Log.hpp"
 #include <chrono>
+#include <cstring>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -138,14 +139,11 @@ void	Log::setOutputFile(std::string_view outputFileName)
 {
 	if (_ofs.is_open()) {
 		_ofs.close();
-		if (_ofs.fail()) {
-			std::string	msg = "setOutputFile: couldn't close previously opened output file stream";
-			throw std::runtime_error(msg);
-		}
+		if (_ofs.fail())
+			throw std::runtime_error(ERROR_LOG("Couldn't close previously open file: " + std::string(strerror(errno))));
 	}
 	_ofs.open(std::string(outputFileName));
 	if (!_ofs.is_open()) {
-		std::string	msg = "setOutputFile: couldn't open " + std::string(outputFileName);
-		throw std::runtime_error(msg);
+		throw std::runtime_error(ERROR_LOG("Couldn't open file " + std::string(outputFileName) + ": " + std::string(strerror(errno))));
 	}
 }

@@ -409,7 +409,7 @@ bool	Request::fillKeepAlive(void) {
  */
 bool	Request::validateHeaders(void) {
 	auto	it = _headers.find("host");
-	if ( _request.httpVersion == "HTTP/1.1" && (it == _headers.end() || it->second.empty()))
+	if (_request.httpVersion == "HTTP/1.1" && (it == _headers.end() || it->second.empty()))
 		return false;
 	for (auto const& [key, values] : _headers) {
 		if (values.size() > 1 && isUniqueHeader(key))
