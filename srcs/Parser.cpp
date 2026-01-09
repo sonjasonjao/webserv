@@ -137,10 +137,11 @@ Config Parser::convertToServerData(const Token& server) {
 
 	DEBUG_LOG("\tConverting server config tokens to server data");
     for (auto item : server.children) {
+
 		if (item.children.size() < 2)
 			continue;
 
-        std::string	key = getKey(item);
+        std::string key = getKey(item);
 
         if (key == "host") {
 			DEBUG_LOG("\t\tAdding host " + item.children.at(1).value);
