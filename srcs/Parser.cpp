@@ -103,7 +103,7 @@ void Parser::tokenizeFile(void) {
 
 					for (const auto& block : content.children) {
 
-						// first isolate al the ports related to a server config
+						// first isolate all the ports related to a server config
 						std::vector<std::string> collection = getCollectionBykey(block, "listen");
 
 						// retrieve all the other data except ports
@@ -222,7 +222,7 @@ Config Parser::convertToServerData(const Token& block) {
 }
 
 /**
- * this fucntion extract collection of values from the AST and created a vector of strings
+ * this function extract collection of values from the AST and created a vector of strings
  * @param root, key block of data in the AST need to convert
  * @return vector of strings
 */
