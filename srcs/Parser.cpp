@@ -10,7 +10,7 @@ Parser::Parser(const std::string& file_name)
          * if file does not exist
         */
         if(!std::filesystem::exists(_file_name, ec) || ec) {
-            throw ParserException("File not exist : " + file_name);
+            throw ParserException(ERROR_LOG("File not exist : " + file_name));
         }
         /**
          * Will compare the file extension with the standard one and will throw
@@ -20,7 +20,7 @@ Parser::Parser(const std::string& file_name)
         size_t pos = _file_name.rfind('.');
         std::string ext = _file_name.substr(pos + 1);
         if(ext != EXTENSION) {
-            throw ParserException("Wrong extension : " + _file_name);
+            throw ParserException(ERROR_LOG("Wrong extension : " + _file_name));
         }
 
         _file.open(_file_name);
@@ -29,14 +29,14 @@ Parser::Parser(const std::string& file_name)
          * if the file pointed by the file_name can not open, will throw an error
         */
         if(_file.fail()) {
-            throw ParserException("Can not open file : " + _file_name);
+            throw ParserException(ERROR_LOG("Couldn't open file : " + _file_name + ": " + std::string(strerror(errno))));
         }
 
         /**
          * If the file pointed by the file_name is empty, will throw an error
          */
         if(std::filesystem::file_size(_file_name) == 0) {
-            throw ParserException("Empty file : " + _file_name);
+            throw ParserException(ERROR_LOG("Empty file : " + _file_name));
         }
     /**
      * Sucessfully opening the file and tokenizing the content

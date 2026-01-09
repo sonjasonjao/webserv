@@ -123,7 +123,7 @@ int	Server::createSingleServerSocket(Config conf)
 	}
 	if (p == NULL) {
 		freeaddrinfo(servinfo);
-		throw std::runtime_error(ERROR_LOG("could not create server socket(s)"));
+		throw std::runtime_error(ERROR_LOG("Could not create server socket(s)"));
 	}
 
 	freeaddrinfo(servinfo);
