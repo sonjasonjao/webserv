@@ -2,7 +2,7 @@
 
 ## Most simple example
 ```
-echo "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n" | nc localhost 8081
+echo -n "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n" | nc localhost 8081
 ```
 
 There are example files in `tests/requests` that can be read with `cat` and
