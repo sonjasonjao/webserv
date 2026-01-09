@@ -80,7 +80,7 @@ void Parser::tokenizeFile(void) {
 
 	// JSON string validation
 	if(!isValidJSONString(output)) {
-		throw ParserException("Incorrect configuration!");
+		throw ParserException(ERROR_LOG("Output not a valid JSON string"));
 	}
 
 	// create Token AST for validation
@@ -111,13 +111,13 @@ void Parser::tokenizeFile(void) {
 
 						// add port one by one and create a copy of config
 						if(collection.empty()) {
-							throw ParserException("Missing ports in config files!");
+							throw ParserException(ERROR_LOG("Missing ports in config files!"));
 						}
 
 						for(auto& item : collection) {
 							if(!isValidPort(item)) {
 								_server_configs.clear();
-								throw ParserException("Invalid port value!");
+								throw ParserException(ERROR_LOG("Invalid port value: " + item));
 							} else {
 								config.port = static_cast<uint16_t>(std::stoi(item));
 								_server_configs.emplace_back(config);
@@ -128,7 +128,7 @@ void Parser::tokenizeFile(void) {
 				}
 			}
 		} else {
-			throw ParserException("Incorrect configuration!");
+			throw ParserException(ERROR_LOG("Incorrect configuration!"));
 		}
 	}
 }
@@ -187,7 +187,7 @@ Config Parser::convertToServerData(const Token& block) {
 			std::string str = item.children.at(1).value;
 			DEBUG_LOG("\t\tAdding host " + str);
 			if(!isValidIPv4(str)) {
-				throw ParserException("Invalid IPv4 address value !");
+				throw ParserException(ERROR_LOG("Invalid IPv4 address value: " + str));
 			}
 			config.host = str;
 		}
