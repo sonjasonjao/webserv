@@ -39,7 +39,6 @@ int	main(int argc, char **argv)
 
 		std::cout << "\n--- Active servers ---\n\n";
 		std::cout << "Number of active servers: " << configCount << "\n";
-
 		for (size_t i = 0; i < configCount; ++i) {
 			Config config = parser.getServerConfig(i);
 			std::cout << "Host		: " << config.host << "\n";
@@ -48,7 +47,6 @@ int	main(int argc, char **argv)
 			std::cout << config.port << " ";
 			std::cout << "\n\n";
 		}
-
 		std::cout << "----------------------\n\n";
 
 		Server	server(parser);
@@ -57,12 +55,11 @@ int	main(int argc, char **argv)
 
 	} catch (const Parser::ParserException& e) {
 		std::cerr << "Exiting\n";
-		
+
 		return (EXIT_FAILURE);
-	
 	} catch (const std::exception& e) {
 		std::cerr << "Exiting\n";
-		
+
 		return (EXIT_FAILURE);
 	} catch (...) {
 		std::cerr << "Exiting\n";

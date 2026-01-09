@@ -3,55 +3,55 @@
 #include <cstring>
 
 Parser::Parser(const std::string& file_name)
-    :_file_name(file_name), _file() {
-        std::error_code ec;
-        /**
-         * Try to locate the file in the current file system, will throw an error
-         * if file does not exist
-        */
-        if(!std::filesystem::exists(_file_name, ec) || ec) {
-            throw ParserException(ERROR_LOG("File not exist : " + file_name));
-        }
-        /**
-         * Will compare the file extension with the standard one and will throw
-         * an error in case of mismatch. Subsequent characters in the file_name after
-         * the last occurence of '.'
-        */
-        size_t pos = _file_name.rfind('.');
-        std::string ext = _file_name.substr(pos + 1);
-        if(ext != EXTENSION) {
-            throw ParserException(ERROR_LOG("Wrong extension : " + _file_name));
-        }
+	:_file_name(file_name), _file() {
+	std::error_code ec;
+	/**
+	 * Try to locate the file in the current file system, will throw an error
+	 * if file does not exist
+	 */
+	if(!std::filesystem::exists(_file_name, ec) || ec) {
+		throw ParserException(ERROR_LOG("File not exist : " + file_name));
+	}
+	/**
+	 * Will compare the file extension with the standard one and will throw
+	 * an error in case of mismatch. Subsequent characters in the file_name after
+	 * the last occurence of '.'
+	 */
+	size_t pos = _file_name.rfind('.');
+	std::string ext = _file_name.substr(pos + 1);
+	if(ext != EXTENSION) {
+		throw ParserException(ERROR_LOG("Wrong extension : " + _file_name));
+	}
 
-        _file.open(_file_name);
+	_file.open(_file_name);
 
-        /**
-         * if the file pointed by the file_name can not open, will throw an error
-        */
-        if(_file.fail()) {
-            throw ParserException(ERROR_LOG("Couldn't open file : " + _file_name + ": " + std::string(strerror(errno))));
-        }
+	/**
+	 * if the file pointed by the file_name can not open, will throw an error
+	 */
+	if(_file.fail()) {
+		throw ParserException(ERROR_LOG("Couldn't open file : " + _file_name + ": " + std::string(strerror(errno))));
+	}
 
-        /**
-         * If the file pointed by the file_name is empty, will throw an error
-         */
-        if(std::filesystem::file_size(_file_name) == 0) {
-            throw ParserException(ERROR_LOG("Empty file : " + _file_name));
-        }
-    /**
-     * Sucessfully opening the file and tokenizing the content
-     * all the tokens will be saved into AST tree structure
-    */   
-    tokenizeFile();
+	/**
+	 * If the file pointed by the file_name is empty, will throw an error
+	 */
+	if(std::filesystem::file_size(_file_name) == 0) {
+		throw ParserException(ERROR_LOG("Empty file : " + _file_name));
+	}
+	/**
+	 * Sucessfully opening the file and tokenizing the content
+	 * all the tokens will be saved into AST tree structure
+	 */
+	tokenizeFile();
 }
 
 Parser::~Parser() {
-    /**
-     * At the end if the file descriptor is still open, it will be closed gracefully
-    */
-    if(_file.is_open()) {
-        _file.close();
-    }
+	/**
+	 * At the end if the file descriptor is still open, it will be closed gracefully
+	 */
+	if(_file.is_open()) {
+		_file.close();
+	}
 }
 
 /**
@@ -61,76 +61,76 @@ Parser::~Parser() {
  * @return void - all the tokens will be saved to an internal container
 */
 void Parser::tokenizeFile(void) {
-    std::string line;
-    std::string output;
+	std::string	line;
+	std::string	output;
 
-    // read a line
-    while(getline(_file, line)) {
-        // remove leading/trailing white spaces
-        line = trim(line);
-        // if line is empty, skip
-        if(line.empty()) {
-            continue;
-        } else {
-            // concatinate output and reset line for next read
-            output.append(line);
-            line.clear();
-        }
-    }
+	// read a line
+	while(getline(_file, line)) {
+		// remove leading/trailing white spaces
+		line = trim(line);
+		// if line is empty, skip
+		if(line.empty()) {
+			continue;
+		} else {
+			// concatinate output and reset line for next read
+			output.append(line);
+			line.clear();
+		}
+	}
 
-    // JSON string validation
-    if(!isValidJSONString(output)) {
-        throw ParserException("Incorrect configuration!");
-    }
+	// JSON string validation
+	if(!isValidJSONString(output)) {
+		throw ParserException("Incorrect configuration!");
+	}
 
-    // create Token AST for validation
-    Token root = createToken(output);
+	// create Token AST for validation
+	Token root = createToken(output);
 
-    /**
-     * buliding configuration struct vector to holds all the configuration data
-     * configuration file hould conatins at least one server configuration
-     * anything other than "server" as the key will throw an error 
-    */
-    for(const auto& node : root.children) {
-        // check the if the node is a server block 
-        if(getKey(node) == "server") {
-            // if node has a value
-            if(node.children.size() > 1) {
-                //extract first children
-                const Token& content = node.children[1];
+	/**
+	 * buliding configuration struct vector to holds all the configuration data
+	 * configuration file hould conatins at least one server configuration
+	 * anything other than "server" as the key will throw an error
+	*/
+	for(const auto& node : root.children) {
+		// check the if the node is a server block
+		if(getKey(node) == "server") {
+			// if node has a value
+			if(node.children.size() > 1) {
+				//extract first children
+				const Token& content = node.children[1];
 
-                if(!content.children.empty()) {
+				if(!content.children.empty()) {
 
-                    for(const auto& block : content.children) {
+					for(const auto& block : content.children) {
 
-                        // first isolate al the ports related to a server config
-                        std::vector<std::string> collection = getCollectionBykey(block, "listen");
-                        
-                        // retrieve all the other data except ports
-                        Config config = convertToServerData(block);
-                        
-                        // add port one by one and create a copy of config
-                        if(collection.empty()) {
-                            throw ParserException("Missing ports in config files!");
-                        }
-                            
-                        for(auto& item : collection) {
-                            if(!isValidPort(item)) {
-                                _server_configs.clear();
-                                throw ParserException("Invalid port value!");
-                            } else {
-                                config.port = static_cast<uint16_t>(std::stoi(item));
-                                _server_configs.emplace_back(config);
-                            }
-                        }
-                        
-                    }
-                }
-            }
-        } else {
-            throw ParserException("Incorrect configuration!");
-        }
-    }
+						// first isolate al the ports related to a server config
+						std::vector<std::string> collection = getCollectionBykey(block, "listen");
+
+						// retrieve all the other data except ports
+						Config config = convertToServerData(block);
+
+						// add port one by one and create a copy of config
+						if(collection.empty()) {
+							throw ParserException("Missing ports in config files!");
+						}
+
+						for(auto& item : collection) {
+							if(!isValidPort(item)) {
+								_server_configs.clear();
+								throw ParserException("Invalid port value!");
+							} else {
+								config.port = static_cast<uint16_t>(std::stoi(item));
+								_server_configs.emplace_back(config);
+							}
+						}
+
+					}
+				}
+			}
+		} else {
+			throw ParserException("Incorrect configuration!");
+		}
+	}
 }
 
 /**
@@ -143,7 +143,7 @@ void Parser::tokenizeFile(void) {
  * @return const reference to the requested data structure
 */
 const Config& Parser::getServerConfig(size_t index) {
-    return (_server_configs.at(index));
+	return (_server_configs.at(index));
 }
 
 /**
@@ -158,7 +158,7 @@ const std::vector<Config>	&Parser::getServerConfigs(void) const {
  * to loop through the entire vector
 */
 size_t Parser::getNumberOfServerConfigs(void) {
-    return (_server_configs.size());
+	return (_server_configs.size());
 }
 
 /**
@@ -171,86 +171,74 @@ size_t Parser::getNumberOfServerConfigs(void) {
 */
 Config Parser::convertToServerData(const Token& block) {
 
-    Config config;
+	Config config;
 
-    DEBUG_LOG("\tConverting server config tokens to server data");
-    
-    for (auto item : block.children) {
-        // extract the value of the key from the AST
-        std::string key = getKey(item);
-        
-        // set host or the IP address value
-        if(key == "host") {
-            if(item.children.size() > 1) {
-                std::string str = item.children.at(1).value;
-                DEBUG_LOG("\t\tAdding host " + str);
-                if(!isValidIPv4(str)) {
-                    throw ParserException("Invalid IPv4 address value !");
-                } 
-                config.host = str;
-            }
-        }
+	DEBUG_LOG("\tConverting server config tokens to server data");
 
-        // set host name value
-        if (key == "host_name") {
-            if(item.children.size() > 1) {
-                DEBUG_LOG("\t\tAdding host_name " + item.children.at(1).value);
-                config.host_name = item.children.at(1).value;
-            }
-        }
+	for (auto item : block.children) {
+		if(item.children.size() < 2)
+			continue;
 
-        if (key == "status_pages") {
-            
-            if(item.children.size() < 2) {
-                continue;
-            }
-            
+		// extract the value of the key from the AST
+		std::string key = getKey(item);
+
+		// set host or the IP address value
+		if(key == "host") {
+			std::string str = item.children.at(1).value;
+			DEBUG_LOG("\t\tAdding host " + str);
+			if(!isValidIPv4(str)) {
+				throw ParserException("Invalid IPv4 address value !");
+			}
+			config.host = str;
+		}
+
+		// set host name value
+		if (key == "host_name") {
+			DEBUG_LOG("\t\tAdding host_name " + item.children.at(1).value);
+			config.host_name = item.children.at(1).value;
+		}
+
+		if (key == "status_pages") {
 			for (auto e : item.children.at(1).children) {
-				if (e.children.size() < 2 || e.children.at(1).type != TokenType::Value)
+				if (e.children.at(1).type != TokenType::Value)
 					continue;
 				DEBUG_LOG("\t\tMapping status page "
-							+ std::to_string(std::stoi(e.children.at(0).value))
-							+ " to " + e.children.at(1).value);
+					+ std::to_string(std::stoi(e.children.at(0).value))
+					+ " to " + e.children.at(1).value);
 				config.status_pages[e.children.at(0).value] = e.children.at(1).value;
 			}
-        }
-        
+		}
+
 		if (key == "routes") {
-            
-            if(item.children.size() < 2) {
-                continue;
-            }
-			
-            for (auto r : item.children.at(1).children) {
+			for (auto r : item.children.at(1).children) {
 				if (r.children.size() < 2 || r.children.at(1).type != TokenType::Value)
 					continue;
 				DEBUG_LOG("\t\tAdding route " + r.children.at(0).value + " -> " + r.children.at(1).value);
 				config.routes[r.children.at(0).value] = r.children.at(1).value;
 			}
 		}
-        
-    }
-    return (config);
+	}
+	return (config);
 }
 
 /**
  * this fucntion extract collection of values from the AST and created a vector of strings
  * @param root, key block of data in the AST need to convert
- * @return vector of strings 
+ * @return vector of strings
 */
 std::vector<std::string> Parser::getCollectionBykey(const Token& root, const std::string& key) {
-    std::vector<std::string> collection;
-    for(auto item : root.children) {
-        std::string key_value = getKey(item);
-        if (key == key_value) {
-            if(item.children.size() > 1) {
-                for(auto p : item.children.at(1).children) {
-                    collection.emplace_back(p.value);
-                }
-            }
-        }
-    }
-    return (collection);
+	std::vector<std::string> collection;
+	for(auto item : root.children) {
+		std::string key_value = getKey(item);
+		if (key == key_value) {
+			if(item.children.size() > 1) {
+				for(auto p : item.children.at(1).children) {
+					collection.emplace_back(p.value);
+				}
+			}
+		}
+	}
+	return (collection);
 }
 
 /**
@@ -258,108 +246,107 @@ std::vector<std::string> Parser::getCollectionBykey(const Token& root, const std
  * brackets, quotes, separators and primitive values
  */
 bool Parser::isValidJSONString(std::string_view sv) {
-    std::stack<char> brackets;
-    std::string buffer;
+	std::stack<char> brackets;
+	std::string buffer;
 
-    bool inQuotes = false;
-    char prevChar = '\0';
-    
-    for(size_t i = 0; i < sv.size(); ++i) {
-        char c = sv[i];
+	bool inQuotes = false;
+	char prevChar = '\0';
 
-        /**
-         * if there is double quotes with out escape character, then will toggle
-         * inQuotes
-        */
-        if(c == '"' && prevChar != '\\') {
-            inQuotes = !inQuotes;
-            prevChar = c;
-            continue;
-        }
+	for(size_t i = 0; i < sv.size(); ++i) {
+		char c = sv[i];
 
-        /**
-         * if already inside the quotes any character is allowed, 
-         * simply update the previous char and continue
-        */
-        if(inQuotes) {
-            prevChar = c;
-            continue;
-        }
+		/**
+		 * if there is double quotes with out escape character, then will toggle
+		 * inQuotes
+		*/
+		if(c == '"' && prevChar != '\\') {
+			inQuotes = !inQuotes;
+			prevChar = c;
+			continue;
+		}
 
-        /**
-         * isolating sperators
-        */
-        bool isSeparator = (std::isspace(c) || c == ':' || c == ',' || c == '}' || c == ']');
+		/**
+		 * if already inside the quotes any character is allowed,
+		 * simply update the previous char and continue
+		*/
+		if(inQuotes) {
+			prevChar = c;
+			continue;
+		}
 
-        /**
-         * check for valid values that are not expected to surrounded by quotes
-        */
-        if(isSeparator && !buffer.empty()) {
-            if(!isPrimitiveValue(buffer)) {
-                std::cerr << "Error: Invalid value format -> " << buffer << "\n";
-                return false;
-            }
-            buffer.clear();
-        }
-        
-        /**
-         * all the isspace characters even outside the double quotes will skip 
-        */
-        if(std::isspace(c)) {
-            prevChar = c;
-            continue;
-        }
+		/**
+		 * isolating sperators
+		*/
+		bool isSeparator = (std::isspace(c) || c == ':' || c == ',' || c == '}' || c == ']');
 
-        switch (c)
-        {
-            case '{':
-                brackets.push(c);
-                break;
-            case '[':
-                brackets.push(c);
-                break;
-            case '}':
-                if( brackets.empty() || brackets.top() != '{') {
-                    return (false);
-                } else {
-                    brackets.pop();
-                }
-                break;
-            case ']':
-                if( brackets.empty() || brackets.top() != '[') {
-                    return (false);
-                } else {
-                    brackets.pop();
-                }
-                break;
-            case ':': // allowing to have contiguous ':' for IPv6 validation 
-                if(prevChar == ',') {
-                    return (false);
-                }
-                break;
-            case ',':
-                if(prevChar == ':' || prevChar == ',') {
-                    return (false);
-                }
-                break;
-            default:
-                buffer += c;
-                break;
-        }
-        prevChar = c;
-    }
+		/**
+		 * check for valid values that are not expected to surrounded by quotes
+		*/
+		if(isSeparator && !buffer.empty()) {
+			if(!isPrimitiveValue(buffer)) {
+				std::cerr << "Error: Invalid value format -> " << buffer << "\n";
+				return false;
+			}
+			buffer.clear();
+		}
 
-    if(inQuotes) {
-        std::cerr << "Un-closed double quotations !\n";
-        return (false);
-    }
+		/**
+		 * all the isspace characters even outside the double quotes will skip
+		*/
+		if(std::isspace(c)) {
+			prevChar = c;
+			continue;
+		}
 
-    if(!brackets.empty()) {
-        std::cerr << "Un-closed brackets " << brackets.top() << "!\n";
-        return (false);
-    }
-    return (true);
-  
+		switch (c)
+		{
+			case '{':
+				brackets.push(c);
+				break;
+			case '[':
+				brackets.push(c);
+				break;
+			case '}':
+				if( brackets.empty() || brackets.top() != '{') {
+					return (false);
+				} else {
+					brackets.pop();
+				}
+				break;
+			case ']':
+				if( brackets.empty() || brackets.top() != '[') {
+					return (false);
+				} else {
+					brackets.pop();
+				}
+				break;
+			case ':': // allowing to have contiguous ':' for IPv6 validation
+				if(prevChar == ',') {
+					return (false);
+				}
+				break;
+			case ',':
+				if(prevChar == ':' || prevChar == ',') {
+					return (false);
+				}
+				break;
+			default:
+				buffer += c;
+				break;
+		}
+		prevChar = c;
+	}
+
+	if(inQuotes) {
+		std::cerr << "Un-closed double quotations !\n";
+		return (false);
+	}
+
+	if(!brackets.empty()) {
+		std::cerr << "Un-closed brackets " << brackets.top() << "!\n";
+		return (false);
+	}
+	return (true);
 }
 
 /**
@@ -367,24 +354,24 @@ bool Parser::isValidJSONString(std::string_view sv) {
  * an integer, a fractional value, IPv4 or IPv6 address, true or false
 */
 bool Parser::isPrimitiveValue(std::string_view sv) {
-     if(sv.empty()) {
-        return (false);
-    }
+	if(sv.empty()) {
+		return (false);
+	}
 
-    if(sv == "true" || sv == "false") {
-        return (true);
-    }
+	if(sv == "true" || sv == "false") {
+		return (true);
+	}
 
-    bool hasDigit = false;
+	bool hasDigit = false;
 
-    for(size_t i = 0; i < sv.size(); ++i) {
-        char c = sv[i];
-        if (c == '.' || c == '+' || c == '-' || std::isdigit(c)) {
-            if(std::isdigit(c)) hasDigit = true;
-            continue;
-        } else {
-            return (false);
-        }
-    }
-    return (hasDigit);
+	for(size_t i = 0; i < sv.size(); ++i) {
+		char c = sv[i];
+		if (c == '.' || c == '+' || c == '-' || std::isdigit(c)) {
+			if(std::isdigit(c)) hasDigit = true;
+			continue;
+		} else {
+			return (false);
+		}
+	}
+	return (hasDigit);
 }

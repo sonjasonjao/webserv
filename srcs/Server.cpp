@@ -278,7 +278,6 @@ void	Server::handleClientData(size_t& i)
 		Config	 const &conf = matchConfig(*it);
 
 		DEBUG_LOG("Matched config: " + conf.host + " " + conf.host_name + " " + std::to_string(conf.port));
-
 		_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
 		it->reset();
 		it->setStatus(RequestStatus::ReadyForResponse);
@@ -423,7 +422,8 @@ void	Server::checkTimeouts(void)
 			it->checkReqTimeouts();
 			if (it->getStatus() == RequestStatus::RecvTimeout) {
 				Config	 const &conf = matchConfig(*it);
-				DEBUG_LOG("Matched config: " + conf.host + " " + conf.host_name + " " + std::to_string(conf.ports[0]));
+
+				DEBUG_LOG("Matched config: " + conf.host + " " + conf.host_name + " " + std::to_string(conf.port));
 				_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
 				sendResponse(i);
 			}
