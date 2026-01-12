@@ -12,6 +12,9 @@ bool						isValidIPv4(std::string_view sv);
 bool						resourceExists(std::string_view uri, std::string searchDir = "");
 bool						uriFormatOk(std::string_view uri);
 bool						uriTargetAboveRoot(std::string_view uri);
+// Validates that the given string represents a non-privileged TCP/UDP port.
+// Ports below 1024 are intentionally rejected because they are typically
+// reserved as privileged ports on Unix-like systems.
 bool	                    isValidPort(std::string_view sv);
 bool						isValidImfFixdate(std::string_view sv);
 
