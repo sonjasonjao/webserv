@@ -43,7 +43,7 @@ Parser::Parser(const std::string& file_name)
 		throw ParserException(ERROR_LOG("Empty file : " + _file_name));
 	}
 	/**
-	 * Sucessfully opening the file and tokenizing the content
+	 * Successfully opening the file and tokenizing the content
 	 * all the tokens will be saved into AST tree structure
 	 */
 	tokenizeFile();
@@ -226,7 +226,7 @@ Config Parser::convertToServerData(const Token& block) {
 				ERROR_LOG("Unrecognized value for autoindexing, retaining default value false");
 			} else {
 				config.autoindex = (item.children.at(1).value == "true" ? true : false);
-				DEBUG_LOG(std::string("\t\tSet directory listing to ") + (config.autoindex ? "true" : "false"));
+				DEBUG_LOG(std::string("\t\tSet autoindexing to ") + (config.autoindex ? "true" : "false"));
 			}
 		}
 
