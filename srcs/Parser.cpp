@@ -125,7 +125,13 @@ void Parser::tokenizeFile(void) {
 						}
 
 					}
+				} else {
+					// server key exists but has no content: treat as malformed configuration
+					throw ParserException("Incorrect configuration!");
 				}
+			} else {
+				// server key exists but is missing expected children: treat as malformed configuration
+				throw ParserException("Incorrect configuration!");
 			}
 		} else {
 			throw ParserException(ERROR_LOG("Incorrect configuration!"));
@@ -229,8 +235,8 @@ Config Parser::convertToServerData(const Token& block) {
 std::vector<std::string> Parser::getCollectionBykey(const Token& root, const std::string& key) {
 	std::vector<std::string> collection;
 	for (auto item : root.children) {
-		std::string key_value = getKey(item);
-		if (key == key_value) {
+		std::string itemKey = getKey(item);
+		if (key == itemKey) {
 			if (item.children.size() > 1) {
 				for (auto p : item.children.at(1).children) {
 					collection.emplace_back(p.value);
@@ -275,7 +281,7 @@ bool Parser::isValidJSONString(std::string_view sv) {
 		}
 
 		/**
-		 * isolating sperators
+		 * isolating separators
 		*/
 		bool isSeparator = (std::isspace(c) || c == ':' || c == ',' || c == '}' || c == ']');
 
