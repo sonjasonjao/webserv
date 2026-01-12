@@ -1,4 +1,5 @@
 #pragma once
+
 #include "Parser.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
@@ -38,8 +39,9 @@ class Server
 		Server() = delete;
 		Server(Parser &parser);
 		Server(Server const &obj) = delete;
-		Server const	&operator=(Server const &other) = delete;
 		~Server();
+
+		Server const	&operator=(Server const &other) = delete;
 
 		std::vector<Config> const	&getConfigs() const;
 

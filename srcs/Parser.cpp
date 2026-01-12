@@ -1,6 +1,10 @@
 #include "Parser.hpp"
+#include "Log.hpp"
+#include "Utils.hpp"
 #include <cerrno>
 #include <cstring>
+#include <filesystem>
+#include <stack>
 
 Parser::Parser(const std::string& file_name)
 	:_file_name(file_name), _file() {
@@ -205,11 +209,25 @@ Config Parser::convertToServerData(const Token& block) {
 		}
 
 		if (key == "directory_listing") {
-			// NOTE: Implement for next PR
+			std::string	val = item.children.at(1).value;
+
+			if (val != "true" && val != "false") {
+				ERROR_LOG("Unrecognized value for directory listing, retaining default value false");
+			} else {
+				config.directoryListing = (item.children.at(1).value == "true" ? true : false);
+				DEBUG_LOG(std::string("\t\tSet directory listing to ") + (config.directoryListing ? "true" : "false"));
+			}
 		}
 
-		if (key == "autoindexing") {
-			// NOTE: Implement for next PR
+		if (key == "autoindex") {
+			std::string	val = item.children.at(1).value;
+
+			if (val != "true" && val != "false") {
+				ERROR_LOG("Unrecognized value for autoindexing, retaining default value false");
+			} else {
+				config.autoindex = (item.children.at(1).value == "true" ? true : false);
+				DEBUG_LOG(std::string("\t\tSet directory listing to ") + (config.autoindex ? "true" : "false"));
+			}
 		}
 
 		if (key == "status_pages") {

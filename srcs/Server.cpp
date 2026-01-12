@@ -1,6 +1,5 @@
-#include "../include/Server.hpp"
-#include "../include/Request.hpp"
-#include "Response.hpp"
+#include "Server.hpp"
+#include "Log.hpp"
 #include <iostream>
 #include <sys/socket.h>
 #include <sys/types.h>

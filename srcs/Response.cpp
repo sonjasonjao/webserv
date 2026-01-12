@@ -38,7 +38,12 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	}
 	if (_statusCode != Unassigned) {
 		formResponse();
-		std::cout << "\n---- Response content ----\n" << _content << "--------------------------\n\n";
+		std::cout << "\n---- Response content ----\n";
+		if (_contentType.find("image") == std::string::npos)
+			std::cout << _content;
+		else
+			std::cout << "Image data...";
+		std::cout << "\n--------------------------\n\n";
 
 		return;
 	}
@@ -48,8 +53,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	// Be prepared for shenanigans, validate URI format for target early
 	if (!uriFormatOk(reqTarget) || uriTargetAboveRoot(reqTarget)) {
 		DEBUG_LOG("Bad target: " + reqTarget);
-		_error		= ResponseError::BadTarget;
-		_statusCode	= BadRequest;
+		_statusCode = BadRequest;
 
 		formResponse();
 
@@ -69,19 +73,24 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 
 	INFO_LOG("Routing " + reqTarget + " to " + _target);
 
-	// NOTE: Plug in configuration later
-	bool	directoryListing	= false;
-	bool	autoindexing		= true;
-
 	// Handle directory listing and/or autoindexing
 	if (std::filesystem::is_directory(_target)) {
 		DEBUG_LOG("Target '" + _target + "' is a directory" );
+		if (!_conf.autoindex && !_conf.directoryListing) {
+			DEBUG_LOG("Autoindexing and directory listing is disabled");
+			_statusCode = BadRequest;
+
+			formResponse();
+
+			return;
+		}
+
 		if (_target.back() == '/')
 			_target.pop_back();
 
-		if (autoindexing && !directoryListing) {
-			_target = _target + "/" + "index.html";	// NOTE: this could be toggled by an option in the config
-		} else if (directoryListing) {
+		if (_conf.autoindex && !_conf.directoryListing) {
+			_target = _target + "/" + "index.html";
+		} else if (_conf.directoryListing) {
 			_body = getDirectoryList(reqTarget, _target);
 		}
 	}
@@ -101,6 +110,8 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 				_statusCode = NotFound;
 				break;
 			}
+			if (Pages::isCached(getAbsPath(_target)))
+				DEBUG_LOG("Resource " + _target + " found in cache");
 			INFO_LOG("Resource " + _target + " found");
 			_statusCode = OK;
 		break;
@@ -125,46 +136,29 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 
 	formResponse();
 
-	std::cout << "\n---- Response content ----\n" << _content << "--------------------------\n\n";
+	std::cout << "\n---- Response content ----\n";
+	if (_contentType.find("image") == std::string::npos)
+		std::cout << _content;
+	else
+		std::cout << "Image data...";
+	std::cout << "\n--------------------------\n\n";
 }
 
 Response::Response(Response const &other)
 	:	_req(other._req),
 		_conf(other._conf),
-		_headers(other._headers),
 		_target(other._target),
 		_startLine(other._startLine),
 		_headerSection(other._headerSection),
 		_body(other._body),
 		_content(other._content),
-		_statusCode(other._statusCode),
-		_error(other._error)
+		_contentType(other._contentType),
+		_statusCode(other._statusCode)
 {}
 
 std::string const	&Response::getContent() const
 {
 	return _content;
-}
-
-std::string const	&Response::getStartLine() const
-{
-	return _startLine;
-}
-
-/**
- */
-std::vector<std::string> const	*Response::getHeader(std::string const &key) const
-{
-	try {
-		return &_headers.at(key);
-	} catch (std::exception const &e) {
-		return nullptr;
-	}
-}
-
-RequestMethod	Response::getRequestMethod() const
-{
-	return _req.getRequestMethod();
 }
 
 void	Response::formResponse()
@@ -182,9 +176,9 @@ void	Response::formResponse()
 		return;
 	}
 
-	std::string	contentType = getContentType(_target);
+	_contentType = getContentType(_target);
 
-	_headerSection += "Content-Type: " + contentType + std::string(CRLF);
+	_headerSection += "Content-Type: " + _contentType + std::string(CRLF);
 
 	switch (_statusCode) {
 		case 200:
