@@ -24,12 +24,11 @@ struct Redirect {
 struct Config {
 	std::string	host;		// IP or hostname on which this server listens, e.g. "0.0.0.0" or "127.0.0.1"
 	std::string	host_name;	// List of server names (virtual hosts) handled by this server eg : {"example.com", "www.example.com"}
-//
+
 	uint16_t	port = 0;	// Port on which this server listens
 
 	std::map<std::string, std::string>	status_pages;	// Mapping from HTTP status code to custom page path.
 	std::map<std::string, std::string>	routes;			// Set of routes (URI -> path definitions) for this server.
-//
 
 	size_t	client_max_body_size = 0;	// Default maximum allowed size (in bytes) of the request body for this server``
 
