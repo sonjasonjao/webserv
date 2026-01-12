@@ -226,7 +226,7 @@ Config Parser::convertToServerData(const Token& block) {
 				ERROR_LOG("Unrecognized value for autoindexing, retaining default value false");
 			} else {
 				config.autoindex = (item.children.at(1).value == "true" ? true : false);
-				DEBUG_LOG(std::string("\t\tSet directory listing to ") + (config.autoindex ? "true" : "false"));
+				DEBUG_LOG(std::string("\t\tSet autoindexing to ") + (config.autoindex ? "true" : "false"));
 			}
 		}
 
