@@ -21,31 +21,16 @@ struct Redirect {
 	std::string					target_url;		//Targeturlwhichclientwillredirect
 };
 
-struct Route{
-	std::string					path;					//URIprefixfortheroute,e.g."/","/images/","/upload"
-	std::string					abs_path;				//Absolutefilesystempathcorrespondingtheroute'srooteg:"/var/www/site"
-	std::vector<std::string>	accepted_methods;		//listofallowedhttpmethdseg:GET,POST,DELETE
-	Redirect					redirect;				//Thiswillserveiftherequestisredirect
-	bool						auto_index;				//iftrue,enabledirectorylistingwhentherequestedpathisadirectory
-	std::string					index_file;				//Defaultfilenametoserve
-	std::vector<std::string>	cgi_extensions;			//FileextensionsthatshouldbehandledbyaCGIeg".php,.py"
-	std::vector<std::string>	cgi_methods;			//httpmethodsallowedspecificallyforCGIexecution
-	std::string					upload_path;			//Directorywhereuploadedfileshandledbyrouteshouldstore
-	std::string					cgi_executable;			//PathtotheCGIinterpreter/executabletorunformatchingfiles
-	size_t						client_max_body_size;	//Maximumallowedsize(inbytes)oftherequestbodyforthisroute.
-};
-
 struct Config {
 	std::string	host;		// IP or hostname on which this server listens, e.g. "0.0.0.0" or "127.0.0.1"
 	std::string	host_name;	// List of server names (virtual hosts) handled by this server eg : {"example.com", "www.example.com"}
-//
+
 	uint16_t	port = 0;	// Port on which this server listens
 
 	std::map<std::string, std::string>	status_pages;	// Mapping from HTTP status code to custom page path.
 	std::map<std::string, std::string>	routes;			// Set of routes (URI -> path definitions) for this server.
-//
 
-	size_t	client_max_body_size = 0;	// Default maximum allowed size (in bytes) of the request body for this server``
+	size_t	client_max_body_size = 0;	// Default maximum allowed size (in bytes) of the request body for this server
 
 	bool	directoryListing	= false;
 	bool	autoindex			= false;
@@ -94,7 +79,7 @@ public:
 	void tokenizeFile(void);
 
 	/**
-	 * First version of getter method to get a final srever configuration information. As the first
+	 * First version of getter method to get a final server configuration information. As the first
 	 * version only return some dummy values to start implementing Main loop for Sonja
 	 */
 	const Config& getServerConfig(size_t index);

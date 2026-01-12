@@ -14,12 +14,12 @@ Parser::Parser(const std::string& file_name)
 	 * if file does not exist
 	 */
 	if (!std::filesystem::exists(_file_name, ec) || ec) {
-		throw ParserException(ERROR_LOG("File not exist : " + file_name));
+		throw ParserException(ERROR_LOG("File does not exist: " + file_name));
 	}
 	/**
 	 * Will compare the file extension with the standard one and will throw
 	 * an error in case of mismatch. Subsequent characters in the file_name after
-	 * the last occurence of '.'
+	 * the last occurrence of '.'
 	 */
 	size_t pos = _file_name.rfind('.');
 	std::string ext = _file_name.substr(pos + 1);
@@ -43,7 +43,7 @@ Parser::Parser(const std::string& file_name)
 		throw ParserException(ERROR_LOG("Empty file : " + _file_name));
 	}
 	/**
-	 * Sucessfully opening the file and tokenizing the content
+	 * Successfully opening the file and tokenizing the content
 	 * all the tokens will be saved into AST tree structure
 	 */
 	tokenizeFile();
@@ -91,8 +91,8 @@ void Parser::tokenizeFile(void) {
 	Token root = createToken(output);
 
 	/**
-	 * buliding configuration struct vector to holds all the configuration data
-	 * configuration file hould conatins at least one server configuration
+	 * building configuration struct vector to hold all the configuration data
+	 * configuration file should contain at least one server configuration
 	 * anything other than "server" as the key will throw an error
 	*/
 	for (const auto& node : root.children) {
@@ -177,7 +177,7 @@ size_t Parser::getNumberOfServerConfigs(void) {
  * @param server	block of data in the AST need to convert
  *
  * @return	value of the config created on the fly, will recreate the similar
- *			data int the respective vector, temporary data so no reference
+ *			data in the respective vector, temporary data so no reference
  */
 Config Parser::convertToServerData(const Token& block) {
 
@@ -226,7 +226,7 @@ Config Parser::convertToServerData(const Token& block) {
 				ERROR_LOG("Unrecognized value for autoindexing, retaining default value false");
 			} else {
 				config.autoindex = (item.children.at(1).value == "true" ? true : false);
-				DEBUG_LOG(std::string("\t\tSet directory listing to ") + (config.autoindex ? "true" : "false"));
+				DEBUG_LOG(std::string("\t\tSet autoindexing to ") + (config.autoindex ? "true" : "false"));
 			}
 		}
 
@@ -254,7 +254,7 @@ Config Parser::convertToServerData(const Token& block) {
 }
 
 /**
- * this function extract collection of values from the AST and created a vector of strings
+ * this function extracts a collection of values from the AST and creates a vector of strings
  * @param root, key block of data in the AST need to convert
  * @return vector of strings
  */

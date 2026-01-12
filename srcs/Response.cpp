@@ -3,7 +3,7 @@
 #include "Log.hpp"
 #include "Pages.hpp"
 #include <algorithm>
-#include <array>
+#include <cerrno>
 #include <cstring>
 #include <sstream>
 #include <string>
@@ -168,17 +168,17 @@ void	Response::formResponse()
 
 	// If the body is non empty it means directory listing has been activated
 	if (!_body.empty()) {
-		_startLine = _req.getHttpVersion() + " 200 OK";
-		_headerSection += "Content-Type: text/html" + std::string(CRLF);
-		_headerSection += "Content-Length: " + std::to_string(_body.length()) + CRLF;
-		_content = _startLine + CRLF + _headerSection + CRLF + _body;
+		_startLine		= _req.getHttpVersion() + " 200 OK";
+		_contentType	= "text/html";
+		_headerSection	+= "Content-Type: " + _contentType + std::string(CRLF);
+		_headerSection	+= "Content-Length: " + std::to_string(_body.length()) + CRLF;
+		_content		= _startLine + CRLF + _headerSection + CRLF + _body;
 
 		return;
 	}
 
-	_contentType = getContentType(_target);
-
-	_headerSection += "Content-Type: " + _contentType + std::string(CRLF);
+	_contentType	=	getContentType(_target);
+	_headerSection	+=	"Content-Type: " + _contentType + std::string(CRLF);
 
 	switch (_statusCode) {
 		case 200:
@@ -341,17 +341,21 @@ static std::string	getDirectoryList(std::string_view target, std::string_view ro
 
 	stream << "<h1>" << target << "</h1>";
 
-	for (const auto &e : std::filesystem::directory_iterator(route)) {
+	try {
+		for (const auto &e : std::filesystem::directory_iterator(route)) {
 
-		std::string	name = e.path().string();
+			std::string	name = e.path().string();
 
-		if (e.is_regular_file()) {
-			auto	pos = std::upper_bound(files.begin(), files.end(), name);
-			files.insert(pos, name);
-		} else if (e.is_directory()) {
-			auto	pos = std::upper_bound(directories.begin(), directories.end(), name);
-			directories.insert(pos, name);
+			if (e.is_regular_file()) {
+				auto	pos = std::upper_bound(files.begin(), files.end(), name);
+				files.insert(pos, name);
+			} else if (e.is_directory()) {
+				auto	pos = std::upper_bound(directories.begin(), directories.end(), name);
+				directories.insert(pos, name);
+			}
 		}
+	} catch (std::exception const &e) {
+		ERROR_LOG(std::string(strerror(errno)));
 	}
 
 	if (!directories.empty()) {
