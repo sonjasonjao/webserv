@@ -19,7 +19,7 @@ Parser::Parser(const std::string& file_name)
 	/**
 	 * Will compare the file extension with the standard one and will throw
 	 * an error in case of mismatch. Subsequent characters in the file_name after
-	 * the last occurence of '.'
+	 * the last occurrence of '.'
 	 */
 	size_t pos = _file_name.rfind('.');
 	std::string ext = _file_name.substr(pos + 1);
