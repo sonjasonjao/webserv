@@ -91,7 +91,7 @@ void Parser::tokenizeFile(void) {
 	Token root = createToken(output);
 
 	/**
-	 * buliding configuration struct vector to holds all the configuration data
+	 * building configuration struct vector to holds all the configuration data
 	 * configuration file hould conatins at least one server configuration
 	 * anything other than "server" as the key will throw an error
 	*/
