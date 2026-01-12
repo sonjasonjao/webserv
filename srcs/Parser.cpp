@@ -43,7 +43,7 @@ Parser::Parser(const std::string& file_name)
 		throw ParserException(ERROR_LOG("Empty file : " + _file_name));
 	}
 	/**
-	 * Sucessfully opening the file and tokenizing the content
+	 * Successfully opening the file and tokenizing the content
 	 * all the tokens will be saved into AST tree structure
 	 */
 	tokenizeFile();
