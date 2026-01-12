@@ -19,7 +19,7 @@ int	main(int argc, char **argv)
 
 	// Handling one or two user inputs
 	if (argc == 1)
-		std::cout << "No config file provided, using default: " << confFile <<  "\n";
+		std::cout << "No config file provided, using default: " << confFile << "\n";
 	if (argc < 3)
 		std::cout << "No log file provided, using standard output\n\n";
 	if (argc > 1)

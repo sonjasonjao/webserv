@@ -347,8 +347,8 @@ void	Server::removeClientFromPollFds(size_t& i)
 /**
  * Loops through all responses in the current client's response queue (in order of received requests)
  * and for each response, sets the starting time for send timeout tracking and calls sendToClient().
- * If the response was completely sent with one call,  removes sent response from _response queue and
- * resets the send timeout tracker to 0. When response queue is emptied, removes POLLOUT from  events.
+ * If the response was completely sent with one call, removes sent response from _response queue and
+ * resets the send timeout tracker to 0. When response queue is emptied, removes POLLOUT from events.
  * In case of keepAlive being false, disconnects and removes the client; in case of keepAlive, sets
  * client status back to default.
  */
@@ -443,7 +443,7 @@ void	Server::checkTimeouts(void)
 
 /**
  * Checks if current fd is a server (true) or a client (false) fd.
-*/
+ */
 bool	Server::isServerFd(int fd)
 {
 	auto it = _serverGroups.begin();

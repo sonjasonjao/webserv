@@ -250,7 +250,7 @@ bool	Response::sendIsComplete()
 static std::string	route(std::string target, Config const &conf)
 {
 	// If the target isn't "/" remove any extra '/' characters, as they don't have any meaning (root access is forbidden)
-	if  (target.length() > 1 && target[0] == '/')
+	if (target.length() > 1 && target[0] == '/')
 		target = target.substr(1);
 
 	// Check for an exact route for target

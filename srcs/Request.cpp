@@ -64,7 +64,7 @@ void	Request::reset(void) {
 /**
  * Resets the keepAlive status separately from other resets, only after keepAlive status of the
  * latest request has been checked.
-*/
+ */
 void	Request::resetKeepAlive(void) {
 	_keepAlive = false;
 }

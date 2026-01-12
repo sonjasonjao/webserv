@@ -59,7 +59,7 @@ Parser::~Parser() {
  * to tokens based on spaces/tabs
  * @param void - class method will have access to all the class attributes
  * @return void - all the tokens will be saved to an internal container
-*/
+ */
 void Parser::tokenizeFile(void) {
 	std::string	line;
 	std::string	output;
@@ -147,7 +147,7 @@ void Parser::tokenizeFile(void) {
  * @param index unsigned int value which represents the index of the server
  * config struct data
  * @return const reference to the requested data structure
-*/
+ */
 const Config& Parser::getServerConfig(size_t index) {
 	return (_server_configs.at(index));
 }
@@ -162,7 +162,7 @@ const std::vector<Config>	&Parser::getServerConfigs(void) const {
 /**
  * will return the size of the internal container, useful info when required
  * to loop through the entire vector
-*/
+ */
 size_t Parser::getNumberOfServerConfigs(void) {
 	return (_server_configs.size());
 }
@@ -174,7 +174,7 @@ size_t Parser::getNumberOfServerConfigs(void) {
  *
  * @return	value of the config created on the fly, will recreate the similar
  *			data int the respective vector, temporary data so no reference
-*/
+ */
 Config Parser::convertToServerData(const Token& block) {
 
 	Config config;
@@ -204,11 +204,13 @@ Config Parser::convertToServerData(const Token& block) {
 			config.host_name = item.children.at(1).value;
 		}
 
-        if (key == "directory_listing")
+		if (key == "directory_listing") {
 			// NOTE: Implement for next PR
+		}
 
-        if (key == "autoindexing")
+		if (key == "autoindexing") {
 			// NOTE: Implement for next PR
+		}
 
 		if (key == "status_pages") {
 			for (auto e : item.children.at(1).children) {
@@ -237,7 +239,7 @@ Config Parser::convertToServerData(const Token& block) {
  * this function extract collection of values from the AST and created a vector of strings
  * @param root, key block of data in the AST need to convert
  * @return vector of strings
-*/
+ */
 std::vector<std::string> Parser::getCollectionBykey(const Token& root, const std::string& key) {
 	std::vector<std::string> collection;
 	for (auto item : root.children) {
@@ -270,7 +272,7 @@ bool Parser::isValidJSONString(std::string_view sv) {
 		/**
 		 * if there is double quotes with out escape character, then will toggle
 		 * inQuotes
-		*/
+		 */
 		if (c == '"' && prevChar != '\\') {
 			inQuotes = !inQuotes;
 			prevChar = c;
@@ -280,7 +282,7 @@ bool Parser::isValidJSONString(std::string_view sv) {
 		/**
 		 * if already inside the quotes any character is allowed,
 		 * simply update the previous char and continue
-		*/
+		 */
 		if (inQuotes) {
 			prevChar = c;
 			continue;
@@ -288,12 +290,12 @@ bool Parser::isValidJSONString(std::string_view sv) {
 
 		/**
 		 * isolating separators
-		*/
+		 */
 		bool isSeparator = (std::isspace(c) || c == ':' || c == ',' || c == '}' || c == ']');
 
 		/**
 		 * check for valid values that are not expected to surrounded by quotes
-		*/
+		 */
 		if (isSeparator && !buffer.empty()) {
 			if (!isPrimitiveValue(buffer)) {
 				std::cerr << "Error: Invalid value format -> " << buffer << "\n";
@@ -304,7 +306,7 @@ bool Parser::isValidJSONString(std::string_view sv) {
 
 		/**
 		 * all the isspace characters even outside the double quotes will skip
-		*/
+		 */
 		if (std::isspace(c)) {
 			prevChar = c;
 			continue;
@@ -364,7 +366,7 @@ bool Parser::isValidJSONString(std::string_view sv) {
 /**
  * this function will check if a given string is a valid primitive value
  * an integer, a fractional value, IPv4 or IPv6 address, true or false
-*/
+ */
 bool Parser::isPrimitiveValue(std::string_view sv) {
 	if (sv.empty()) {
 		return (false);
