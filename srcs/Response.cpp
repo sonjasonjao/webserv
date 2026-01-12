@@ -167,17 +167,17 @@ void	Response::formResponse()
 
 	// If the body is non empty it means directory listing has been activated
 	if (!_body.empty()) {
-		_startLine = _req.getHttpVersion() + " 200 OK";
-		_headerSection += "Content-Type: text/html" + std::string(CRLF);
-		_headerSection += "Content-Length: " + std::to_string(_body.length()) + CRLF;
-		_content = _startLine + CRLF + _headerSection + CRLF + _body;
+		_startLine		= _req.getHttpVersion() + " 200 OK";
+		_contentType	= "text/html";
+		_headerSection	+= "Content-Type: " + _contentType + std::string(CRLF);
+		_headerSection	+= "Content-Length: " + std::to_string(_body.length()) + CRLF;
+		_content		= _startLine + CRLF + _headerSection + CRLF + _body;
 
 		return;
 	}
 
-	_contentType = getContentType(_target);
-
-	_headerSection += "Content-Type: " + _contentType + std::string(CRLF);
+	_contentType	=	getContentType(_target);
+	_headerSection	+=	"Content-Type: " + _contentType + std::string(CRLF);
 
 	switch (_statusCode) {
 		case 200:
