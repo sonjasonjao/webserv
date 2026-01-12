@@ -189,28 +189,54 @@ void	Request::parseRequest(void) {
 		parseChunked();
 	printData();
 	if(_request.method == RequestMethod::Post) {
+		
 		auto it = _headers.find("content-type");
 		if(it != _headers.end() && it->second.front().find("multipart/form-data") != std::string::npos) {
 			
 			std::cout << "######### INSIDE POST REQUEST ######## \n";
-			std::string search_key = "--" + _boundary.value();
-			std::string str(_body);
 
-			std::vector<std::string> blocks;
+			std::string part_delimeter = "--" + _boundary.value();
+			std::string end_delimeter =  part_delimeter + "--";
+			
+    		size_t curr_pos = 0;
 
-			size_t start = 0, end = str.find(search_key);
+			while (true) {
+				size_t part_start = _body.find(part_delimeter, curr_pos);
+				
+				if(part_start == std::string::npos) {
+					break;
+				}
 
-			while(end != std::string::npos) {
-				blocks.push_back(str.substr(start, end - start));
-				start = end + 1 + search_key.length();
-				end = str.find(search_key, start);
-			}
+				if(_body.substr(part_start, end_delimeter.length()) == end_delimeter) {
+					break;
+				}
 
-			blocks.push_back(str.substr(start));
+				size_t header_start = part_start + part_delimeter.length();
+				
+				if(_body.substr(header_start, 2) == "\r\n") {
+					header_start += 2;
+				}
 
-			for(auto it : blocks) {
-				if(it.empty()) continue;
-				std::cout << " item : " << it << "\n";
+				size_t part_end = _body.find(part_delimeter, header_start);
+
+				if(part_end == std::string::npos) {
+					break;
+				}
+
+				std::string raw_part = _body.substr(header_start, part_end - header_start - 2);
+
+				MultipartPart mp;
+				size_t header_end = raw_part.find("\r\n\r\n");
+
+				if(header_end != std::string::npos) {
+					mp.headers = raw_part.substr(0, header_end);
+					mp.data = raw_part.substr(header_end + 4);
+					mp.name = extract_quoted_value(mp.headers, "name=");
+					mp.filename = extract_quoted_value(mp.headers, "filename=");
+					mp.content_type = extract_value(mp.headers, "Content-Type: ");
+				}
+				save_to_disk(mp);
+				curr_pos = part_end;
 			}
 		}
 	}

@@ -4,6 +4,7 @@
 #include <string>
 #include <optional>
 #include <chrono>
+#include "Utils.hpp"
 
 #define IDLE_TIMEOUT 10000 // timeout values to be decided, and should they be in Server.hpp?
 #define RECV_TIMEOUT 5000

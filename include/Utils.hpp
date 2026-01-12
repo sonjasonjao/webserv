@@ -3,6 +3,27 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <iostream>
+#include <vector>
+#include <sstream>
+#include <array>
+#include <chrono>
+#include <iomanip>
+#include <clocale>
+#include <filesystem>
+#include <algorithm>
+#include <fstream>
+#include <cerrno>
+#include <cstring>
+#include "Log.hpp"
+
+struct MultipartPart {
+    std::string headers;
+    std::string name;
+    std::string filename;
+    std::string content_type;
+    std::string data;
+};
 
 std::string					getImfFixdate();
 std::string					trimWhitespace(std::string_view	sv);
@@ -17,3 +38,7 @@ bool						isValidImfFixdate(std::string_view sv);
 
 std::string					getFileAsString(std::string const &fileName, std::string searchDir = "");
 std::string					getAbsPath(std::string const &fileName, std::string searchDir = "");
+
+std::string                 extract_value(const std::string& source, const std::string& key);
+std::string                 extract_quoted_value(const std::string& source, const std::string& key);
+void                        save_to_disk(const MultipartPart& part);
