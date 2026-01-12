@@ -125,7 +125,13 @@ void Parser::tokenizeFile(void) {
 						}
 
 					}
+				} else {
+					// server key exists but has no content: treat as malformed configuration
+					throw ParserException("Incorrect configuration!");
 				}
+			} else {
+				// server key exists but is missing expected children: treat as malformed configuration
+				throw ParserException("Incorrect configuration!");
 			}
 		} else {
 			throw ParserException(ERROR_LOG("Incorrect configuration!"));
