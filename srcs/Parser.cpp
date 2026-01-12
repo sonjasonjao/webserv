@@ -177,7 +177,7 @@ size_t Parser::getNumberOfServerConfigs(void) {
  * @param server	block of data in the AST need to convert
  *
  * @return	value of the config created on the fly, will recreate the similar
- *			data int the respective vector, temporary data so no reference
+ *			data in the respective vector, temporary data so no reference
  */
 Config Parser::convertToServerData(const Token& block) {
 
