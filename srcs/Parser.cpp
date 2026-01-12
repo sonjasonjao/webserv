@@ -91,8 +91,8 @@ void Parser::tokenizeFile(void) {
 	Token root = createToken(output);
 
 	/**
-	 * buliding configuration struct vector to holds all the configuration data
-	 * configuration file hould conatins at least one server configuration
+	 * building configuration struct vector to hold all the configuration data
+	 * configuration file should contain at least one server configuration
 	 * anything other than "server" as the key will throw an error
 	*/
 	for (const auto& node : root.children) {
