@@ -1,4 +1,5 @@
-#include "../include/Server.hpp"
+#include "Server.hpp"
+#include "Log.hpp"
 #include "Pages.hpp"
 
 /**
@@ -10,44 +11,61 @@ int	main(int argc, char **argv)
 {
 	if (argc > 3) {
 		std::cout << "Usage: ./webserv [configuration file] [output log file]\n";
-		return 0;
+
+		return EXIT_SUCCESS;
 	}
 
-	std::string	confFile = "./config_files/test.json";
+	std::string	confFile = "./config_files/test.json"; // default configuration file
 
+	// Handling one or two user inputs
+	if (argc == 1)
+		std::cout << "No config file provided, using default: " << confFile << "\n";
+	if (argc < 3)
+		std::cout << "No log file provided, using standard output\n\n";
 	if (argc > 1)
 		confFile = argv[1];
-	else
-		std::cout << "No config file provided, using default: " << confFile << "\n\n";
-
 	if (argc == 3) {
 		try {
 			Log::setOutputFile(argv[2]);
 		} catch (std::exception const &e) {
-			std::cerr << "Error setting output file: " << e.what() << "\n";
-			std::cerr << "Logging to std::cout instead\n\n";
+			std::cerr << "Failed to set output file, logging to standard output instead\n";
 		}
 	}
 
-	try
-	{
+	try {
 		Parser	parser(confFile);
+
+		size_t	configCount = parser.getNumberOfServerConfigs();
+
 		std::cout << "\n--- Active servers ---\n\n";
-		for (size_t i = 0; i < parser.getNumberOfServerConfigs(); ++i) {
+		std::cout << "Number of active servers: " << configCount << "\n";
+		for (size_t i = 0; i < configCount; ++i) {
 			Config config = parser.getServerConfig(i);
 			std::cout << "Host		: " << config.host << "\n";
 			std::cout << "Host Name	: " << config.host_name << "\n";
 			std::cout << "Listen		: ";
-			for (auto const &p : config.ports)
-				std::cout << p << " ";
+			std::cout << config.port << " ";
 			std::cout << "\n\n";
 		}
 		std::cout << "----------------------\n\n";
+
 		Server	server(parser);
 		Pages::loadDefaults();
 		server.run();
-	}
-	catch(const std::exception& e) {}
 
-	return 0;
+	} catch (const Parser::ParserException& e) {
+		std::cerr << "Exiting\n";
+
+		return (EXIT_FAILURE);
+	} catch (const std::exception& e) {
+		std::cerr << "Exiting\n";
+
+		return (EXIT_FAILURE);
+	} catch (...) {
+		std::cerr << "Exiting\n";
+
+		return (EXIT_FAILURE);
+	}
+
+	return (EXIT_SUCCESS);
 }

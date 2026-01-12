@@ -12,6 +12,7 @@ bool						isValidIPv4(std::string_view sv);
 bool						resourceExists(std::string_view uri, std::string searchDir = "");
 bool						uriFormatOk(std::string_view uri);
 bool						uriTargetAboveRoot(std::string_view uri);
+bool						isValidPort(std::string_view sv);
 bool						isValidImfFixdate(std::string_view sv);
 
 std::string					getFileAsString(std::string const &fileName, std::string searchDir = "");
