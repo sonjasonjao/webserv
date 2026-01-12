@@ -47,7 +47,7 @@ bool	Server::isGroupMember(Config& conf)
 	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++)
 	{
 		if (it->defaultConf->host == conf.host
-			&& it->defaultConf->ports.front() == conf.ports.front()) {
+			&& it->defaultConf->port == conf.port) {
 			it->configs.emplace_back(conf);
 			return true;
 		}
@@ -88,7 +88,7 @@ int	Server::createSingleServerSocket(Config conf)
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
-	ret = getaddrinfo(conf.host.c_str(), (std::to_string(conf.ports.at(0))).c_str(),
+	ret = getaddrinfo(conf.host.c_str(), (std::to_string(conf.port)).c_str(),
 		&hints, &servinfo);
 	if (ret != 0)
 		throw std::runtime_error(ERROR_LOG("getaddrinfo: " + std::string(gai_strerror(ret))));
@@ -123,7 +123,7 @@ int	Server::createSingleServerSocket(Config conf)
 	}
 	if (p == NULL) {
 		freeaddrinfo(servinfo);
-		throw std::runtime_error(ERROR_LOG("could not create server socket(s)"));
+		throw std::runtime_error(ERROR_LOG("Could not create server socket(s)"));
 	}
 
 	freeaddrinfo(servinfo);
@@ -280,8 +280,7 @@ void	Server::handleClientData(size_t& i)
 
 		Config const	&conf = matchConfig(*it);
 
-		DEBUG_LOG("Matched config: " + conf.host + " " + conf.host_name + " " + std::to_string(conf.ports[0]));
-
+		DEBUG_LOG("Matched config: " + conf.host + " " + conf.host_name + " " + std::to_string(conf.port));
 		_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
 		it->reset();
 		it->setStatus(RequestStatus::ReadyForResponse);
@@ -427,7 +426,8 @@ void	Server::checkTimeouts(void)
 			it->checkReqTimeouts();
 			if (it->getStatus() == RequestStatus::RecvTimeout) {
 				Config	 const &conf = matchConfig(*it);
-				DEBUG_LOG("Matched config: " + conf.host + " " + conf.host_name + " " + std::to_string(conf.ports[0]));
+
+				DEBUG_LOG("Matched config: " + conf.host + " " + conf.host_name + " " + std::to_string(conf.port));
 				_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
 				sendResponse(i);
 			}
