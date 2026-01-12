@@ -281,7 +281,7 @@ bool Parser::isValidJSONString(std::string_view sv) {
 		}
 
 		/**
-		 * isolating sperators
+		 * isolating separators
 		*/
 		bool isSeparator = (std::isspace(c) || c == ':' || c == ',' || c == '}' || c == ']');
 
