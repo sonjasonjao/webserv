@@ -14,7 +14,7 @@ Parser::Parser(const std::string& file_name)
 	 * if file does not exist
 	 */
 	if (!std::filesystem::exists(_file_name, ec) || ec) {
-		throw ParserException(ERROR_LOG("File not exist : " + file_name));
+		throw ParserException(ERROR_LOG("File does not exist: " + file_name));
 	}
 	/**
 	 * Will compare the file extension with the standard one and will throw
