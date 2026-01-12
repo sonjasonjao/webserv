@@ -303,9 +303,10 @@ bool	isValidImfFixdate(std::string_view sv)
 		return false;
 	if (std::any_of(hms.begin(), hms.end(), [](auto a) {return a.empty();}))
 		return false;
-	for (auto const &e : hms)
-	  if (e.length() != 2 || !std::all_of(e.begin(), e.end(), isdigit))
-		return false;
+	for (auto const &e : hms) {
+		if (e.length() != 2 || !std::all_of(e.begin(), e.end(), isdigit))
+			return false;
+	}
 
 	int	hours	= std::stoi(hms[0]);
 	int	minutes	= std::stoi(hms[1]);

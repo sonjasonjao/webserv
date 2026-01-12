@@ -1,6 +1,10 @@
 #include "Parser.hpp"
+#include "Log.hpp"
+#include "Utils.hpp"
 #include <cerrno>
 #include <cstring>
+#include <filesystem>
+#include <stack>
 
 Parser::Parser(const std::string& file_name)
 	:_file_name(file_name), _file() {
@@ -59,7 +63,7 @@ Parser::~Parser() {
  * to tokens based on spaces/tabs
  * @param void - class method will have access to all the class attributes
  * @return void - all the tokens will be saved to an internal container
-*/
+ */
 void Parser::tokenizeFile(void) {
 	std::string	line;
 	std::string	output;
@@ -147,7 +151,7 @@ void Parser::tokenizeFile(void) {
  * @param index unsigned int value which represents the index of the server
  * config struct data
  * @return const reference to the requested data structure
-*/
+ */
 const Config& Parser::getServerConfig(size_t index) {
 	return (_server_configs.at(index));
 }
@@ -162,7 +166,7 @@ const std::vector<Config>	&Parser::getServerConfigs(void) const {
 /**
  * will return the size of the internal container, useful info when required
  * to loop through the entire vector
-*/
+ */
 size_t Parser::getNumberOfServerConfigs(void) {
 	return (_server_configs.size());
 }
@@ -174,7 +178,7 @@ size_t Parser::getNumberOfServerConfigs(void) {
  *
  * @return	value of the config created on the fly, will recreate the similar
  *			data int the respective vector, temporary data so no reference
-*/
+ */
 Config Parser::convertToServerData(const Token& block) {
 
 	Config config;
@@ -204,6 +208,28 @@ Config Parser::convertToServerData(const Token& block) {
 			config.host_name = item.children.at(1).value;
 		}
 
+		if (key == "directory_listing") {
+			std::string	val = item.children.at(1).value;
+
+			if (val != "true" && val != "false") {
+				ERROR_LOG("Unrecognized value for directory listing, retaining default value false");
+			} else {
+				config.directoryListing = (item.children.at(1).value == "true" ? true : false);
+				DEBUG_LOG(std::string("\t\tSet directory listing to ") + (config.directoryListing ? "true" : "false"));
+			}
+		}
+
+		if (key == "autoindex") {
+			std::string	val = item.children.at(1).value;
+
+			if (val != "true" && val != "false") {
+				ERROR_LOG("Unrecognized value for autoindexing, retaining default value false");
+			} else {
+				config.autoindex = (item.children.at(1).value == "true" ? true : false);
+				DEBUG_LOG(std::string("\t\tSet directory listing to ") + (config.autoindex ? "true" : "false"));
+			}
+		}
+
 		if (key == "status_pages") {
 			for (auto e : item.children.at(1).children) {
 				if (e.children.at(1).type != TokenType::Value)
@@ -231,7 +257,7 @@ Config Parser::convertToServerData(const Token& block) {
  * this function extract collection of values from the AST and created a vector of strings
  * @param root, key block of data in the AST need to convert
  * @return vector of strings
-*/
+ */
 std::vector<std::string> Parser::getCollectionBykey(const Token& root, const std::string& key) {
 	std::vector<std::string> collection;
 	for (auto item : root.children) {
@@ -264,7 +290,7 @@ bool Parser::isValidJSONString(std::string_view sv) {
 		/**
 		 * if there is double quotes with out escape character, then will toggle
 		 * inQuotes
-		*/
+		 */
 		if (c == '"' && prevChar != '\\') {
 			inQuotes = !inQuotes;
 			prevChar = c;
@@ -274,7 +300,7 @@ bool Parser::isValidJSONString(std::string_view sv) {
 		/**
 		 * if already inside the quotes any character is allowed,
 		 * simply update the previous char and continue
-		*/
+		 */
 		if (inQuotes) {
 			prevChar = c;
 			continue;
@@ -282,12 +308,12 @@ bool Parser::isValidJSONString(std::string_view sv) {
 
 		/**
 		 * isolating separators
-		*/
+		 */
 		bool isSeparator = (std::isspace(c) || c == ':' || c == ',' || c == '}' || c == ']');
 
 		/**
 		 * check for valid values that are not expected to surrounded by quotes
-		*/
+		 */
 		if (isSeparator && !buffer.empty()) {
 			if (!isPrimitiveValue(buffer)) {
 				std::cerr << "Error: Invalid value format -> " << buffer << "\n";
@@ -298,7 +324,7 @@ bool Parser::isValidJSONString(std::string_view sv) {
 
 		/**
 		 * all the isspace characters even outside the double quotes will skip
-		*/
+		 */
 		if (std::isspace(c)) {
 			prevChar = c;
 			continue;
@@ -357,17 +383,27 @@ bool Parser::isValidJSONString(std::string_view sv) {
 
 /**
  * this function will check if a given string is a valid primitive value
- * an integer, a fractional value, IPv4, true or false
-*/
+ * an integer, a fractional value, IPv4 or IPv6 address, true or false
+ */
 bool Parser::isPrimitiveValue(std::string_view sv) {
-	if (sv.empty())
+	if (sv.empty()) {
 		return (false);
+	}
 
-	if (sv == "true" || sv == "false")
+	if (sv == "true" || sv == "false") {
 		return (true);
+	}
 
-	if (isValidIPv4(sv) || isValidPort(sv) || isIntLiteral(sv) || isDoubleLiteral(sv))
-		return true;
+	bool hasDigit = false;
 
-	return false;
+	for (size_t i = 0; i < sv.size(); ++i) {
+		char c = sv[i];
+		if (c == '.' || c == '+' || c == '-' || std::isdigit(c)) {
+			if (std::isdigit(c)) hasDigit = true;
+			continue;
+		} else {
+			return (false);
+		}
+	}
+	return (hasDigit);
 }

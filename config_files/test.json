@@ -6,8 +6,8 @@
             "listen"            : ["8081"],
             "allowed_methods"   : ["GET", "POST"],
 
-            "directory_listing" : "on",
-            "autoindex"         : "off",
+            "directory_listing" : true,
+            "autoindex"         : false,
 
             "upload_dir"        : "www/uploads",
 
