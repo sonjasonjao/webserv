@@ -3,7 +3,6 @@
 #include "Log.hpp"
 #include "Pages.hpp"
 #include <algorithm>
-#include <array>
 #include <cstring>
 #include <sstream>
 #include <string>
@@ -12,7 +11,6 @@
 #include <filesystem>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <array>
 
 constexpr char const * const	CRLF = "\r\n";
 
