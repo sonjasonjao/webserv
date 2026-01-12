@@ -182,7 +182,7 @@ void	Server::handleNewClient(int listener)
 	socklen_t				addrLen = sizeof(newClient);
 	int						clientFd;
 
-	if (_clients.size() > MAX_CLIENTS) {
+	if (_clients.size() >= MAX_CLIENTS) {
 		DEBUG_LOG("Connected clients limit reached, unable to accept new client");
 		return;
 	}
