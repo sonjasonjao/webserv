@@ -3,6 +3,7 @@
 #include "Log.hpp"
 #include "Pages.hpp"
 #include <algorithm>
+#include <cerrno>
 #include <cstring>
 #include <sstream>
 #include <string>
@@ -339,17 +340,21 @@ static std::string	getDirectoryList(std::string_view target, std::string_view ro
 
 	stream << "<h1>" << target << "</h1>";
 
-	for (const auto &e : std::filesystem::directory_iterator(route)) {
+	try {
+		for (const auto &e : std::filesystem::directory_iterator(route)) {
 
-		std::string	name = e.path().string();
+			std::string	name = e.path().string();
 
-		if (e.is_regular_file()) {
-			auto	pos = std::upper_bound(files.begin(), files.end(), name);
-			files.insert(pos, name);
-		} else if (e.is_directory()) {
-			auto	pos = std::upper_bound(directories.begin(), directories.end(), name);
-			directories.insert(pos, name);
+			if (e.is_regular_file()) {
+				auto	pos = std::upper_bound(files.begin(), files.end(), name);
+				files.insert(pos, name);
+			} else if (e.is_directory()) {
+				auto	pos = std::upper_bound(directories.begin(), directories.end(), name);
+				directories.insert(pos, name);
+			}
 		}
+	} catch (std::exception const &e) {
+		ERROR_LOG(std::string(strerror(errno)));
 	}
 
 	if (!directories.empty()) {
