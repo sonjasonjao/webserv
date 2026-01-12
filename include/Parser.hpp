@@ -22,20 +22,6 @@ struct Redirect {
 	std::string					target_url;		//Targeturlwhichclientwillredirect
 };
 
-struct Route{
-	std::string					path;					//URIprefixfortheroute,e.g."/","/images/","/upload"
-	std::string					abs_path;				//Absolutefilesystempathcorrespondingtheroute'srooteg:"/var/www/site"
-	std::vector<std::string>	accepted_methods;		//listofallowedhttpmethdseg:GET,POST,DELETE
-	Redirect					redirect;				//Thiswillserveiftherequestisredirect
-	bool						auto_index;				//iftrue,enabledirectorylistingwhentherequestedpathisadirectory
-	std::string					index_file;				//Defaultfilenametoserve
-	std::vector<std::string>	cgi_extensions;			//FileextensionsthatshouldbehandledbyaCGIeg".php,.py"
-	std::vector<std::string>	cgi_methods;			//httpmethodsallowedspecificallyforCGIexecution
-	std::string					upload_path;			//Directorywhereuploadedfileshandledbyrouteshouldstore
-	std::string					cgi_executable;			//PathtotheCGIinterpreter/executabletorunformatchingfiles
-	size_t						client_max_body_size;	//Maximumallowedsize(inbytes)oftherequestbodyforthisroute.
-};
-
 struct Config {
 	std::string	host;		// IP or hostname on which this server listens, e.g. "0.0.0.0" or "127.0.0.1"
 	std::string	host_name;	// List of server names (virtual hosts) handled by this server eg : {"example.com", "www.example.com"}
