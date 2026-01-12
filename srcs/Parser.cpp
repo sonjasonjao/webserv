@@ -235,8 +235,8 @@ Config Parser::convertToServerData(const Token& block) {
 std::vector<std::string> Parser::getCollectionBykey(const Token& root, const std::string& key) {
 	std::vector<std::string> collection;
 	for (auto item : root.children) {
-		std::string key_value = getKey(item);
-		if (key == key_value) {
+		std::string itemKey = getKey(item);
+		if (key == itemKey) {
 			if (item.children.size() > 1) {
 				for (auto p : item.children.at(1).children) {
 					collection.emplace_back(p.value);
