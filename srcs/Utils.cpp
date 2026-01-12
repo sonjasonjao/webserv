@@ -422,7 +422,9 @@ void save_to_disk(const MultipartPart& part) {
 	if(outfile.is_open()) {
 		outfile.write(part.data.c_str(), part.data.size());
 		outfile.close();
-		std::cout << "File saved sucessfully : " << part.filename << "\n";
+		DEBUG_LOG("File " + part.filename + " saved successfully!");
+	} else {
+		DEBUG_LOG("File " + part.filename + " save process failed!");		
 	}
 }
 

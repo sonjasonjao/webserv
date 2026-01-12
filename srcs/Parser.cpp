@@ -18,6 +18,11 @@ Parser::Parser(const std::string& file_name)
          * the last occurence of '.'
         */
         size_t pos = _file_name.rfind('.');
+        
+        if(pos == std::string::npos) {
+            throw ParserException("Wrong extension : " + _file_name);
+        }
+
         std::string ext = _file_name.substr(pos + 1);
         if(ext != EXTENSION) {
             throw ParserException("Wrong extension : " + _file_name);
