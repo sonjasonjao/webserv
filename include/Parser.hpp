@@ -17,11 +17,6 @@
  */
 #define EXTENSION "json"
 
-struct Redirect {
-	uint16_t					status_code;	// http status code for redirect (eg: 301, 302, 303, etc)
-	std::string					target_url;		// Target url which client will redirect
-};
-
 struct Config {
 	std::string	host;		// IP or hostname on which this server listens, e.g. "0.0.0.0" or "127.0.0.1"
 	std::string	host_name;	// List of server names (virtual hosts) handled by this server eg : {"example.com", "www.example.com"}
