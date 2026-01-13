@@ -4,6 +4,7 @@
 #include <string>
 #include <optional>
 #include <chrono>
+#include <memory>
 #include "Utils.hpp"
 
 #define IDLE_TIMEOUT 10000 // timeout values to be decided, and should they be in Server.hpp?
@@ -55,6 +56,8 @@ class Request
 	private:
 		int							_fd;
 		int							_serverFd;
+		std::unique_ptr<std::ofstream> _uploadFD;
+		size_t						_curr_upload_pos;
 		std::string					_buffer;
 		struct RequestLine			_request;
 		stringMap					_headers;
@@ -74,29 +77,33 @@ class Request
 		Request(int fd, int serverFd);
 		~Request() = default;
 
-		void				saveRequest(std::string const &buf);
-		void				handleRequest(void);
-		void				parseRequest(void);
-		void				fillHost(void);
-		void				parseRequestLine(std::istringstream &req);
-		void				parseHeaders(std::string &str);
-		bool				fillKeepAlive(void);
-		bool				validateHeaders(void);
-		void				parseChunked(void);
-		void				printData(void) const;
-		bool				isUniqueHeader(std::string const &key);
-		bool				validateAndAssignTarget(std::string &target);
-		bool				areValidChars(std::string &target);
-		bool				validateAndAssignHttp(std::string &httpVersion);
-		void				setStatus(RequestStatus status);
-		void				reset(void);
-		void				resetKeepAlive(void);
-		void				checkReqTimeouts(void);
-		void				setIdleStart(void);
-		void				setRecvStart(void);
-		void				setSendStart(void);
-		void				resetSendStart(void);
-		void				resetBuffer(void);
+		void					saveRequest(std::string const &buf);
+		void					handleRequest(void);
+		void					parseRequest(void);
+		void					fillHost(void);
+		void					parseRequestLine(std::istringstream &req);
+		void					parseHeaders(std::string &str);
+		bool					fillKeepAlive(void);
+		bool					validateHeaders(void);
+		void					parseChunked(void);
+		void					printData(void) const;
+		bool					isUniqueHeader(std::string const &key);
+		bool					validateAndAssignTarget(std::string &target);
+		bool					areValidChars(std::string &target);
+		bool					validateAndAssignHttp(std::string &httpVersion);
+		void					setStatus(RequestStatus status);
+		void					reset(void);
+		void					resetKeepAlive(void);
+		void					checkReqTimeouts(void);
+		void					setIdleStart(void);
+		void					setRecvStart(void);
+		void					setSendStart(void);
+		void					resetSendStart(void);
+		void					resetBuffer(void);
+		void					setUploadFD(std::unique_ptr<std::ofstream> outfile);
+		std::ofstream&			getUplaodFD(void);
+		size_t					getCurrentUplaodposition(void);
+		void					setCurrentUplaodposition(size_t pos);
 
 		RequestMethod						getRequestMethod(void) const;
 		std::string const					&getHttpVersion(void) const;
