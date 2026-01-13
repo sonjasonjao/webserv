@@ -81,7 +81,7 @@ public:
 	void tokenizeFile(void);
 
 	/**
-	 * First version of getter method to get a final srever configuration information. As the first
+	 * First version of getter method to get a final server configuration information. As the first
 	 * version only return some dummy values to start implementing Main loop for Sonja
 	 */
 	const Config& getServerConfig(size_t index);
