@@ -77,8 +77,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		DEBUG_LOG("Target '" + _target + "' is a directory" );
 		if (!_conf.autoindex && !_conf.directoryListing) {
 			DEBUG_LOG("Autoindexing and directory listing is disabled");
-			_statusCode = BadRequest;
-
+			_statusCode = Forbidden;
 			formResponse();
 
 			return;
@@ -87,10 +86,11 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		if (_target.back() == '/')
 			_target.pop_back();
 
-		if (_conf.autoindex && !_conf.directoryListing) {
-			_target = _target + "/" + "index.html";
-		} else if (_conf.directoryListing) {
+		// Directory listing is prioritized over autoindexing
+		if (_conf.directoryListing) {
 			_body = getDirectoryList(reqTarget, _target);
+		} else if (_conf.autoindex) {
+			_target = _target + "/" + "index.html";
 		}
 	}
 
@@ -143,18 +143,6 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	std::cout << "\n--------------------------\n\n";
 }
 
-Response::Response(Response const &other)
-	:	_req(other._req),
-		_conf(other._conf),
-		_target(other._target),
-		_startLine(other._startLine),
-		_headerSection(other._headerSection),
-		_body(other._body),
-		_content(other._content),
-		_contentType(other._contentType),
-		_statusCode(other._statusCode)
-{}
-
 std::string const	&Response::getContent() const
 {
 	return _content;
@@ -176,8 +164,12 @@ void	Response::formResponse()
 		return;
 	}
 
-	_contentType	=	getContentType(_target);
-	_headerSection	+=	"Content-Type: " + _contentType + std::string(CRLF);
+	if (_statusCode == 200)
+		_contentType = getContentType(_target);
+	else
+		_contentType = "text/html";
+
+	_headerSection += "Content-Type: " + _contentType + std::string(CRLF);
 
 	switch (_statusCode) {
 		case 200:
@@ -196,6 +188,10 @@ void	Response::formResponse()
 		case 400:
 			_startLine	= _req.getHttpVersion() + " 400 Bad Request";
 			_body		= getResponsePageContent("400", _conf);
+		break;
+		case 403:
+			_startLine	= _req.getHttpVersion() + " 403 Forbidden";
+			_body		= getResponsePageContent("403", _conf);
 		break;
 		case 404:
 			_startLine	= _req.getHttpVersion() + " 404 Not Found";

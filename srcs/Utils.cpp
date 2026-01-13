@@ -374,7 +374,7 @@ std::string	getAbsPath(std::string const &fileName, std::string searchDir)
 	return searchDir + "/" + fileName;
 }
 
-bool	isUnsigedIntLiteral(std::string_view sv)
+bool	isUnsignedIntLiteral(std::string_view sv)
 {
 	if (sv.empty())
 		return false;

@@ -214,7 +214,7 @@ Config Parser::convertToServerData(const Token& block) {
 			if (val != "true" && val != "false") {
 				ERROR_LOG("Unrecognized value for directory listing, retaining default value false");
 			} else {
-				config.directoryListing = (item.children.at(1).value == "true" ? true : false);
+				config.directoryListing = (item.children.at(1).value == "true");
 				DEBUG_LOG(std::string("\t\tSet directory listing to ") + (config.directoryListing ? "true" : "false"));
 			}
 		}
@@ -225,7 +225,7 @@ Config Parser::convertToServerData(const Token& block) {
 			if (val != "true" && val != "false") {
 				ERROR_LOG("Unrecognized value for autoindexing, retaining default value false");
 			} else {
-				config.autoindex = (item.children.at(1).value == "true" ? true : false);
+				config.autoindex = (item.children.at(1).value == "true");
 				DEBUG_LOG(std::string("\t\tSet autoindexing to ") + (config.autoindex ? "true" : "false"));
 			}
 		}

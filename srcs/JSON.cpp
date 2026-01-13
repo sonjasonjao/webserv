@@ -155,9 +155,9 @@ std::vector<std::string> splitElements(std::string_view sv) {
 }
 
 /**
- * will create a token of type and return by value, helper fucntion
+ * will create a token of type and return by value, helper function
  * @param string and type of the token needed to create
- * @return token value of Toekn Type
+ * @return token value of Token Type
  */
 Token createToken(const std::string& str, TokenType type) {
 	Token token;
@@ -172,7 +172,6 @@ Token createToken(const std::string& str, TokenType type) {
 
 
 /**
- *
  * will create a token of type and return by value, helper fucntion
  * type will be detemind by the function it-self, will call recursivle if
  * string is not a fundamental type (Identifler or Value)

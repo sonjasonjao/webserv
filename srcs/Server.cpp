@@ -182,13 +182,16 @@ void	Server::handleNewClient(int listener)
 	socklen_t				addrLen = sizeof(newClient);
 	int						clientFd;
 
-	if (_clients.size() >= MAX_CLIENTS) {
-		DEBUG_LOG("Connected clients limit reached, unable to accept new client");
-		return;
-	}
 	clientFd = accept(listener, (struct sockaddr*)&newClient, &addrLen);
+
 	if (clientFd < 0)
 		throw std::runtime_error(ERROR_LOG("accept: " + std::string(strerror(errno))));
+
+	if (_clients.size() >= MAX_CLIENTS) {
+		DEBUG_LOG("Connected clients limit reached, unable to accept new client");
+		close(clientFd);
+		return;
+	}
 
 	if (fcntl(clientFd, F_SETFL, O_NONBLOCK) < 0)
 	{
