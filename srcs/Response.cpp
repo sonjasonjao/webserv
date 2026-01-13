@@ -354,7 +354,12 @@ static std::string	getDirectoryList(std::string_view target, std::string_view ro
 			}
 		}
 	} catch (std::exception const &e) {
-		ERROR_LOG(std::string(strerror(errno)));
+		std::stringstream	errorMsg;
+
+		errorMsg << e.what();
+		if (errno != 0)
+			errorMsg << ", errno = " << std::to_string(errno) << ": " << std::string(strerror(errno));
+		ERROR_LOG(errorMsg.str());
 	}
 
 	if (!directories.empty()) {
