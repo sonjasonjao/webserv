@@ -18,8 +18,8 @@
 #define EXTENSION "json"
 
 struct Redirect {
-	uint16_t					status_code;	//httpstatuscodeforredirect(eg:301,302,303,etc)
-	std::string					target_url;		//Targeturlwhichclientwillredirect
+	uint16_t					status_code;	// http status code for redirect (eg: 301, 302, 303, etc)
+	std::string					target_url;		// Target url which client will redirect
 };
 
 struct Config {
