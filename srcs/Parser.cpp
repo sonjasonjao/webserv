@@ -383,27 +383,17 @@ bool Parser::isValidJSONString(std::string_view sv) {
 
 /**
  * this function will check if a given string is a valid primitive value
- * an integer, a fractional value, IPv4 or IPv6 address, true or false
+ * an integer, a fractional value, IPv4, true or false
  */
 bool Parser::isPrimitiveValue(std::string_view sv) {
-	if (sv.empty()) {
+	if (sv.empty())
 		return (false);
-	}
 
-	if (sv == "true" || sv == "false") {
+	if (sv == "true" || sv == "false")
 		return (true);
-	}
 
-	bool hasDigit = false;
+	if (isValidIPv4(sv) || isValidPort(sv) || isUnsignedIntLiteral(sv) || isPositiveDoubleLiteral(sv))
+		return true;
 
-	for (size_t i = 0; i < sv.size(); ++i) {
-		char c = sv[i];
-		if (c == '.' || c == '+' || c == '-' || std::isdigit(c)) {
-			if (std::isdigit(c)) hasDigit = true;
-			continue;
-		} else {
-			return (false);
-		}
-	}
-	return (hasDigit);
+	return false;
 }
