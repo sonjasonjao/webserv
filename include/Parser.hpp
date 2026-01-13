@@ -16,9 +16,10 @@
  */
 #define EXTENSION "json"
 
-struct Redirect {
-	uint16_t					status_code;	//httpstatuscodeforredirect(eg:301,302,303,etc)
-	std::string					target_url;		//Targeturlwhichclientwillredirect
+struct Route {
+	std::string					uri;
+	std::string					target;
+	std::vector<std::string>	allowedMethods;
 };
 
 struct Config {
@@ -82,17 +83,13 @@ public:
 	 * First version of getter method to get a final server configuration information. As the first
 	 * version only return some dummy values to start implementing Main loop for Sonja
 	 */
-	const Config& getServerConfig(size_t index);
-
+	const Config&				getServerConfig(size_t index);
 	const std::vector<Config>	&getServerConfigs(void) const;
-
-	size_t getNumberOfServerConfigs(void);
+	size_t						getNumberOfServerConfigs(void);
+	std::vector<std::string>	getCollectionBykey(const Token& root, const std::string& key);
 
 	Config convertToServerData(const Token& server);
 
-	std::vector<std::string> getCollectionBykey(const Token& root, const std::string& key);
-
 	bool isValidJSONString(std::string_view sv);
-
 	bool isPrimitiveValue(std::string_view sv);
 };
