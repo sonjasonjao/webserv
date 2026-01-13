@@ -124,19 +124,6 @@ std::string	splitReqLine(std::string& orig, std::string delim)
 }
 
 /**
- * For now, we only store in _headers these headers, as they are needed for the server. Will
- * have to figure out if we need others, and if we should still store and validate the others,
- * too.
- */
-bool	isNeededHeader(std::string& key)
-{
-	if (key == "host" || key == "content-length" || key == "content-type"
-		|| key == "connection" || key == "transfer-encoding")
-		return true;
-	return false;
-}
-
-/**
  * Validates and parses different sections of the request. After the last valid
  * header line, if there is remaining data, and content-length is found in headers, that length
  * of data is stored in _body - if chunked is found in headers, the rest is handled as chunks.
@@ -283,30 +270,34 @@ void	Request::parseHeaders(std::string& str) {
 			for (size_t i = 0; i < value.size(); i++)
 				value[i] = std::tolower(static_cast<unsigned char>(value[i]));
 		}
-		if (isNeededHeader(key)) {
-			std::istringstream	values(value);
-			std::string	oneValue;
-			if (key == "content-type") {
-				if (value.find(";") == std::string::npos) {
-					_headers[key].emplace_back(value);
-					continue;
-				}
-				while (getline(values, oneValue, ';')) {
-					if (oneValue[0] == ' ')
-						oneValue = oneValue.substr(1);
-					_headers[key].emplace_back(oneValue);
-				}
+		if (_headers.find(key) != _headers.end() && isUniqueHeader(key)) {
+			_status = RequestStatus::Invalid;
+			_keepAlive = false;
+			fillHost();
+			return ;
+		}
+		std::istringstream	values(value);
+		std::string	oneValue;
+		if (key == "content-type") {
+			if (value.find(";") == std::string::npos) {
+				_headers[key].emplace_back(value);
+				continue;
 			}
-			else {
-				if (value.find(",") == std::string::npos) {
-					_headers[key].emplace_back(value);
-					continue;
-				}
-				while (getline(values, oneValue, ',')) {
-					if (oneValue[0] == ' ')
-						oneValue = oneValue.substr(1);
-					_headers[key].emplace_back(oneValue);
-				}
+			while (getline(values, oneValue, ';')) {
+				if (oneValue[0] == ' ')
+					oneValue = oneValue.substr(1);
+				_headers[key].emplace_back(oneValue);
+			}
+		}
+		else {
+			if (value.find(",") == std::string::npos) {
+				_headers[key].emplace_back(value);
+				continue;
+			}
+			while (getline(values, oneValue, ',')) {
+				if (oneValue[0] == ' ')
+					oneValue = oneValue.substr(1);
+				_headers[key].emplace_back(oneValue);
 			}
 		}
 	}
@@ -478,10 +469,11 @@ bool	Request::validateHeaders(void) {
  */
 bool	Request::isUniqueHeader(std::string const& key) {
 	std::unordered_set<std::string>	uniques = {
-		"accept-datetime",
 		"access-control-request-method",
+		"alt-used", // added
 		"authorization",
 		"content-length",
+		"content-location", // added
 		"content-md5",
 		"date",
 		"from",
@@ -495,7 +487,19 @@ bool	Request::isUniqueHeader(std::string const& key) {
 		"pragma",
 		"proxy-authorization",
 		"referer",
-		// "user-agent",
+		"sec-fetch-dest", // added
+		"sec-fetch-mode", //added
+		"sec-fetch-site", // added
+		"sec-fetch-storage-access", // added
+		"sec-fetch-user", // added
+		"sec-purpose", // added
+		"sec-websocket-key", // added
+		"sec-websocket-version", // added
+		"service-worker-header", // added
+		"service-worker-navigation-preload", // added
+		"upgrade-insecure-requests", // added
+		"x-forwarded-host", // added
+		"x-forwarded-proto", // added
 	};
 	auto	it = uniques.find(key);
 	if (it != uniques.end())

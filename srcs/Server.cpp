@@ -85,7 +85,7 @@ int	Server::createSingleServerSocket(Config conf)
 	struct addrinfo	hints, *servinfo, *p;
 
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;
+	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
 
 	ret = getaddrinfo(conf.host.c_str(), (std::to_string(conf.ports.at(0))).c_str(),
