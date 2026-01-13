@@ -20,7 +20,7 @@ void printToken(const Token& root, int indent) {
 /**
  * convert TokenType enum value to a string
  * @param type Token type
- * @return corresponding string value, default or umatching will result
+ * @return corresponding string value, default or unmatching will result
  * empty string
  */
 std::string typeToString(TokenType type) {
