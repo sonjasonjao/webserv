@@ -52,7 +52,7 @@ public:
 	 */
 	Parser(const std::string& file_name);
 	/**
-	 * only way of creating Parser instance should be argument constructor
+	 * The only way of creating a Parser instance should be via the argument constructor.
 	 */
 	Parser() = delete;
 	Parser(const Parser& other) = delete;
