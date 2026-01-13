@@ -373,6 +373,65 @@ std::string	getAbsPath(std::string const &fileName, std::string searchDir)
 	return searchDir + "/" + fileName;
 }
 
+bool	isIntLiteral(std::string_view sv)
+{
+	if (sv.empty())
+		return false;
+
+	auto	i = sv.begin();
+
+	if (*i == '+' || *i == '-')
+		++i;
+	if (i == sv.end() || !isdigit(*(i++)))
+		return false;
+
+	if (!std::all_of(i, sv.end(), isdigit))
+		return false;
+
+	try {
+		std::stoi(std::string(sv));
+	} catch (std::exception const &e) {
+		return false;
+	}
+
+	return true;
+}
+
+bool	isDoubleLiteral(std::string_view sv)
+{
+	bool	hasWholelPart		= false;
+	bool	hasFractionalPart	= false;
+
+	auto	i = sv.begin();
+
+	if (*i == '+' || *i == '-')
+		++i;
+
+	if (std::isdigit(*i))
+		hasWholelPart = true;
+	while (i != sv.end() && isdigit(*i))
+		++i;
+	if (i == sv.end() || *i != '.')
+		return false;
+	++i;
+
+	if (i != sv.end() && isdigit(*i))
+		hasFractionalPart = true;
+	while (i != sv.end() && isdigit(*i))
+		++i;
+
+	if (i != sv.end() || (!hasWholelPart && !hasFractionalPart))
+		return false;
+
+	try {
+		std::stod(std::string(sv));
+	} catch ( std::exception const &e ) {
+		return false;
+	}
+
+	return true;
+}
+
 //#define TEST
 #ifdef TEST
 
