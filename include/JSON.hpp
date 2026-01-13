@@ -16,6 +16,7 @@ enum class TokenType {
     Identifier,
     Element,
     Value,
+    Primitive,
     Null
 };
 
