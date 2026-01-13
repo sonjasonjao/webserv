@@ -386,13 +386,11 @@ bool Parser::isValidJSONString(std::string_view sv) {
  * an integer, a fractional value, IPv4, true or false
  */
 bool Parser::isPrimitiveValue(std::string_view sv) {
-	if (sv.empty()) {
+	if (sv.empty())
 		return (false);
-	}
 
-	if (sv == "true" || sv == "false") {
+	if (sv == "true" || sv == "false")
 		return (true);
-	}
 
 	if (isValidIPv4(sv) || isValidPort(sv) || isUnsignedIntLiteral(sv) || isPositiveDoubleLiteral(sv))
 		return true;
