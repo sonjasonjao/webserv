@@ -1,4 +1,17 @@
 #include "Utils.hpp"
+#include "Log.hpp"
+#include <array>
+#include <limits>
+#include <sstream>
+#include <chrono>
+#include <iomanip>
+#include <clocale>
+#include <filesystem>
+#include <algorithm>
+#include <fstream>
+#include <cerrno>
+#include <cstring>
+
 /**
  * The IMF fixdate is the preferred format for HTTP timestamps
  *
@@ -291,9 +304,10 @@ bool	isValidImfFixdate(std::string_view sv)
 		return false;
 	if (std::any_of(hms.begin(), hms.end(), [](auto a) {return a.empty();}))
 		return false;
-	for (auto const &e : hms)
-	  if (e.length() != 2 || !std::all_of(e.begin(), e.end(), isdigit))
-		return false;
+	for (auto const &e : hms) {
+		if (e.length() != 2 || !std::all_of(e.begin(), e.end(), isdigit))
+			return false;
+	}
 
 	int	hours	= std::stoi(hms[0]);
 	int	minutes	= std::stoi(hms[1]);
@@ -356,82 +370,64 @@ std::string	getAbsPath(std::string const &fileName, std::string searchDir)
 	return searchDir + "/" + fileName;
 }
 
-/**
- * helper function to extract a value from a string based on a prefix
-*/
-std::string extract_value(const std::string& source, const std::string& key) {
-	size_t pos = source.find(key);
+bool	isUnsignedIntLiteral(std::string_view sv)
+{
+	if (sv.empty())
+		return false;
 
-	if(pos == std::string::npos) {
-		return ("");
+	auto	i = sv.begin();
+
+	if (*i == '+')
+		++i;
+	if (i == sv.end() || !isdigit(*(i++)))
+		return false;
+
+	if (!std::all_of(i, sv.end(), isdigit))
+		return false;
+
+	try {
+		if (std::stoul(std::string(sv)) > std::numeric_limits<unsigned int>::max())
+			return false;
+	} catch (std::exception const &e) {
+		return false;
 	}
 
-	pos += key.length();
-	size_t end = source.find_first_of("\r\n,;", pos);
-	return (source.substr(pos, end - pos));
+	return true;
 }
 
-/**
- * helper function to extract a quoted value from a string based on a prefix
-*/
-std::string extract_quoted_value(const std::string& source, const std::string& key) {
-	size_t pos = source.find(key);
+bool	isPositiveDoubleLiteral(std::string_view sv)
+{
+	bool	hasWholelPart		= false;
+	bool	hasFractionalPart	= false;
 
-	if(pos == std::string::npos) {
-		return ("");
+	auto	i = sv.begin();
+
+	if (*i == '+')
+		++i;
+
+	if (std::isdigit(*i))
+		hasWholelPart = true;
+	while (i != sv.end() && isdigit(*i))
+		++i;
+	if (i == sv.end() || *i != '.')
+		return false;
+	++i;
+
+	if (i != sv.end() && isdigit(*i))
+		hasFractionalPart = true;
+	while (i != sv.end() && isdigit(*i))
+		++i;
+
+	if (i != sv.end() || (!hasWholelPart && !hasFractionalPart))
+		return false;
+
+	try {
+		std::stod(std::string(sv));
+	} catch ( std::exception const &e ) {
+		return false;
 	}
 
-	pos += key.length();
-
-	size_t quote_start = source.find('"', pos);
-	
-	if(quote_start == std::string::npos) {
-		return ("");
-	}
-
-	size_t quote_end = source.find('"', quote_start + 1);
-
-	if(quote_end == std::string::npos) {
-		return ("");
-	}
-
-	return (source.substr(quote_start + 1, quote_end - quote_start - 1));
-}
-
-void save_to_disk(const MultipartPart& part, std::ofstream& outfile) {
-	
-	if(outfile.is_open()) {
-		outfile.write(part.data.c_str(), part.data.size());
-		DEBUG_LOG("File " + part.filename + " saved successfully!");
-	} else {
-		DEBUG_LOG("File " + part.filename + " save process failed!");		
-	}
-}
-
-std::unique_ptr<std::ofstream> initial_save_to_disk(const MultipartPart& part) {
-	if(part.filename.empty()) {
-		return (nullptr);
-	}
-
-	std::string dir_name = "www/uploads";			// destination to save the file
-	
-	if(!std::filesystem::exists(dir_name)) {		// will create if not exists
-		std::filesystem::create_directories(dir_name);
-	}
-
-	// constructing the file path
-	std::filesystem::path target_path = std::filesystem::path(dir_name) / std::filesystem::path(part.filename).filename();
-
-	// file handler to write data
-	std::unique_ptr<std::ofstream> outfile = std::make_unique<std::ofstream>(target_path, std::ios::binary);
-
-	if(outfile && outfile->is_open()) {
-		outfile->write(part.data.c_str(), part.data.size());
-		DEBUG_LOG("File " + part.filename + " saved successfully!");
-	} else {
-		DEBUG_LOG("File " + part.filename + " save process failed!");		
-	}
-	return (outfile);
+	return true;
 }
 
 //#define TEST

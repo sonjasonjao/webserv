@@ -9,35 +9,35 @@
 
 /**
  * Pascal case to follow the modern c++ standards
-*/
+ */
 enum class TokenType {
-    Object,
-    Array,
-    Identifier,
-    Element,
-    Value,
-    Primitive,
-    Null
+	Object,
+	Array,
+	Identifier,
+	Element,
+	Value,
+	Primitive,
+	Null
 };
 
 struct Token {
-    TokenType           type;
-    std::string         value;
-    std::vector<Token>  children;
+	TokenType			type;
+	std::string			value;
+	std::vector<Token>	children;
 };
 
-void printToken(const Token& root, int indent = 0);
+void	printToken(const Token& root, int indent = 0);
 
-std::string typeToString(TokenType type);
-std::string trim(std::string_view sv);
-std::string getKey(const Token& token);
-std::string removeQuotes(const std::string& str);
+std::string	typeToString(TokenType type);
+std::string	trim(std::string_view sv);
+std::string	getKey(const Token& token);
+std::string	removeQuotes(const std::string& str);
 
-std::vector<std::string> splitElements(std::string_view sv);
+std::vector<std::string>	splitElements(std::string_view sv);
 
-size_t unquotedDelimiter(std::string_view sv, const char c);
+size_t	unquotedDelimiter(std::string_view sv, const char c);
 
-TokenType getTokenType(const std::string& str);
+TokenType	getTokenType(const std::string& str);
 
-Token createToken(const std::string& str);
-Token createToken(const std::string& str, TokenType type);
+Token	createToken(const std::string& str);
+Token	createToken(const std::string& str, TokenType type);
