@@ -75,6 +75,8 @@ class Request
 	public:
 		Request() = delete;
 		Request(int fd, int serverFd);
+		Request(Request&& ) = default;
+		Request& operator=(Request&& ) = default;
 		~Request() = default;
 
 		void					saveRequest(std::string const &buf);
@@ -104,6 +106,7 @@ class Request
 		std::ofstream&			getUplaodFD(void);
 		size_t					getCurrentUplaodposition(void);
 		void					setCurrentUplaodposition(size_t pos);
+		void					handleFileUpload(void);
 
 		RequestMethod						getRequestMethod(void) const;
 		std::string const					&getHttpVersion(void) const;

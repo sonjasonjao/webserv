@@ -301,21 +301,6 @@ bool	isValidImfFixdate(std::string_view sv)
 
 	if (hours > 23 || minutes > 59 || seconds > 59)
 		return false;
-if(part.filename.empty()) {
-		return ;
-	}
-
-	std::string dir_name = "www/uploads";			// destination to save the file
-	
-	if(!std::filesystem::exists(dir_name)) {		// will create if not exists
-		std::filesystem::create_directories(dir_name);
-	}
-
-	// constructing the file path
-	std::filesystem::path target_path = std::filesystem::path(dir_name) / std::filesystem::path(part.filename).filename();
-	if (parts[5] != "GMT")
-		return false;
-
 	return true;
 }
 
@@ -413,10 +398,10 @@ std::string extract_quoted_value(const std::string& source, const std::string& k
 	return (source.substr(quote_start + 1, quote_end - quote_start - 1));
 }
 
-void save_to_disk(const MultipartPart& part, std::unique_ptr<std::ofstream> outfile) {
+void save_to_disk(const MultipartPart& part, std::ofstream& outfile) {
 	
-	if(outfile && outfile->is_open()) {
-		outfile->write(part.data.c_str(), part.data.size());
+	if(outfile.is_open()) {
+		outfile.write(part.data.c_str(), part.data.size());
 		DEBUG_LOG("File " + part.filename + " saved successfully!");
 	} else {
 		DEBUG_LOG("File " + part.filename + " save process failed!");		
@@ -425,7 +410,7 @@ void save_to_disk(const MultipartPart& part, std::unique_ptr<std::ofstream> outf
 
 std::unique_ptr<std::ofstream> initial_save_to_disk(const MultipartPart& part) {
 	if(part.filename.empty()) {
-		return ;
+		return (nullptr);
 	}
 
 	std::string dir_name = "www/uploads";			// destination to save the file
@@ -446,7 +431,7 @@ std::unique_ptr<std::ofstream> initial_save_to_disk(const MultipartPart& part) {
 	} else {
 		DEBUG_LOG("File " + part.filename + " save process failed!");		
 	}
-	return (std::move(outfile));
+	return (outfile);
 }
 
 //#define TEST

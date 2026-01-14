@@ -13,7 +13,15 @@ constexpr char const * const	CRLF = "\r\n";
  * so if the http version given in the request is invalid, 1.1 will be used to send the error page
  * response.
  */
-Request::Request(int fd, int serverFd) : _fd(fd), _serverFd(serverFd), _curr_upload_pos(0), _uploadFD(nullptr), _keepAlive(false), _chunked(false), _completeHeaders(false) {
+Request::Request(int fd, int serverFd) : 
+	_fd(fd), 
+	_serverFd(serverFd),
+	_uploadFD(nullptr), 
+	_curr_upload_pos(0),  
+	_keepAlive(false), 
+	_chunked(false), 
+	_completeHeaders(false) {
+
 	_request.method = RequestMethod::Unknown;
 	_status = RequestStatus::WaitingData;
 	_idleStart = std::chrono::high_resolution_clock::now();
@@ -59,6 +67,9 @@ void	Request::reset(void) {
 	_chunked = false;
 	_completeHeaders = false;
 	_recvStart = {};
+	_curr_upload_pos = 0;
+	if(_uploadFD) _uploadFD.reset();
+	_boundary.reset();
 }
 
 /**
@@ -171,95 +182,7 @@ void	Request::parseRequest(void) {
 	if (!_contentLen.has_value() && !_chunked)
 		_status = RequestStatus::CompleteReq;
 	else if(_request.method == RequestMethod::Post && _boundary.has_value()) {
-		if(this->getUplaodFD()) {
-			std::string part_delimeter = "--" + _boundary.value();
-			std::string end_delimeter =  part_delimeter + "--";
-
-			size_t curr_pos = this->getCurrentUplaodposition();
-
-			while (true) {
-				size_t part_start = _buffer.find(part_delimeter, curr_pos);
-				
-				if(part_start == std::string::npos) {
-					break;
-				}
-
-				if(_body.substr(part_start, end_delimeter.length()) == end_delimeter) {
-					break;
-				}
-
-				size_t header_start = part_start + part_delimeter.length();
-				
-				if(_body.substr(header_start, 2) == "\r\n") {
-					header_start += 2;
-				}
-
-				size_t part_end = _body.find(part_delimeter, header_start);
-
-				if(part_end == std::string::npos) {
-					break;
-				}
-
-				std::string raw_part = _body.substr(header_start, part_end - header_start - 2);
-
-				MultipartPart mp;
-				size_t header_end = raw_part.find("\r\n\r\n");
-
-				if(header_end != std::string::npos) {
-					mp.headers = raw_part.substr(0, header_end);
-					mp.data = raw_part.substr(header_end + 4);
-					mp.name = extract_quoted_value(mp.headers, "name=");
-					mp.filename = extract_quoted_value(mp.headers, "filename=");
-					mp.content_type = extract_value(mp.headers, "Content-Type: ");
-				}
-				save_to_disk(mp, this->getUplaodFD());
-				this->setCurrentUplaodposition(part_end);
-			}
-		} else {
-			std::string part_delimeter = "--" + _boundary.value();
-			std::string end_delimeter =  part_delimeter + "--";
-
-			size_t curr_pos = this->getCurrentUplaodposition();
-
-			while (true) {
-				size_t part_start = _buffer.find(part_delimeter, curr_pos);
-				
-				if(part_start == std::string::npos) {
-					break;
-				}
-
-				if(_body.substr(part_start, end_delimeter.length()) == end_delimeter) {
-					break;
-				}
-
-				size_t header_start = part_start + part_delimeter.length();
-				
-				if(_body.substr(header_start, 2) == "\r\n") {
-					header_start += 2;
-				}
-
-				size_t part_end = _body.find(part_delimeter, header_start);
-
-				if(part_end == std::string::npos) {
-					break;
-				}
-
-				std::string raw_part = _body.substr(header_start, part_end - header_start - 2);
-
-				MultipartPart mp;
-				size_t header_end = raw_part.find("\r\n\r\n");
-
-				if(header_end != std::string::npos) {
-					mp.headers = raw_part.substr(0, header_end);
-					mp.data = raw_part.substr(header_end + 4);
-					mp.name = extract_quoted_value(mp.headers, "name=");
-					mp.filename = extract_quoted_value(mp.headers, "filename=");
-					mp.content_type = extract_value(mp.headers, "Content-Type: ");
-				}
-				this->setUploadFD(std::move(initial_save_to_disk(mp)));
-				this->setCurrentUplaodposition(part_end);
-			}
-		}
+		handleFileUpload();
 	}
 	else if (!_buffer.empty() && (_contentLen.has_value() && _body.size() < _contentLen.value())) {
 		size_t	missingLen = _contentLen.value() - _body.size();
@@ -280,60 +203,6 @@ void	Request::parseRequest(void) {
 	else if (_chunked)
 		parseChunked();
 	printData();
-	if(_request.method == RequestMethod::Post) {
-
-		std::cout << "body : \n " << _body << "\n-------------------------------------------\n"; 
-		
-		// auto it = _headers.find("content-type");
-		// if(it != _headers.end() && it->second.front().find("multipart/form-data") != std::string::npos) {
-			
-		// 	std::cout << "######### INSIDE POST REQUEST ######## \n";
-
-		// 	std::string part_delimeter = "--" + _boundary.value();
-		// 	std::string end_delimeter =  part_delimeter + "--";
-			
-    	// 	size_t curr_pos = 0;
-
-		// 	while (true) {
-		// 		size_t part_start = _body.find(part_delimeter, curr_pos);
-				
-		// 		if(part_start == std::string::npos) {
-		// 			break;
-		// 		}
-
-		// 		if(_body.substr(part_start, end_delimeter.length()) == end_delimeter) {
-		// 			break;
-		// 		}
-
-		// 		size_t header_start = part_start + part_delimeter.length();
-				
-		// 		if(_body.substr(header_start, 2) == "\r\n") {
-		// 			header_start += 2;
-		// 		}
-
-		// 		size_t part_end = _body.find(part_delimeter, header_start);
-
-		// 		if(part_end == std::string::npos) {
-		// 			break;
-		// 		}
-
-		// 		std::string raw_part = _body.substr(header_start, part_end - header_start - 2);
-
-		// 		MultipartPart mp;
-		// 		size_t header_end = raw_part.find("\r\n\r\n");
-
-		// 		if(header_end != std::string::npos) {
-		// 			mp.headers = raw_part.substr(0, header_end);
-		// 			mp.data = raw_part.substr(header_end + 4);
-		// 			mp.name = extract_quoted_value(mp.headers, "name=");
-		// 			mp.filename = extract_quoted_value(mp.headers, "filename=");
-		// 			mp.content_type = extract_value(mp.headers, "Content-Type: ");
-		// 		}
-		// 		save_to_disk(mp);
-		// 		curr_pos = part_end;
-		// 	}
-		// }
-	}
 }
 
 /**
@@ -869,4 +738,56 @@ size_t	Request::getCurrentUplaodposition(void) {
 
 void	Request::setCurrentUplaodposition(size_t pos) {
 	_curr_upload_pos = pos;
+}
+
+void	Request::handleFileUpload(void) {
+
+	std::string part_delimeter = "--" + _boundary.value();
+	std::string end_delimeter =  part_delimeter + "--";
+
+	size_t curr_pos = this->getCurrentUplaodposition();
+	while (true) {
+		size_t part_start = _buffer.find(part_delimeter, curr_pos);
+		
+		if(part_start == std::string::npos) {
+			break;
+		}
+
+		if(_buffer.substr(part_start, end_delimeter.length()) == end_delimeter) {
+			_status = RequestStatus::CompleteReq;
+			break;
+		}
+
+		size_t header_start = part_start + part_delimeter.length();
+		
+		if(_buffer.substr(header_start, 2) == "\r\n") {
+			header_start += 2;
+		}
+
+		size_t part_end = _buffer.find(part_delimeter, header_start);
+
+		if(part_end == std::string::npos) {
+			break;
+		}
+
+		std::string raw_part = _buffer.substr(header_start, part_end - header_start - 2);
+
+		MultipartPart mp;
+		size_t header_end = raw_part.find("\r\n\r\n");
+
+		if(header_end != std::string::npos) {
+			mp.headers = raw_part.substr(0, header_end);
+			mp.data = raw_part.substr(header_end + 4);
+			mp.name = extract_quoted_value(mp.headers, "name=");
+			mp.filename = extract_quoted_value(mp.headers, "filename=");
+			mp.content_type = extract_value(mp.headers, "Content-Type: ");
+		}
+		if(_uploadFD) {
+			save_to_disk(mp, this->getUplaodFD());
+		} else {
+			this->setUploadFD(initial_save_to_disk(mp));
+		}
+		this->setCurrentUplaodposition(part_end);
+		curr_pos = part_end;
+	} 
 }

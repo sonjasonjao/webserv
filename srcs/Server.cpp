@@ -194,8 +194,7 @@ void	Server::handleNewClient(int listener)
 	}
 
 	_pfds.push_back({ clientFd, POLLIN, 0 });
-	Request	req(clientFd, listener);
-	_clients.emplace_back(req);
+	_clients.emplace_back(clientFd, listener);
 	INFO_LOG("New client accepted, assigned fd " + std::to_string(clientFd));
 }
 
