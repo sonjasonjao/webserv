@@ -1,6 +1,5 @@
-#include "../include/Server.hpp"
-#include "../include/Request.hpp"
-#include "Response.hpp"
+#include "Server.hpp"
+#include "Log.hpp"
 #include <iostream>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -14,7 +13,7 @@
 
 volatile sig_atomic_t	g_endSignal = false;
 
-using ReqIter = std::vector<Request>::iterator;
+using ReqIter = std::list<Request>::iterator;
 
 /**
  * Handles SIGINT signal by updating the value of global endSignal variable (to stop poll() loop
@@ -184,8 +183,15 @@ void	Server::handleNewClient(int listener)
 	int						clientFd;
 
 	clientFd = accept(listener, (struct sockaddr*)&newClient, &addrLen);
+
 	if (clientFd < 0)
 		throw std::runtime_error(ERROR_LOG("accept: " + std::string(strerror(errno))));
+
+	if (_clients.size() >= MAX_CLIENTS) {
+		DEBUG_LOG("Connected clients limit reached, unable to accept new client");
+		close(clientFd);
+		return;
+	}
 
 	if (fcntl(clientFd, F_SETFL, O_NONBLOCK) < 0)
 	{
@@ -194,8 +200,7 @@ void	Server::handleNewClient(int listener)
 	}
 
 	_pfds.push_back({ clientFd, POLLIN, 0 });
-	Request	req(clientFd, listener);
-	_clients.emplace_back(req);
+	_clients.emplace_back(clientFd, listener);
 	INFO_LOG("New client accepted, assigned fd " + std::to_string(clientFd));
 }
 
@@ -234,10 +239,10 @@ void	Server::handleClientData(size_t& i)
 
 		return ;
 	}
-
 	buf[numBytes] = '\0';
+
 	INFO_LOG("Received client data from fd " + std::to_string(_pfds[i].fd));
-	std::cout << "\n---- Request data ----\n" << buf << '\n';
+	std::cout << "\n---- Request data ----\n" << buf << "----------------------\n\n";
 
 	if (!_clients.empty())
 	{
@@ -275,7 +280,7 @@ void	Server::handleClientData(size_t& i)
 
 		INFO_LOG("Building response to client fd " + std::to_string(_pfds[i].fd));
 
-		Config	 const &conf = matchConfig(*it);
+		Config const	&conf = matchConfig(*it);
 
 		DEBUG_LOG("Matched config: " + conf.host + " " + conf.host_name + " " + std::to_string(conf.port));
 		_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
@@ -344,8 +349,8 @@ void	Server::removeClientFromPollFds(size_t& i)
 /**
  * Loops through all responses in the current client's response queue (in order of received requests)
  * and for each response, sets the starting time for send timeout tracking and calls sendToClient().
- * If the response was completely sent with one call,  removes sent response from _response queue and
- * resets the send timeout tracker to 0. When response queue is emptied, removes POLLOUT from  events.
+ * If the response was completely sent with one call, removes sent response from _response queue and
+ * resets the send timeout tracker to 0. When response queue is emptied, removes POLLOUT from events.
  * In case of keepAlive being false, disconnects and removes the client; in case of keepAlive, sets
  * client status back to default.
  */
@@ -360,7 +365,7 @@ void	Server::sendResponse(size_t& i)
 		&& it->getStatus() != RequestStatus::RecvTimeout)
 		return ;
 
-	auto &res = _responses.at(_pfds[i].fd).front();
+	auto	&res = _responses.at(_pfds[i].fd).front();
 
 	INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
 	it->setIdleStart();
@@ -372,6 +377,7 @@ void	Server::sendResponse(size_t& i)
 		return ;
 	}
 
+	DEBUG_LOG("Removing front element of _responses container for fd " + std::to_string(_pfds[i].fd));
 	_responses.at(_pfds[i].fd).pop_front();
 
 	it->resetSendStart();
@@ -439,7 +445,7 @@ void	Server::checkTimeouts(void)
 
 /**
  * Checks if current fd is a server (true) or a client (false) fd.
-*/
+ */
 bool	Server::isServerFd(int fd)
 {
 	auto it = _serverGroups.begin();

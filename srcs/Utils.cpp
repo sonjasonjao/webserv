@@ -1,6 +1,7 @@
 #include "Utils.hpp"
 #include "Log.hpp"
 #include <array>
+#include <limits>
 #include <sstream>
 #include <chrono>
 #include <iomanip>
@@ -303,9 +304,10 @@ bool	isValidImfFixdate(std::string_view sv)
 		return false;
 	if (std::any_of(hms.begin(), hms.end(), [](auto a) {return a.empty();}))
 		return false;
-	for (auto const &e : hms)
-	  if (e.length() != 2 || !std::all_of(e.begin(), e.end(), isdigit))
-		return false;
+	for (auto const &e : hms) {
+		if (e.length() != 2 || !std::all_of(e.begin(), e.end(), isdigit))
+			return false;
+	}
 
 	int	hours	= std::stoi(hms[0]);
 	int	minutes	= std::stoi(hms[1]);
@@ -372,14 +374,14 @@ std::string	getAbsPath(std::string const &fileName, std::string searchDir)
 	return searchDir + "/" + fileName;
 }
 
-bool	isIntLiteral(std::string_view sv)
+bool	isUnsignedIntLiteral(std::string_view sv)
 {
 	if (sv.empty())
 		return false;
 
 	auto	i = sv.begin();
 
-	if (*i == '+' || *i == '-')
+	if (*i == '+')
 		++i;
 	if (i == sv.end() || !isdigit(*(i++)))
 		return false;
@@ -388,7 +390,8 @@ bool	isIntLiteral(std::string_view sv)
 		return false;
 
 	try {
-		std::stoi(std::string(sv));
+		if (std::stoul(std::string(sv)) > std::numeric_limits<unsigned int>::max())
+			return false;
 	} catch (std::exception const &e) {
 		return false;
 	}
@@ -396,14 +399,14 @@ bool	isIntLiteral(std::string_view sv)
 	return true;
 }
 
-bool	isDoubleLiteral(std::string_view sv)
+bool	isPositiveDoubleLiteral(std::string_view sv)
 {
 	bool	hasWholelPart		= false;
 	bool	hasFractionalPart	= false;
 
 	auto	i = sv.begin();
 
-	if (*i == '+' || *i == '-')
+	if (*i == '+')
 		++i;
 
 	if (std::isdigit(*i))
