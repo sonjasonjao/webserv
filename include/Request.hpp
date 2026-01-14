@@ -9,9 +9,7 @@
 #define RECV_TIMEOUT 5000
 #define SEND_TIMEOUT 5000
 #define HEADERS_MAX_SIZE 8000
-#ifndef CLIENT_MAX_BODY_SIZE
- #define CLIENT_MAX_BODY_SIZE 1000000
-#endif
+#define CLIENT_MAX_BODY_SIZE 1000000
 
 /**
  * Mandatory methods required in the subject, do we want to add more? -> Will affect

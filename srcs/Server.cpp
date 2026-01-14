@@ -12,7 +12,7 @@
 #include <fcntl.h>
 #include <cstring>
 
-volatile sig_atomic_t	g_endSignal = false;
+volatile sig_atomic_t	endSignal = false;
 
 using ReqIter = std::vector<Request>::iterator;
 
@@ -22,7 +22,7 @@ using ReqIter = std::vector<Request>::iterator;
  */
 void	handleSignal(int sig)
 {
-	g_endSignal = sig;
+	endSignal = sig;
 }
 
 /**
@@ -158,7 +158,7 @@ void	Server::createServerSockets(void)
 void	Server::run(void)
 {
 	createServerSockets();
-	while (g_endSignal == false)
+	while (endSignal == false)
 	{
 		int	pollCount = poll(_pfds.data(), _pfds.size(), POLL_TIMEOUT);
 		if (pollCount < 0)
@@ -169,8 +169,10 @@ void	Server::run(void)
 		}
 		handleConnections();
 	}
-	if (g_endSignal == SIGINT)
+	if (endSignal == SIGINT) {
+		std::cout << '\n'; // does not work if logfile is used!
 		INFO_LOG("Server closed with SIGINT signal");
+	}
 }
 
 /**
