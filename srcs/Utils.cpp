@@ -430,6 +430,84 @@ bool	isPositiveDoubleLiteral(std::string_view sv)
 	return true;
 }
 
+/**
+ * helper function to extract a value from a string based on a prefix
+*/
+std::string extract_value(const std::string& source, const std::string& key) {
+	size_t pos = source.find(key);
+
+	if(pos == std::string::npos) {
+		return ("");
+	}
+
+	pos += key.length();
+	size_t end = source.find_first_of("\r\n,;", pos);
+	return (source.substr(pos, end - pos));
+}
+
+/**
+ * helper function to extract a quoted value from a string based on a prefix
+*/
+std::string extract_quoted_value(const std::string& source, const std::string& key) {
+	size_t pos = source.find(key);
+
+	if(pos == std::string::npos) {
+		return ("");
+	}
+
+	pos += key.length();
+
+	size_t quote_start = source.find('"', pos);
+	
+	if(quote_start == std::string::npos) {
+		return ("");
+	}
+
+	size_t quote_end = source.find('"', quote_start + 1);
+
+	if(quote_end == std::string::npos) {
+		return ("");
+	}
+
+	return (source.substr(quote_start + 1, quote_end - quote_start - 1));
+}
+
+void save_to_disk(const MultipartPart& part, std::ofstream& outfile) {
+	
+	if(outfile.is_open()) {
+		outfile.write(part.data.c_str(), part.data.size());
+		DEBUG_LOG("File " + part.filename + " saved successfully!");
+	} else {
+		DEBUG_LOG("File " + part.filename + " save process failed!");		
+	}
+}
+
+std::unique_ptr<std::ofstream> initial_save_to_disk(const MultipartPart& part) {
+	if(part.filename.empty()) {
+		return nullptr;
+	}
+
+	std::string dir_name = "www/uploads";			// destination to save the file
+	
+	if(!std::filesystem::exists(dir_name)) {		// will create if not exists
+		std::filesystem::create_directories(dir_name);
+	}
+
+	// constructing the file path
+	std::filesystem::path target_path = std::filesystem::path(dir_name) / std::filesystem::path(part.filename).filename();
+
+	// file handler to write data
+	std::unique_ptr<std::ofstream> outfile = std::make_unique<std::ofstream>(target_path, std::ios::binary);
+
+	if(outfile && outfile->is_open()) {
+		outfile->write(part.data.c_str(), part.data.size());
+		DEBUG_LOG("File " + part.filename + " saved successfully!");
+	} else {
+		DEBUG_LOG("File " + part.filename + " save process failed!");		
+	}
+	return (outfile);
+}
+
 //#define TEST
 #ifdef TEST
 

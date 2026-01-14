@@ -55,23 +55,23 @@ class Request
 	using timePoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
 	private:
-		int							_fd;
-		int							_serverFd;
-		std::unique_ptr<std::ofstream> _uploadFD;
-		size_t						_curr_upload_pos;
-		std::string					_buffer;
-		struct RequestLine			_request;
-		stringMap					_headers;
-		std::string					_body;
-		std::optional<size_t>		_contentLen;
-		std::optional<std::string>	_boundary;
-		bool						_keepAlive;
-		bool						_chunked;
-		bool						_completeHeaders;
-		RequestStatus				_status;
-		timePoint					_idleStart;
-		timePoint					_recvStart;
-		timePoint					_sendStart;
+		int								_fd;
+		int								_serverFd;
+		std::unique_ptr<std::ofstream> 	_uploadFD;
+		size_t							_curr_upload_pos;
+		std::string						_buffer;
+		struct RequestLine				_request;
+		stringMap						_headers;
+		std::string						_body;
+		std::optional<size_t>			_contentLen;
+		std::optional<std::string>		_boundary;
+		bool							_keepAlive;
+		bool							_chunked;
+		bool							_completeHeaders;
+		RequestStatus					_status;
+		timePoint						_idleStart;
+		timePoint						_recvStart;
+		timePoint						_sendStart;
 
 	public:
 		Request() = delete;
