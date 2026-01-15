@@ -65,7 +65,7 @@ void	Request::reset(void) {
 /**
  * Resets the keepAlive status separately from other resets, only after keepAlive status of the
  * latest request has been checked.
-*/
+ */
 void	Request::resetKeepAlive(void) {
 	_keepAlive = false;
 }
@@ -420,7 +420,7 @@ bool	Request::fillKeepAlive(void) {
  */
 bool	Request::validateHeaders(void) {
 	auto	it = _headers.find("host");
-	if ( _request.httpVersion == "HTTP/1.1" && (it == _headers.end() || it->second.empty()))
+	if (_request.httpVersion == "HTTP/1.1" && (it == _headers.end() || it->second.empty()))
 		return false;
 	for (auto const& [key, values] : _headers) {
 		if (values.size() > 1 && isUniqueHeader(key))
@@ -592,25 +592,28 @@ static void	printStatus(RequestStatus status)
 /**
  * Prints parsed data for debugging.
  */
-void	Request::printData(void) const {
-	std::cout << "---- Request line ----\nMethod: ";
+void	Request::printData(void) const
+{
+	std::cout << "\n---- Request line ----\nMethod: ";
 	switch(_request.method) {
 		case RequestMethod::Get:
-			std::cout << "Get";
+			std::cout << "GET";
 			break ;
 		case RequestMethod::Post:
-			std::cout << "Post";
+			std::cout << "POST";
 			break ;
 		case RequestMethod::Delete:
-			std::cout << "Delete";
+			std::cout << "DELETE";
 			break ;
 		default:
 			throw std::runtime_error("HTTP request method unknown\n");
 	}
-	std::cout << ", target: "
-		<< _request.target << ", HTTP version: " << _request.httpVersion << "\n\n";
+
+	std::cout << "\nTarget: " << _request.target << "\nHTTP version: " << _request.httpVersion << "\n";
 	if (_request.query.has_value())
 		std::cout << "Query: " << _request.query.value() << '\n';
+	std::cout << "----------------------\n\n";
+
 	std::cout << "---- Headers ----\n";
 	for (auto it = _headers.begin(); it != _headers.end(); it++) {
 		std::cout << it->first << ": ";
@@ -618,16 +621,19 @@ void	Request::printData(void) const {
 			std::cout << *value << " ";
 		std::cout << '\n';
 	}
-	std::cout << "\n";
+	std::cout << "-----------------\n\n";
+
 	if (!_body.empty())
-		std::cout << "---- Body ----\n" << _body << '\n';
+		std::cout << "---- Body ----\n" << _body << "----------------\n\n";
+
 	std::cout << "	Keep alive?		" << _keepAlive << '\n';
 	std::cout << "	Complete headers?	" << _completeHeaders << '\n';
 	std::cout << "	Status?			";
 	printStatus(_status);
 	std::cout << "	Chunked?		" << _chunked << "\n";
 	if (_boundary.has_value())
-		std::cout << "	Boundary:		'" << _boundary.value() << "'\n\n";
+		std::cout << "	Boundary:		'" << _boundary.value() << "'\n";
+	std::cout << "\n";
 }
 
 void	Request::setIdleStart(void) {
