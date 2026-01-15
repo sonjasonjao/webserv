@@ -9,6 +9,7 @@ enum ResponseCode : int {
 	OK				= 200,
 	NoContent		= 204,
 	BadRequest		= 400,
+	Forbidden		= 403,
 	NotFound		= 404,
 	RequestTimeout	= 408,
 };
@@ -18,7 +19,7 @@ class Response {
 public:
 	Response() = delete;
 	Response(Request const &req, Config const &conf);
-	Response(Response const &other);
+	Response(Response const &other) = default;
 	~Response() = default;
 
 	std::string const				&getContent() const;

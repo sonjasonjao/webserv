@@ -39,7 +39,7 @@ struct Config {
 
 class Parser {
 private:
-	std::string const	_file_name;			// File name of the configuratioon file
+	std::string const	_file_name;			// File name of the configuration file
 	std::ifstream		_file;				// ifstream instance to read the configuration file
 	std::vector<Config>	_server_configs;	// List of fully parsed server configurations built from the token list.
 
@@ -52,7 +52,7 @@ public:
 	 */
 	Parser(const std::string& file_name);
 	/**
-	 * only way of creating Parser instance should be argument constructor
+	 * The only way of creating a Parser instance should be via the argument constructor.
 	 */
 	Parser() = delete;
 	Parser(const Parser& other) = delete;
