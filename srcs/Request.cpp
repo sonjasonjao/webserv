@@ -190,7 +190,7 @@ void	Request::fillHost(void) {
 		std::string	value = _buffer.substr(valueStart, valueEnd - valueStart);
 		_headers[key].push_back(value);
 	}
-	//if Host header is not found, what will we do with the response?
+	//what if Host header is not found? --> checked and simply skipped in formResponse()?
 }
 
 /**
