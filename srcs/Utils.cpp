@@ -400,6 +400,10 @@ bool	isPositiveDoubleLiteral(std::string_view sv)
 	bool	hasWholelPart		= false;
 	bool	hasFractionalPart	= false;
 
+	if(sv.empty()) {
+		return false;
+	}
+
 	auto	i = sv.begin();
 
 	if (*i == '+')
@@ -489,8 +493,13 @@ std::unique_ptr<std::ofstream> initial_save_to_disk(const MultipartPart& part) {
 
 	std::string dir_name = "www/uploads";			// destination to save the file
 	
-	if(!std::filesystem::exists(dir_name)) {		// will create if not exists
-		std::filesystem::create_directories(dir_name);
+	try {
+		if(!std::filesystem::exists(dir_name)) {		// will create if not exists
+			std::filesystem::create_directories(dir_name);
+		}
+	} catch (const std::filesystem::filesystem_error& e) {
+		DEBUG_LOG("Failed to create upload directory: " + std::string(e.what()));
+		return nullptr;
 	}
 
 	// constructing the file path
@@ -501,9 +510,15 @@ std::unique_ptr<std::ofstream> initial_save_to_disk(const MultipartPart& part) {
 
 	if(outfile && outfile->is_open()) {
 		outfile->write(part.data.c_str(), part.data.size());
-		DEBUG_LOG("File " + part.filename + " saved successfully!");
+		if (outfile->good()) {
+			DEBUG_LOG("File " + part.filename + " initial write successful!");
+		} else {
+			DEBUG_LOG("File " + part.filename + " initial write failed!");
+			return nullptr;
+		}
 	} else {
 		DEBUG_LOG("File " + part.filename + " save process failed!");		
+		return nullptr;
 	}
 	return (outfile);
 }

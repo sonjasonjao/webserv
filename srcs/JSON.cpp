@@ -77,16 +77,16 @@ size_t unquotedDelimiter(std::string_view sv, const char c) {
 		if (sv[i] == '"' && (i == 0 || sv[i - 1] != '\\')) {
 			in_quote = !in_quote;
 		}
-		if (sv[i] == '{') {
+		if (sv[i] == '{' && !in_quote) {
 			curly_braces_depth++;
 		}
-		if (sv[i] == '}') {
+		if (sv[i] == '}' && !in_quote) {
 			curly_braces_depth--;
 		}
-		if (sv[i] == '[') {
+		if (sv[i] == '[' && !in_quote) {
 			squar_braces_depth++;
 		}
-		if (sv[i] == ']') {
+		if (sv[i] == ']' && !in_quote) {
 			squar_braces_depth--;
 		}
 		if (sv[i] == c
