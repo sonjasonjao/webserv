@@ -476,18 +476,17 @@ std::string extract_quoted_value(const std::string& source, const std::string& k
 	return (source.substr(quote_start + 1, quote_end - quote_start - 1));
 }
 
-void save_to_disk(const MultipartPart& part, std::ofstream& outfile) {
+bool save_to_disk(const MultipartPart& part, std::ofstream& outfile) {
 	
-	if(outfile.is_open()) {
-		outfile.write(part.data.c_str(), part.data.size());
-		if (outfile.good()) {
-			DEBUG_LOG("File " + part.filename + " saved successfully!");
-		} else {
-			DEBUG_LOG("File " + part.filename + " write failed!");
-		}
-	} else {
-		DEBUG_LOG("File " + part.filename + " save process failed!");		
+	if(!outfile.is_open()) {
+		throw std::runtime_error(DEBUG_LOG("File " + part.filename + " save process failed!"));
 	}
+	outfile.write(part.data.c_str(), part.data.size());
+	if (!outfile.good()) {
+		throw std::runtime_error(DEBUG_LOG("File " + part.filename + " write failed!"));
+	}
+	DEBUG_LOG("File " + part.filename + " saved successfully!");
+	return (true);
 }
 
 std::unique_ptr<std::ofstream> initial_save_to_disk(const MultipartPart& part) {

@@ -104,7 +104,7 @@ class Request
 		void					resetSendStart(void);
 		void					resetBuffer(void);
 		void					setUploadFD(std::unique_ptr<std::ofstream> outfile);
-		std::ofstream&			getUploadFD(void);
+		std::ofstream*			getUploadFD(void);
 		size_t					getCurrentUploadPosition(void);
 		void					setCurrentUploadPosition(size_t pos);
 		void					handleFileUpload(void);

@@ -731,11 +731,8 @@ void	Request::setUploadFD(std::unique_ptr<std::ofstream> outfile) {
 	_uploadFD = std::move(outfile);
 }
 
-std::ofstream&	Request::getUploadFD(void) {
-	if (_uploadFD) {
-		throw std::runtime_error("Upload file descriptor not initialized");
-	}
-	return (*_uploadFD);
+std::ofstream*	Request::getUploadFD(void) {
+	return (_uploadFD.get());
 }
 
 size_t	Request::getCurrentUploadPosition(void) {
@@ -762,7 +759,12 @@ void	Request::handleFileUpload(void) {
 
 		if(_buffer.substr(part_start, end_delimeter.length()) == end_delimeter) {
 			_status = RequestStatus::CompleteReq;
-			_buffer.clear(); // need to check this full effect
+			// Remove only the processed multipart data including end delimiter
+			_buffer = _buffer.substr(part_start + end_delimeter.length());
+			// Skip trailing CRLF if present
+			if (_buffer.substr(0, 2) == "\r\n") {
+				_buffer = _buffer.substr(2);
+			}
 			break;
 		}
 
@@ -775,7 +777,14 @@ void	Request::handleFileUpload(void) {
 		size_t part_end = _buffer.find(part_delimeter, header_start);
 
 		if(part_end == std::string::npos) {
+			_status = RequestStatus::WaitingData;
 			break;
+		}
+
+		if (part_end < header_start + 2) {
+			_status = RequestStatus::Error;
+			_keepAlive = false;
+			return;
 		}
 
 		std::string raw_part = _buffer.substr(header_start, part_end - header_start - 2);
@@ -792,7 +801,15 @@ void	Request::handleFileUpload(void) {
 		}
 		if(_uploadFD) {
 			try {
-				save_to_disk(mp, this->getUploadFD());
+				
+				std::ofstream* ofs = this->getUploadFD();
+				if(ofs) {
+					save_to_disk(mp, *ofs);
+				} else {
+					ERROR_LOG("Upload FD became null unexpectedly");
+					_status = RequestStatus::Error;
+					return;
+				}
 			} catch (const std::exception& e) {
 				ERROR_LOG("Failed to save upload part: " + std::string(e.what()));
 				_status = RequestStatus::Error;

@@ -43,5 +43,5 @@ std::string					    getAbsPath(std::string const &fileName, std::string searchDi
 
 std::string                     extract_value(const std::string& source, const std::string& key);
 std::string                     extract_quoted_value(const std::string& source, const std::string& key);
-void                            save_to_disk(const MultipartPart& part, std::ofstream& outfile);
+bool                            save_to_disk(const MultipartPart& part, std::ofstream& outfile);
 std::unique_ptr<std::ofstream>  initial_save_to_disk(const MultipartPart& part);
