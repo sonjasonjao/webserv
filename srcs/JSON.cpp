@@ -172,7 +172,7 @@ Token createToken(const std::string& str, TokenType type) {
 
 
 /**
- * will create a token of type and return by value, helper fucntion
+ * will create a token of type and return by value, helper function
  * type will be detemind by the function it-self, will call recursivle if
  * string is not a fundamental type (Identifler or Value)
  * @param string the token needed to create
