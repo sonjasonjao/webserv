@@ -480,7 +480,11 @@ void save_to_disk(const MultipartPart& part, std::ofstream& outfile) {
 	
 	if(outfile.is_open()) {
 		outfile.write(part.data.c_str(), part.data.size());
-		DEBUG_LOG("File " + part.filename + " saved successfully!");
+		if (outfile.good()) {
+			DEBUG_LOG("File " + part.filename + " saved successfully!");
+		} else {
+			DEBUG_LOG("File " + part.filename + " write failed!");
+		}
 	} else {
 		DEBUG_LOG("File " + part.filename + " save process failed!");		
 	}
