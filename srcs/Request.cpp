@@ -235,7 +235,11 @@ void	Request::parseRequestLine(std::string &req) {
 
 /**
  * Accepts as headers every line with ':' and stores each header as key and value to
- * an unordered map. For now, only stores the needed headers and skips the rest.
+ * an unordered map.
+ *
+ * For Content-Type, string won't be turned to lowercase, because it might include
+ * boundary= literal. Content-Type will be split by semicolons to store individual
+ * values, and for other headers, split will be done with commas.
  */
 void	Request::parseHeaders(std::string& str) {
 	std::string	line;
@@ -382,6 +386,11 @@ void	Request::parseChunked(void) {
 	}
 }
 
+/**
+ * If request has header Connection with either keep-alive or close,
+ * _keepAlive will be set accordingly. If it has neither of those,
+ * by default 1.1 request will keep connection alive, and 1.0 request won't.
+ */
 bool	Request::fillKeepAlive(void) {
 	auto	it = _headers.find("connection");
 	bool	hasClose = false;
@@ -413,10 +422,10 @@ bool	Request::fillKeepAlive(void) {
 }
 
 /**
- * Checks if the headers include "host" (considered mandatory), and if unique headers only have one
- * value each (actually now we don't even store most of them, as they are not needed, so will
- * have to think whether we even need that either). Checks also for connection, to set keep-alive
- * flag if needed, and content-length, to set the length, and transfer-encoding for chunked flag.
+ * Checks if the headers include "host" (considered mandatory for 1.1), and if unique
+ * headers only have one value each. Checks also for connection, to set keep-alive
+ * flag if needed, and content-length, to set the length, and transfer-encoding for
+ * chunked flag.
  */
 bool	Request::validateHeaders(void) {
 	auto	it = _headers.find("host");
@@ -464,8 +473,6 @@ bool	Request::validateHeaders(void) {
 
 /**
  * Defines headers that can have only one value, and checks if any of them has more.
- *
- * Need to double-check these.
  */
 bool	Request::isUniqueHeader(std::string const& key) {
 	std::unordered_set<std::string>	uniques = {
@@ -527,7 +534,6 @@ bool	Request::areValidChars(std::string& s) {
  *
  * In case the URI includes '?', we use it as a separator to get the query.
  * We must later split the possible query with '&' which separates different queries.
- * Might be better to do that in the CGI handling part, so for now it's all in one string.
  */
 bool	Request::validateAndAssignTarget(std::string& target) {
 	if (target.size() == 1 && target != "/")

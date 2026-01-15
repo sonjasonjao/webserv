@@ -25,7 +25,8 @@ void	handleSignal(int sig)
 }
 
 /**
- * At construction, server starts listening to SIGINT, and _configs will be fetched from parser.
+ * At construction, server starts listening to SIGINT, _configs will be fetched from parser,
+ * and grouped for correct server socket creation.
  */
 Server::Server(Parser& parser)
 {
@@ -35,11 +36,8 @@ Server::Server(Parser& parser)
 }
 
 /**
- * Looks through existing serverGroups and checks whether any of them shares the same
+ * Loops through existing serverGroups and checks whether any of them shares the same
  * IP and port with this current config.
- *
- * Ports will be replaced with a single port, as parser will create a unique config for each
- * port in case one IP has many.
  */
 bool	Server::isGroupMember(Config& conf)
 {
@@ -56,7 +54,8 @@ bool	Server::isGroupMember(Config& conf)
 
 /**
  * Groups configs so that all configs in one group have the same IP and the same port.
- * Each serverGroup will then have one server (listener) socket.
+ * Each serverGroup will then have one server (listener) socket. The first config added in a
+ * server group will be the default config of the group.
  */
 void	Server::groupConfigs(void)
 {
@@ -150,9 +149,9 @@ void	Server::createServerSockets(void)
 }
 
 /**
- * Calls getServerSockets() to create listener sockets, starts poll() loop. If a signal is detected,
- * it gets caught with poll returning -1 with errno set to EINTR --> continues to next loop round,
- * on which endSignal won't be false, and loop will finish.
+ * Calls getServerSockets() to create listener sockets, starts poll() loop. If a signal is
+ * detected, it gets caught with poll returning -1 with errno set to EINTR --> continues
+ * to next loop round, on which endSignal won't be false, and loop will finish.
  */
 void	Server::run(void)
 {
@@ -169,7 +168,7 @@ void	Server::run(void)
 		handleConnections();
 	}
 	if (endSignal == SIGINT) {
-		std::cout << '\n'; // does not work if logfile is used!
+		std::cout << '\n';
 		INFO_LOG("Server closed with SIGINT signal");
 	}
 }
@@ -184,11 +183,6 @@ void	Server::handleNewClient(int listener)
 	socklen_t				addrLen = sizeof(newClient);
 	int						clientFd;
 
-	if (_clients.size() >= MAX_CLIENTS) {
-		ERROR_LOG("Connected clients limit reached, unable to accept a new client");
-		return ;
-	}
-
 	clientFd = accept(listener, (struct sockaddr*)&newClient, &addrLen);
 
 	if (clientFd < 0)
@@ -197,7 +191,7 @@ void	Server::handleNewClient(int listener)
 	if (_clients.size() >= MAX_CLIENTS) {
 		DEBUG_LOG("Connected clients limit reached, unable to accept new client");
 		close(clientFd);
-		return;
+		return ;
 	}
 
 	if (fcntl(clientFd, F_SETFL, O_NONBLOCK) < 0)
@@ -212,16 +206,18 @@ void	Server::handleNewClient(int listener)
 }
 
 /**
- * Receives data from the client that poll() has recognized ready. Message (= request)
- * will be parsed and response formed.
+ * Receives data from the client that poll() has recognized to have sent something. Message
+ * (= request) will be parsed and response formed.
  *
- * If buffer initially had more than one complete request, and so it's not empty after handling
- * one request, request handling loop continues, multiple responses will be formed and put into
- * the response queue. But if the current request has _keepAlive set to false, possible remaining
- * data in buffer will not be handled.
+ * If buffer initially had more than one complete request, or e.g. remaining data after
+ * content-length amount of body, resetBuffer will discard that.
  */
 void	Server::handleClientData(size_t& i)
 {
+	if (_clients.empty())
+		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
+			+ std::to_string(_pfds[i].fd)));
+
 	auto it = getRequestByFd(_pfds[i].fd);
 
 	if (it == _clients.end())
@@ -254,53 +250,50 @@ void	Server::handleClientData(size_t& i)
 	INFO_LOG("Received client data from fd " + std::to_string(_pfds[i].fd));
 	std::cout << "\n---- Request data ----\n" << buf << "----------------------\n\n";
 
-	if (!_clients.empty())
+	it->setIdleStart();
+	it->setRecvStart();
+	it->saveRequest(std::string(buf));
+
+	it->handleRequest();
+
+	if (it->getStatus() == RequestStatus::Error)
 	{
-		it->setIdleStart();
-		it->setRecvStart();
-		it->saveRequest(std::string(buf));
+		ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
+			+ " connection dropped: suspicious request");
 
-		it->handleRequest();
+		removeClientFromPollFds(i);
 
-		if (it->getStatus() == RequestStatus::Error)
-		{
-			ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
-				+ " connection dropped: suspicious request");
+		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
+		_clients.erase(it);
 
-			removeClientFromPollFds(i);
-
-			INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
-			_clients.erase(it);
-
-			return ;
-		}
-
-		if (it->getStatus() == RequestStatus::WaitingData)
-		{
-			INFO_LOG("Waiting for more data to complete partial request");
-
-			return ;
-		}
-
-		INFO_LOG("Building response to client fd " + std::to_string(_pfds[i].fd));
-
-		Config const	&conf = matchConfig(*it);
-
-		DEBUG_LOG("Matched config: " + conf.host + " " + conf.host_name + " " + std::to_string(conf.port));
-		_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
-		it->reset();
-		it->setStatus(RequestStatus::ReadyForResponse);
-		_pfds[i].events |= POLLOUT;
-
-		it->resetBuffer();
+		return ;
 	}
+
+	if (it->getStatus() == RequestStatus::WaitingData)
+	{
+		INFO_LOG("Waiting for more data to complete partial request");
+
+		return ;
+	}
+
+	INFO_LOG("Building response to client fd " + std::to_string(_pfds[i].fd));
+
+	Config const	&conf = matchConfig(*it);
+
+	DEBUG_LOG("Matched config: " + conf.host + " " + conf.serverName + " " + std::to_string(conf.port));
+	_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
+	it->reset();
+	it->setStatus(RequestStatus::ReadyForResponse);
+	_pfds[i].events |= POLLOUT;
+
+	it->resetBuffer();
 }
 
 /**
  * Matches current request (so, client) with the config of the server it is connected to.
- * Looks for the serverGroup with a matching server fd, and then looks for the host name to match
- * Host header value in the request. If no host name match is found, returns the default config of
- * that serverGroup.
+ * Looks for the serverGroup with a matching server fd, and then looks for the host name to
+ * match Host header value in the request. If no host name match is found, returns the
+ * default config of that serverGroup.
  */
 Config const	&Server::matchConfig(Request const &req)
 {
@@ -317,7 +310,7 @@ Config const	&Server::matchConfig(Request const &req)
 		throw std::runtime_error(ERROR_LOG("Unexpected error in matching request with server config"));
 	for (auto it = tmp->configs.begin(); it != tmp->configs.end(); it++)
 	{
-		if (it->host_name == req.getHost())
+		if (it->serverName == req.getHost())
 			return *it;
 	}
 	return *(tmp->defaultConf);
@@ -351,12 +344,11 @@ void	Server::removeClientFromPollFds(size_t& i)
 }
 
 /**
- * Loops through all responses in the current client's response queue (in order of received requests)
- * and for each response, sets the starting time for send timeout tracking and calls sendToClient().
- * If the response was completely sent with one call, removes sent response from _response queue and
- * resets the send timeout tracker to 0. When response queue is emptied, removes POLLOUT from events.
- * In case of keepAlive being false, disconnects and removes the client; in case of keepAlive, sets
- * client status back to default.
+ * Sets the starting time for send timeout tracking and calls sendToClient().
+ * If the response was completely sent with one call, removes sent response from _responses,
+ * resets the send timeout tracker to 0, and removes POLLOUT from events. In case of keepAlive
+ * being false, disconnects and removes the client; in case of keepAlive, sets client status
+ * back to WaitingData.
  */
 void	Server::sendResponse(size_t& i)
 {
@@ -417,9 +409,9 @@ ReqIter	Server::getRequestByFd(int fd)
 
 /**
  * On each poll round, checks whether any of the clients have experienced idle, receive, or
- * send timeout. If an idle or receive timeout occurs, calls Response constructor to
+ * send timeout. If an receive timeout occurs, calls Response constructor to
  * form an error page response, and sendResponse to send it and to disconnect client. In
- * case of send timeout, client is disconnected without sending a response.
+ * case of idle or send timeout, client is disconnected without sending a response.
  */
 void	Server::checkTimeouts(void)
 {
@@ -433,7 +425,7 @@ void	Server::checkTimeouts(void)
 			if (it->getStatus() == RequestStatus::RecvTimeout) {
 				Config	 const &conf = matchConfig(*it);
 
-				DEBUG_LOG("Matched config: " + conf.host + " " + conf.host_name + " " + std::to_string(conf.port));
+				DEBUG_LOG("Matched config: " + conf.host + " " + conf.serverName + " " + std::to_string(conf.port));
 				_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
 				sendResponse(i);
 			}

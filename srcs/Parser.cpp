@@ -202,10 +202,10 @@ Config Parser::convertToServerData(const Token& block) {
 			config.host = str;
 		}
 
-		// set host name value
-		if (key == "host_name") {
-			DEBUG_LOG("\t\tAdding host_name " + item.children.at(1).value);
-			config.host_name = item.children.at(1).value;
+		// set server name value
+		if (key == "serverName") {
+			DEBUG_LOG("\t\tAdding serverName " + item.children.at(1).value);
+			config.serverName = item.children.at(1).value;
 		}
 
 		if (key == "directory_listing") {
