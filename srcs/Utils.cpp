@@ -491,7 +491,7 @@ bool save_to_disk(const MultipartPart& part, std::ofstream& outfile) {
 
 std::unique_ptr<std::ofstream> initial_save_to_disk(const MultipartPart& part) {
 	if(part.filename.empty()) {
-		return nullptr;
+		return (nullptr);
 	}
 
 	std::string dir_name = "www/uploads";			// destination to save the file
@@ -502,7 +502,7 @@ std::unique_ptr<std::ofstream> initial_save_to_disk(const MultipartPart& part) {
 		}
 	} catch (const std::filesystem::filesystem_error& e) {
 		DEBUG_LOG("Failed to create upload directory: " + std::string(e.what()));
-		return nullptr;
+		return (nullptr);
 	}
 
 	// constructing the file path
@@ -517,11 +517,11 @@ std::unique_ptr<std::ofstream> initial_save_to_disk(const MultipartPart& part) {
 			DEBUG_LOG("File " + part.filename + " initial write successful!");
 		} else {
 			DEBUG_LOG("File " + part.filename + " initial write failed!");
-			return nullptr;
+			return (nullptr);
 		}
 	} else {
 		DEBUG_LOG("File " + part.filename + " save process failed!");		
-		return nullptr;
+		return (nullptr);
 	}
 	return (outfile);
 }

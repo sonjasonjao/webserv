@@ -817,7 +817,13 @@ void	Request::handleFileUpload(void) {
 			}
 		} else {
 			try {
-				this->setUploadFD(initial_save_to_disk(mp));
+				auto fd = initial_save_to_disk(mp);
+				if (!fd) {
+					ERROR_LOG("Failed to initialize upload file descriptor");
+					_status = RequestStatus::Error;
+					return;
+				}
+				this->setUploadFD(std::move(fd));
 			} catch (const std::exception& e) {
 				ERROR_LOG("Failed to initialize upload: " + std::string(e.what()));
 				_status = RequestStatus::Error;
