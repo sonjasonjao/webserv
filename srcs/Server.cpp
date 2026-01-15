@@ -254,7 +254,7 @@ void	Server::handleClientData(size_t& i)
 
 		it->setIdleStart();
 		it->setRecvStart();
-		it->saveRequest(std::string(buf));
+		it->saveRequest(std::string(buf, numBytes));
 
 		it->handleRequest();
 

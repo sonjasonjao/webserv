@@ -731,15 +731,18 @@ void	Request::setUploadFD(std::unique_ptr<std::ofstream> outfile) {
 	_uploadFD = std::move(outfile);
 }
 
-std::ofstream&	Request::getUplaodFD(void) {
+std::ofstream&	Request::getUploadFD(void) {
+	if (_uploadFD) {
+		throw std::runtime_error("Upload file descriptor not initialized");
+	}
 	return (*_uploadFD);
 }
 
-size_t	Request::getCurrentUplaodposition(void) {
+size_t	Request::getCurrentUploadPosition(void) {
 	return _curr_upload_pos;
 }
 
-void	Request::setCurrentUplaodposition(size_t pos) {
+void	Request::setCurrentUploadPosition(size_t pos) {
 	_curr_upload_pos = pos;
 }
 
@@ -748,16 +751,18 @@ void	Request::handleFileUpload(void) {
 	std::string part_delimeter = "--" + _boundary.value();
 	std::string end_delimeter =  part_delimeter + "--";
 
-	size_t curr_pos = this->getCurrentUplaodposition();
+	size_t curr_pos = this->getCurrentUploadPosition();
 	while (true) {
 		size_t part_start = _buffer.find(part_delimeter, curr_pos);
 		
 		if(part_start == std::string::npos) {
+			_status = RequestStatus::WaitingData;
 			break;
 		}
 
 		if(_buffer.substr(part_start, end_delimeter.length()) == end_delimeter) {
 			_status = RequestStatus::CompleteReq;
+			_buffer.clear(); // need to check this full effect
 			break;
 		}
 
@@ -786,11 +791,23 @@ void	Request::handleFileUpload(void) {
 			mp.content_type = extract_value(mp.headers, "Content-Type: ");
 		}
 		if(_uploadFD) {
-			save_to_disk(mp, this->getUplaodFD());
+			try {
+				save_to_disk(mp, this->getUploadFD());
+			} catch (const std::exception& e) {
+				ERROR_LOG("Failed to save upload part: " + std::string(e.what()));
+				_status = RequestStatus::Error;
+				return;
+			}
 		} else {
-			this->setUploadFD(initial_save_to_disk(mp));
+			try {
+				this->setUploadFD(initial_save_to_disk(mp));
+			} catch (const std::exception& e) {
+				ERROR_LOG("Failed to initialize upload: " + std::string(e.what()));
+				_status = RequestStatus::Error;
+				return;
+			}
 		}
-		this->setCurrentUplaodposition(part_end);
+		this->setCurrentUploadPosition(part_end);
 		curr_pos = part_end;
 	} 
 }
