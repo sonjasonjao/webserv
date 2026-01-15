@@ -12,7 +12,6 @@
 #include <filesystem>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <array>
 
 constexpr char const * const	CRLF = "\r\n";
 
@@ -54,7 +53,6 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	if (!uriFormatOk(reqTarget) || uriTargetAboveRoot(reqTarget)) {
 		DEBUG_LOG("Bad target: " + reqTarget);
 		_statusCode = BadRequest;
-
 		formResponse();
 
 		return;
