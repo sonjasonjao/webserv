@@ -145,13 +145,6 @@ void	Request::parseRequest(void) {
 	}
 	if (!_contentLen.has_value() && !_chunked)
 		_status = RequestStatus::CompleteReq;
-	else if (_contentLen.has_value() && _contentLen.value() > CLIENT_MAX_BODY_SIZE)
-	{
-		_status = RequestStatus::Invalid;
-		_keepAlive = false;
-		_buffer.clear();
-		return;
-	}
 	else if (!_buffer.empty() && (_contentLen.has_value() && _body.size() < _contentLen.value())) {
 		size_t	missingLen = _contentLen.value() - _body.size();
 		if (missingLen < _buffer.size()) {
@@ -162,6 +155,12 @@ void	Request::parseRequest(void) {
 		else {
 			_body += _buffer;
 			_buffer.clear();
+		}
+		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
+			_status = RequestStatus::ContentTooLarge;
+			_keepAlive = false;
+			_buffer.clear();
+			return;
 		}
 		if (_body.size() < _contentLen.value())
 			_status = RequestStatus::WaitingData;
@@ -378,7 +377,7 @@ void	Request::parseChunked(void) {
 			_status = RequestStatus::CompleteReq;
 		}
 		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
-			_status = RequestStatus::Invalid;
+			_status = RequestStatus::ContentTooLarge;
 			_keepAlive = false;
 			_buffer.clear();
 			return;
@@ -580,6 +579,9 @@ static void	printStatus(RequestStatus status)
 			break;
 		case RequestStatus::CompleteReq:
 			std::cout << "Complete and valid request received\n";
+			break;
+		case RequestStatus::ContentTooLarge:
+			std::cout << "Content too large\n";
 			break;
 		case RequestStatus::Error:
 			std::cout << "Critical error found, client to be disconnected\n";

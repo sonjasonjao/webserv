@@ -381,7 +381,8 @@ void	Server::sendResponse(size_t& i)
 	_pfds[i].events &= ~POLLOUT;
 
 	DEBUG_LOG("Keep alive status: " + std::to_string(it->getKeepAlive()));
-	if (it->getStatus() == RequestStatus::Invalid || !it->getKeepAlive())
+	if (it->getStatus() == RequestStatus::Invalid || it->getStatus() == RequestStatus::ContentTooLarge
+		|| !it->getKeepAlive())
 	{
 		removeClientFromPollFds(i);
 
