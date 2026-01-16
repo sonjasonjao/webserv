@@ -42,7 +42,7 @@ int	main(int argc, char **argv)
 		for (size_t i = 0; i < configCount; ++i) {
 			Config config = parser.getServerConfig(i);
 			std::cout << "Host		: " << config.host << "\n";
-			std::cout << "Host Name	: " << config.serverName << "\n";
+			std::cout << "Server Name	: " << config.serverName << "\n";
 			std::cout << "Listen		: ";
 			std::cout << config.port << " ";
 			std::cout << "\n\n";

@@ -85,7 +85,7 @@ void	Request::checkReqTimeouts(void) {
 		_status = RequestStatus::IdleTimeout;
 		DEBUG_LOG("Idle timeout with client fd " + std::to_string(_fd));
 		_keepAlive = false;
-		return ;
+		return;
 	}
 	diff = now - _recvStart;
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
@@ -93,7 +93,7 @@ void	Request::checkReqTimeouts(void) {
 		_status = RequestStatus::RecvTimeout;
 		DEBUG_LOG("Recv timeout with client fd " + std::to_string(_fd));
 		_keepAlive = false;
-		return ;
+		return;
 	}
 	diff = now - _sendStart;
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
@@ -134,14 +134,14 @@ void	Request::parseRequest(void) {
 		parseRequestLine(reqLine);
 		if (_status == RequestStatus::Invalid) {
 			_buffer.clear();
-			return ;
+			return;
 		}
 	}
 	if (!_completeHeaders)
 		parseHeaders(_buffer);
 	if (_status == RequestStatus::Invalid || _status == RequestStatus::Error) {
 		_buffer.clear();
-		return ;
+		return;
 	}
 	if (!_contentLen.has_value() && !_chunked)
 		_status = RequestStatus::CompleteReq;
@@ -162,6 +162,12 @@ void	Request::parseRequest(void) {
 		else {
 			_body += _buffer;
 			_buffer.clear();
+		}
+		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
+			_status = RequestStatus::ContentTooLarge;
+			_keepAlive = false;
+			_buffer.clear();
+			return;
 		}
 		if (_body.size() < _contentLen.value())
 			_status = RequestStatus::WaitingData;
@@ -190,7 +196,7 @@ void	Request::fillHost(void) {
 		std::string	value = _buffer.substr(valueStart, valueEnd - valueStart);
 		_headers[key].push_back(value);
 	}
-	//if Host header is not found, what will we do with the response?
+	//what if Host header is not found? --> checked and simply skipped in formResponse()?
 }
 
 /**
@@ -207,35 +213,39 @@ void	Request::parseRequestLine(std::string &req) {
 	for (i = 0; i < methods.size(); i++)
 	{
 		if (methods[i] == method)
-			break ;
+			break;
 	}
 	switch (i)
 	{
 		case 0:
 			_request.method = RequestMethod::Get;
-			break ;
+			break;
 		case 1:
 			_request.method = RequestMethod::Post;
-			break ;
+			break;
 		case 2:
 			_request.method = RequestMethod::Delete;
-			break ;
+			break;
 		default:
 			_status = RequestStatus::Invalid;
 			fillHost();
-			return ;
+			return;
 	}
 	if (!validateAndAssignTarget(target) || !validateAndAssignHttp(httpVersion))
 	{
 		_status = RequestStatus::Invalid;
 		fillHost();
-		return ;
+		return;
 	}
 }
 
 /**
  * Accepts as headers every line with ':' and stores each header as key and value to
- * an unordered map. For now, only stores the needed headers and skips the rest.
+ * an unordered map.
+ *
+ * For Content-Type, string won't be turned to lowercase, because it might include
+ * boundary= literal. Content-Type will be split by semicolons to store individual
+ * values, and for other headers, split will be done with commas.
  */
 void	Request::parseHeaders(std::string& str) {
 	std::string	line;
@@ -247,20 +257,20 @@ void	Request::parseHeaders(std::string& str) {
 		_status = RequestStatus::Invalid;
 		_keepAlive = false;
 		fillHost();
-		return ;
+		return;
 	}
 	while (!str.empty()) {
 		if (str.substr(0, 2) == CRLF) {
 			str = str.substr(2);
 			_completeHeaders = true;
-			break ;
+			break;
 		}
 		line = splitReqLine(str, CRLF);
 		const size_t point = line.find(":");
 		if (point == std::string::npos) {
 			_status = RequestStatus::Error;
 			_keepAlive = false;
-			return ;
+			return;
 		}
 		std::string	key = line.substr(0, point);
 		for (size_t i = 0; i < key.size(); i++)
@@ -274,7 +284,7 @@ void	Request::parseHeaders(std::string& str) {
 			_status = RequestStatus::Invalid;
 			_keepAlive = false;
 			fillHost();
-			return ;
+			return;
 		}
 		std::istringstream	values(value);
 		std::string	oneValue;
@@ -306,7 +316,7 @@ void	Request::parseHeaders(std::string& str) {
 	if (_headers.empty() || !validateHeaders()) {
 		_status = RequestStatus::Invalid;
 		_keepAlive = false;
-		return ;
+		return;
 	}
 }
 
@@ -376,7 +386,7 @@ void	Request::parseChunked(void) {
 			_status = RequestStatus::CompleteReq;
 		}
 		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
-			_status = RequestStatus::Invalid;
+			_status = RequestStatus::ContentTooLarge;
 			_keepAlive = false;
 			_buffer.clear();
 			return;
@@ -384,6 +394,11 @@ void	Request::parseChunked(void) {
 	}
 }
 
+/**
+ * If request has header Connection with either keep-alive or close,
+ * _keepAlive will be set accordingly. If it has neither of those,
+ * by default 1.1 request will keep connection alive, and 1.0 request won't.
+ */
 bool	Request::fillKeepAlive(void) {
 	auto	it = _headers.find("connection");
 	bool	hasClose = false;
@@ -415,10 +430,10 @@ bool	Request::fillKeepAlive(void) {
 }
 
 /**
- * Checks if the headers include "host" (considered mandatory), and if unique headers only have one
- * value each (actually now we don't even store most of them, as they are not needed, so will
- * have to think whether we even need that either). Checks also for connection, to set keep-alive
- * flag if needed, and content-length, to set the length, and transfer-encoding for chunked flag.
+ * Checks if the headers include "host" (considered mandatory for 1.1), and if unique
+ * headers only have one value each. Checks also for connection, to set keep-alive
+ * flag if needed, and content-length, to set the length, and transfer-encoding for
+ * chunked flag.
  */
 bool	Request::validateHeaders(void) {
 	auto	it = _headers.find("host");
@@ -455,7 +470,7 @@ bool	Request::validateHeaders(void) {
 			for (value = it->second.begin(); value != it->second.end(); value++) {
 				if (value->substr(0, 9) == "boundary=") {
 					_boundary = value->substr(9);
-					break ;
+					break;
 				}
 			}
 			if (value == it->second.end())
@@ -467,8 +482,6 @@ bool	Request::validateHeaders(void) {
 
 /**
  * Defines headers that can have only one value, and checks if any of them has more.
- *
- * Need to double-check these.
  */
 bool	Request::isUniqueHeader(std::string const& key) {
 	std::unordered_set<std::string>	uniques = {
@@ -530,19 +543,18 @@ bool	Request::areValidChars(std::string& s) {
  *
  * In case the URI includes '?', we use it as a separator to get the query.
  * We must later split the possible query with '&' which separates different queries.
- * Might be better to do that in the CGI handling part, so for now it's all in one string.
  */
 bool	Request::validateAndAssignTarget(std::string& target) {
 	if (target.size() == 1 && target != "/")
-		return false ;
+		return false;
 	if (!areValidChars(target))
-		return false ;
+		return false;
 	size_t	protocolEnd = target.find("://");
 	if (protocolEnd != std::string::npos)
 	{
 		std::string protocol = target.substr(0, protocolEnd);
 		if (protocol != "http" && protocol != "https")
-			return false ;
+			return false;
 	}
 	size_t	queryStart = target.find('?');
 	if (queryStart != std::string::npos)
@@ -552,7 +564,7 @@ bool	Request::validateAndAssignTarget(std::string& target) {
 	}
 	else
 		_request.target = target;
-	return true ;
+	return true;
 }
 
 /**
@@ -562,7 +574,7 @@ bool	Request::validateAndAssignHttp(std::string& httpVersion) {
 	if (!std::regex_match(httpVersion, std::regex("HTTP/1.([01])")))
 		return false ;
 	_request.httpVersion = httpVersion;
-	return true ;
+	return true;
 }
 
 /**
@@ -574,19 +586,22 @@ static void	printStatus(RequestStatus status)
 	{
 		case RequestStatus::WaitingData:
 			std::cout << "Waiting for more data\n";
-			break ;
+			break;
 		case RequestStatus::CompleteReq:
 			std::cout << "Complete and valid request received\n";
-			break ;
+			break;
+		case RequestStatus::ContentTooLarge:
+			std::cout << "Content too large\n";
+			break;
 		case RequestStatus::Error:
 			std::cout << "Critical error found, client to be disconnected\n";
-			break ;
+			break;
 		case RequestStatus::Invalid:
 			std::cout << "Invalid HTTP request\n";
-			break ;
+			break;
 		case RequestStatus::ReadyForResponse:
 			std::cout << "Ready to receive response\n";
-			break ;
+			break;
 		default:
 			std::cout << "Unknown\n";
 	}
@@ -601,13 +616,13 @@ void	Request::printData(void) const
 	switch(_request.method) {
 		case RequestMethod::Get:
 			std::cout << "GET";
-			break ;
+			break;
 		case RequestMethod::Post:
 			std::cout << "POST";
-			break ;
+			break;
 		case RequestMethod::Delete:
 			std::cout << "DELETE";
-			break ;
+			break;
 		default:
 			throw std::runtime_error("HTTP request method unknown\n");
 	}

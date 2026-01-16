@@ -6,11 +6,11 @@
 #include <optional>
 #include <chrono>
 
-#define IDLE_TIMEOUT 10000 // timeout values to be decided, and should they be in Server.hpp?
-#define RECV_TIMEOUT 5000
-#define SEND_TIMEOUT 5000
-#define HEADERS_MAX_SIZE 8000
-#define CLIENT_MAX_BODY_SIZE 1000000
+#define IDLE_TIMEOUT			10000 // timeout values to be decided, and should they be in Server.hpp?
+#define RECV_TIMEOUT			5000
+#define SEND_TIMEOUT			5000
+#define HEADERS_MAX_SIZE		8000
+#define CLIENT_MAX_BODY_SIZE	1000000
 
 /**
  * Mandatory methods required in the subject, do we want to add more? -> Will affect
