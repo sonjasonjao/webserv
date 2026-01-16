@@ -27,6 +27,9 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 
 	// If request has already been flagged as bad don't continue
 	switch (req.getStatus()) {
+		case RequestStatus::ContentTooLarge:
+			_statusCode = ContentTooLarge;
+		break;
 		case RequestStatus::Invalid:
 			_statusCode = BadRequest;
 		break;
@@ -147,6 +150,11 @@ std::string const	&Response::getContent() const
 	return _content;
 }
 
+int	Response::getResponseCode() const
+{
+	return _statusCode;
+}
+
 void	Response::formResponse()
 {
 	_headerSection =	std::string("Server: ") + _req.getHost() + CRLF;
@@ -200,6 +208,10 @@ void	Response::formResponse()
 			_startLine	= _req.getHttpVersion() + " 408 Request Timeout";
 			_body		= getResponsePageContent("408", _conf);
 		break;
+		case 413:
+			_startLine	= _req.getHttpVersion() + " 413 Content Too Large";
+			_body		= getResponsePageContent("413", _conf);
+		break;
 		default:
 			_startLine	= _req.getHttpVersion() + " 500 Internal Server Error";
 			_body		= getResponsePageContent("500", _conf);
@@ -228,7 +240,7 @@ void	Response::sendToClient()
 	_bytesSent += bytesSent;
 }
 
-bool	Response::sendIsComplete()
+bool	Response::sendIsComplete() const
 {
 	return _bytesSent >= _content.length();
 }

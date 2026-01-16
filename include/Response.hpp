@@ -12,6 +12,7 @@ enum ResponseCode : int {
 	Forbidden		= 403,
 	NotFound		= 404,
 	RequestTimeout	= 408,
+	ContentTooLarge	= 413,
 };
 
 class Response {
@@ -22,9 +23,11 @@ public:
 	Response(Response const &other) = default;
 	~Response() = default;
 
-	std::string const				&getContent() const;
-	void							sendToClient();
-	bool							sendIsComplete();
+	std::string const	&getContent() const;
+	int					getResponseCode() const;
+
+	void	sendToClient();
+	bool	sendIsComplete() const;
 
 private:
 

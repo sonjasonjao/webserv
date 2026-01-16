@@ -37,7 +37,7 @@ enum class RequestStatus
 	IdleTimeout,
 	RecvTimeout,
 	SendTimeout,
-	PayloadTooLarge,
+	ContentTooLarge,
 	Invalid,
 	Error
 };

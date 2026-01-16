@@ -246,7 +246,7 @@ void	Server::handleClientData(size_t& i)
 
 	if (!_clients.empty())
 	{
-		auto it = getRequestByFd(_pfds[i].fd);
+		auto	it = getRequestByFd(_pfds[i].fd);
 
 		if (it ==_clients.end())
 			throw std::runtime_error(ERROR_LOG("Could not find request with fd "
@@ -280,9 +280,15 @@ void	Server::handleClientData(size_t& i)
 
 		INFO_LOG("Building response to client fd " + std::to_string(_pfds[i].fd));
 
-		Config const	&conf = matchConfig(*it);
+		auto	conf = matchConfig(*it);
 
 		DEBUG_LOG("Matched config: " + conf.host + " " + conf.serverName + " " + std::to_string(conf.port));
+		if ((conf.requestMaxBodySize && it->getBody().length() > conf.requestMaxBodySize)
+			|| it->getBody().length() > CLIENT_MAX_BODY_SIZE)
+		{
+			DEBUG_LOG("Request body size exceeds maximum, setting status ContentTooLarge");
+			it->setStatus(RequestStatus::ContentTooLarge);
+		}
 		_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
 		it->reset();
 		it->setStatus(RequestStatus::ReadyForResponse);
