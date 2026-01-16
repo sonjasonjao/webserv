@@ -282,7 +282,7 @@ void	Server::handleClientData(size_t& i)
 
 		Config const	&conf = matchConfig(*it);
 
-		DEBUG_LOG("Matched config: " + conf.host + " " + conf.host_name + " " + std::to_string(conf.port));
+		DEBUG_LOG("Matched config: " + conf.host + " " + conf.serverName + " " + std::to_string(conf.port));
 		_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
 		it->reset();
 		it->setStatus(RequestStatus::ReadyForResponse);
@@ -313,7 +313,7 @@ Config const	&Server::matchConfig(Request const &req)
 		throw std::runtime_error(ERROR_LOG("Unexpected error in matching request with server config"));
 	for (auto it = tmp->configs.begin(); it != tmp->configs.end(); it++)
 	{
-		if (it->host_name == req.getHost())
+		if (it->serverName == req.getHost())
 			return *it;
 	}
 	return *(tmp->defaultConf);
@@ -429,7 +429,7 @@ void	Server::checkTimeouts(void)
 			if (it->getStatus() == RequestStatus::RecvTimeout) {
 				Config	 const &conf = matchConfig(*it);
 
-				DEBUG_LOG("Matched config: " + conf.host + " " + conf.host_name + " " + std::to_string(conf.port));
+				DEBUG_LOG("Matched config: " + conf.host + " " + conf.serverName + " " + std::to_string(conf.port));
 				_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
 				sendResponse(i);
 			}

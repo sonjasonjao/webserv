@@ -23,16 +23,15 @@ struct Route {
 };
 
 struct Config {
-	std::string	host;		// IP or hostname on which this server listens, e.g. "0.0.0.0" or "127.0.0.1"
-	std::string	host_name;	// List of server names (virtual hosts) handled by this server eg : {"example.com", "www.example.com"}
+	std::string	host;		// IP on which this server listens, e.g. "0.0.0.0", "127.0.0.1" or "localhost"
+	std::string	serverName;	// Assigned name of server in config file, e.g. "localhost" or "www.example.com"
 
 	uint16_t	port = 0;	// Port on which this server listens
 
-	std::map<std::string, std::string>	status_pages;	// Mapping from HTTP status code to custom page path.
+	std::map<std::string, std::string>	statusPages;	// Mapping from HTTP status code to custom page path.
 	std::map<std::string, std::string>	routes;			// Set of routes (URI -> path definitions) for this server.
 
-	size_t	client_max_body_size = 0;	// in bytes
-	size_t	response_max_body_size = 0;	// in bytes
+	size_t	requestMaxBodySize	= 0;	// in bytes
 
 	bool	directoryListing	= false;
 	bool	autoindex			= false;
@@ -86,11 +85,11 @@ public:
 	 */
 	const Config&				getServerConfig(size_t index);
 	const std::vector<Config>	&getServerConfigs(void) const;
-	size_t						getNumberOfServerConfigs(void);
 	std::vector<std::string>	getCollectionBykey(const Token& root, const std::string& key);
+	size_t						getNumberOfServerConfigs(void);
 
-	Config convertToServerData(const Token& server);
+	Config	convertToServerData(const Token& server);
 
-	bool isValidJSONString(std::string_view sv);
-	bool isPrimitiveValue(std::string_view sv);
+	bool	isValidJSONString(std::string_view sv);
+	bool	isPrimitiveValue(std::string_view sv);
 };

@@ -190,7 +190,7 @@ Config Parser::convertToServerData(const Token& block) {
 			continue;
 
 		// extract the value of the key from the AST
-		std::string key = getKey(item);
+		std::string	key = getKey(item);
 
 		// set host or the IP address value
 		if (key == "host") {
@@ -202,17 +202,16 @@ Config Parser::convertToServerData(const Token& block) {
 			config.host = str;
 		}
 
-		// set host name value
-		if (key == "host_name") {
-			DEBUG_LOG("\t\tAdding host_name " + item.children.at(1).value);
-			config.host_name = item.children.at(1).value;
+		if (key == "server_name") {
+			DEBUG_LOG("\t\tAdding server_name " + item.children.at(1).value);
+			config.serverName = item.children.at(1).value;
 		}
 
 		if (key == "directory_listing") {
 			std::string	val = item.children.at(1).value;
 
 			if (val != "true" && val != "false") {
-				ERROR_LOG("Unrecognized value for directory listing, retaining default value false");
+				ERROR_LOG("Unrecognized value for directory_listing, retaining default value false");
 			} else {
 				config.directoryListing = (item.children.at(1).value == "true");
 				DEBUG_LOG(std::string("\t\tSet directory listing to ") + (config.directoryListing ? "true" : "false"));
@@ -223,7 +222,7 @@ Config Parser::convertToServerData(const Token& block) {
 			std::string	val = item.children.at(1).value;
 
 			if (val != "true" && val != "false") {
-				ERROR_LOG("Unrecognized value for autoindexing, retaining default value false");
+				ERROR_LOG("Invalid value for autoindex: " + val);
 			} else {
 				config.autoindex = (item.children.at(1).value == "true");
 				DEBUG_LOG(std::string("\t\tSet autoindexing to ") + (config.autoindex ? "true" : "false"));
@@ -232,12 +231,29 @@ Config Parser::convertToServerData(const Token& block) {
 
 		if (key == "status_pages") {
 			for (auto e : item.children.at(1).children) {
-				if (e.children.at(1).type != TokenType::Value)
+				if (e.children.at(1).type != TokenType::Value) {
+					ERROR_LOG("Invalid token type for status_pages, skipping");
 					continue;
+				}
 				DEBUG_LOG("\t\tMapping status page "
 					+ std::to_string(std::stoi(e.children.at(0).value))
 					+ " to " + e.children.at(1).value);
-				config.status_pages[e.children.at(0).value] = e.children.at(1).value;
+				config.statusPages[e.children.at(0).value] = e.children.at(1).value;
+			}
+		}
+
+		if (key == "client_max_body_size") {
+			std::string	val = item.children.at(1).value;
+
+			if (!std::all_of(val.begin(), val.end(), isdigit)) {
+				ERROR_LOG("Invalid value for client_max_body_size: " + val);
+				continue;
+			}
+			try {
+				DEBUG_LOG("\t\tSetting requestMaxBodySize to " + val);
+				config.requestMaxBodySize = std::stoul(val);
+			} catch (std::exception const &e) {
+				ERROR_LOG(std::string("Error setting requestMaxBodySize: ") + e.what());
 			}
 		}
 

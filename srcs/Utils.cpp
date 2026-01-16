@@ -427,7 +427,7 @@ bool	isPositiveDoubleLiteral(std::string_view sv)
 
 	try {
 		std::stod(std::string(sv));
-	} catch ( std::exception const &e ) {
+	} catch (std::exception const &e) {
 		return false;
 	}
 
