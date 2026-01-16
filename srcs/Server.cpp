@@ -162,7 +162,7 @@ void	Server::run(void)
 		if (pollCount < 0)
 		{
 			if (errno == EINTR)
-				continue ;
+				continue;
 			throw std::runtime_error(ERROR_LOG("poll: " + std::string(strerror(errno))));
 		}
 		handleConnections();
@@ -191,7 +191,7 @@ void	Server::handleNewClient(int listener)
 	if (_clients.size() >= MAX_CLIENTS) {
 		DEBUG_LOG("Connected clients limit reached, unable to accept new client");
 		close(clientFd);
-		return ;
+		return;
 	}
 
 	if (fcntl(clientFd, F_SETFL, O_NONBLOCK) < 0)
@@ -225,7 +225,7 @@ void	Server::handleClientData(size_t& i)
 			+ std::to_string(_pfds[i].fd)));
 
 	if (it->getStatus() != RequestStatus::WaitingData)
-		return ;
+		return;
 
 	char	buf[RECV_BUF_SIZE + 1];
 
@@ -243,7 +243,7 @@ void	Server::handleClientData(size_t& i)
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 		_clients.erase(it);
 
-		return ;
+		return;
 	}
 	buf[numBytes] = '\0';
 
@@ -266,14 +266,14 @@ void	Server::handleClientData(size_t& i)
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 		_clients.erase(it);
 
-		return ;
+		return;
 	}
 
 	if (it->getStatus() == RequestStatus::WaitingData)
 	{
 		INFO_LOG("Waiting for more data to complete partial request");
 
-		return ;
+		return;
 	}
 
 	INFO_LOG("Building response to client fd " + std::to_string(_pfds[i].fd));
@@ -303,7 +303,7 @@ Config const	&Server::matchConfig(Request const &req)
 	{
 		if (it->fd == fd) {
 			tmp = &(*it);
-			break ;
+			break;
 		}
 	}
 	if (tmp == nullptr)
@@ -335,7 +335,7 @@ void	Server::removeClientFromPollFds(size_t& i)
 		_pfds.pop_back();
 		i--;
 
-		return ;
+		return;
 	}
 
 	INFO_LOG("Removing client fd " + std::to_string(_pfds.back().fd) + ", last client");
@@ -355,11 +355,11 @@ void	Server::sendResponse(size_t& i)
 	auto it = getRequestByFd(_pfds[i].fd);
 	if (it == _clients.end()) {
 		ERROR_LOG("Could not find a response to send to this client");
-		return ;
+		return;
 	}
 	if (it->getStatus() != RequestStatus::ReadyForResponse
 		&& it->getStatus() != RequestStatus::RecvTimeout)
-		return ;
+		return;
 
 	auto	&res = _responses.at(_pfds[i].fd).front();
 
@@ -370,7 +370,7 @@ void	Server::sendResponse(size_t& i)
 	if (!res.sendIsComplete())
 	{
 		INFO_LOG("Response partially sent, waiting for server to complete response sending");
-		return ;
+		return;
 	}
 
 	DEBUG_LOG("Removing front element of _responses container for fd " + std::to_string(_pfds[i].fd));
@@ -388,7 +388,7 @@ void	Server::sendResponse(size_t& i)
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 		_clients.erase(it);
 
-		return ;
+		return;
 	}
 	it->resetKeepAlive();
 	it->setStatus(RequestStatus::WaitingData);
@@ -448,7 +448,7 @@ bool	Server::isServerFd(int fd)
 	while (it != _serverGroups.end())
 	{
 		if (it->fd == fd)
-			break ;
+			break;
 		it++;
 	}
 	if (it != _serverGroups.end())
