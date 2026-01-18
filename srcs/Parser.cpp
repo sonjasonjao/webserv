@@ -230,6 +230,15 @@ Config Parser::convertToServerData(const Token& block) {
 			}
 		}
 
+		if(key == "client_max_body_size") {
+			std::string val = item.children.at(1).value;
+			DEBUG_LOG("\t\t Set client_max_body_size to " + val);
+			if(!isUnsignedIntLiteral(val)) {
+				throw ParserException(ERROR_LOG("Invalid client_max_body_size value"));
+			}
+			config.client_max_body_size = std::stoull(val);
+		}
+
 		if (key == "status_pages") {
 			for (auto e : item.children.at(1).children) {
 				if (e.children.at(1).type != TokenType::Value)

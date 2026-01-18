@@ -12,6 +12,7 @@ enum ResponseCode : int {
 	Forbidden		= 403,
 	NotFound		= 404,
 	RequestTimeout	= 408,
+	PayloadTooLarge	= 413
 };
 
 class Response {

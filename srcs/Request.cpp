@@ -743,6 +743,16 @@ void	Request::setCurrentUploadPosition(size_t pos) {
 	_curr_upload_pos = pos;
 }
 
+bool	Request::isHeadersCompleted(void) const {
+	return (_completeHeaders);
+}
+
+size_t	Request::getContentLength(void) const {
+	if(_contentLen.has_value())
+		return (_contentLen.value());
+	return (0);
+}
+
 void	Request::handleFileUpload(void) {
 
 	std::string part_delimeter = "--" + _boundary.value();

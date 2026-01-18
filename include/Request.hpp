@@ -38,7 +38,8 @@ enum class RequestStatus
 	RecvTimeout,
 	SendTimeout,
 	Invalid,
-	Error
+	Error,
+	PayloadTooLarge
 };
 
 struct RequestLine
@@ -118,6 +119,8 @@ class Request
 		int									getFd(void) const;
 		int									getServerFd(void) const;
 		bool								getKeepAlive(void) const;
+		bool								isHeadersCompleted(void) const;
+		size_t								getContentLength(void) const;
 		RequestStatus						getStatus(void) const;
 		std::string const					&getBuffer(void) const;
 };

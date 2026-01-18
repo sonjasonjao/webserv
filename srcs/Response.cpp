@@ -33,6 +33,9 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		case RequestStatus::RecvTimeout:
 			_statusCode = RequestTimeout;
 		break;
+		case RequestStatus::PayloadTooLarge:
+			_statusCode = PayloadTooLarge;
+		break;
 		default: break;
 	}
 	if (_statusCode != Unassigned) {
@@ -200,6 +203,10 @@ void	Response::formResponse()
 		case 408:
 			_startLine	= _req.getHttpVersion() + " 408 Request Timeout";
 			_body		= getResponsePageContent("408", _conf);
+		break;
+		case 413:
+			_startLine	= _req.getHttpVersion() + " 413 Payload Too Large";
+			_body		= getResponsePageContent("413", _conf);
 		break;
 		default:
 			_startLine	= _req.getHttpVersion() + " 500 Internal Server Error";

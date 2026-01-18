@@ -116,6 +116,18 @@ R"(<!DOCTYPE html>
 </html>
 )";
 
+constexpr static char const * const	DEFAULT413	= \
+R"(<!DOCTYPE html>
+<html>
+	<head>
+	</head>
+	<body>
+		<h1>413: Payload Too Large</h1>
+		<p>Default fallback page</p>
+	</body>
+</html>
+)";
+
 constexpr static char const * const	DEFAULT500	= \
 R"(<!DOCTYPE html>
 <html>
@@ -137,6 +149,7 @@ void	Pages::loadDefaults()
 	defaultPages["default403"] = DEFAULT403;
 	defaultPages["default404"] = DEFAULT404;
 	defaultPages["default408"] = DEFAULT408;
+	defaultPages["default413"] = DEFAULT413;
 	defaultPages["default500"] = DEFAULT500;
 }
 

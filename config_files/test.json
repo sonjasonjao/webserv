@@ -9,7 +9,8 @@
             "directory_listing" : true,
             "autoindex"         : false,
 
-            "upload_dir"        : "www/uploads",
+            "upload_dir"                            : "www/uploads",
+            "client_max_body_size"                  : 1048576,
 
             "routes" : {
                 "/"         : "www/pages",
@@ -25,7 +26,7 @@
                 "200" : "www/status_pages/200.html",
                 "400" : "www/status_pages/400.html",
                 "404" : "www/status_pages/404.html"
-            }
+            }          
         },
         {
             "host"      : "127.0.0.1",

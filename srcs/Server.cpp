@@ -258,6 +258,15 @@ void	Server::handleClientData(size_t& i)
 
 		it->handleRequest();
 
+		if(it->isHeadersCompleted() && it->getStatus() != RequestStatus::PayloadTooLarge) {
+			Config const	&conf = matchConfig(*it);
+			if(conf.client_max_body_size > 0 && it->getContentLength() > conf.client_max_body_size) {
+				it->setStatus(RequestStatus::PayloadTooLarge);
+				ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit "
+				+ std::to_string(conf.client_max_body_size));
+			}   
+		}
+
 		if (it->getStatus() == RequestStatus::Error)
 		{
 			ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
@@ -271,7 +280,7 @@ void	Server::handleClientData(size_t& i)
 			return ;
 		}
 
-		if (it->getStatus() == RequestStatus::WaitingData)
+		if (it->getStatus() == RequestStatus::WaitingData && it->getStatus() != RequestStatus::PayloadTooLarge)
 		{
 			INFO_LOG("Waiting for more data to complete partial request");
 
