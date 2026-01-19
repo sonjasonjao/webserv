@@ -37,7 +37,6 @@ void	Request::saveRequest(std::string const& buf) {
  */
 void	Request::handleRequest(void) {
 	if (_buffer.find("\r\n\r\n") == std::string::npos && !_completeHeaders) {
-		fillHost();
 		_status = RequestStatus::WaitingData;
 	}
 	else
@@ -173,26 +172,6 @@ void	Request::parseRequest(void) {
 }
 
 /**
- * In case of invalid request flagged before header parsing, host is searched from the buffer in
- * order to store it for forming a 400 Bad request response.
- */
-void	Request::fillHost(void) {
-	auto	pos = _buffer.find("Host: ");
-	if (pos == std::string::npos)
-		pos = _buffer.find("host: ");
-	if (pos != std::string::npos) {
-		std::string	key = "host";
-		size_t	valueStart = pos + 6;
-		auto	valueEnd = _buffer.find("\r\n", valueStart);
-		if (valueEnd == std::string::npos)
-			valueEnd = _buffer.size();
-		std::string	value = _buffer.substr(valueStart, valueEnd - valueStart);
-		_headers[key].push_back(value);
-	}
-	//what if Host header is not found? --> checked and simply skipped in formResponse()?
-}
-
-/**
  * Splits the request line into tokens, recognises method, and validates target path
  * and HTTP version.
  */
@@ -204,7 +183,6 @@ void	Request::parseRequestLine(std::string &req) {
 	httpVersion = req;
 	if (method.empty() || target.empty() || httpVersion.empty()) {
 		_status = RequestStatus::Invalid;
-		fillHost();
 		return;
 	}
 	size_t i = 0;
@@ -226,13 +204,11 @@ void	Request::parseRequestLine(std::string &req) {
 			break;
 		default:
 			_status = RequestStatus::Invalid;
-			fillHost();
 			return;
 	}
 	if (!validateAndAssignTarget(target) || !validateAndAssignHttp(httpVersion))
 	{
 		_status = RequestStatus::Invalid;
-		fillHost();
 		return;
 	}
 }
@@ -254,7 +230,6 @@ void	Request::parseHeaders(std::string& str) {
 	if (_headerSize > HEADERS_MAX_SIZE) {
 		_status = RequestStatus::Invalid;
 		_keepAlive = false;
-		fillHost();
 		return;
 	}
 	while (!str.empty()) {
@@ -281,7 +256,6 @@ void	Request::parseHeaders(std::string& str) {
 		if (_headers.find(key) != _headers.end() && isUniqueHeader(key)) {
 			_status = RequestStatus::Invalid;
 			_keepAlive = false;
-			fillHost();
 			return;
 		}
 		std::istringstream	values(value);

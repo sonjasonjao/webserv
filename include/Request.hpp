@@ -81,7 +81,6 @@ class Request
 		void				saveRequest(std::string const &buf);
 		void				handleRequest(void);
 		void				parseRequest(void);
-		void				fillHost(void);
 		void				parseRequestLine(std::string &req);
 		void				parseHeaders(std::string &str);
 		bool				fillKeepAlive(void);
