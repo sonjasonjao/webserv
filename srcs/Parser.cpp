@@ -186,23 +186,34 @@ Config Parser::convertToServerData(const Token& block) {
 	DEBUG_LOG("\tConverting server config tokens to server data");
 
 	for (auto item : block.children) {
-		if (item.children.size() < 2)
+		if (item.children.size() < 2) {
+			ERROR_LOG("Key without value, skipping");
 			continue;
+		}
 
 		// extract the value of the key from the AST
 		std::string	key = getKey(item);
 
 		// set host or the IP address value
 		if (key == "host") {
-			std::string str = item.children.at(1).value;
-			DEBUG_LOG("\t\tAdding host " + str);
-			if (str != "localhost" && !isValidIPv4(str)) {
-				throw ParserException(ERROR_LOG("Invalid IPv4 address value: " + str));
+			if (item.children.at(1).type != TokenType::Value) {
+				ERROR_LOG("Invalid type for host, skipping");
+				continue;
 			}
-			config.host = str;
+			std::string	val = item.children.at(1).value;
+
+			if (val != "localhost" && !isValidIPv4(val)) {
+				throw ParserException(ERROR_LOG("Invalid IPv4 address value: " + val));
+			}
+			DEBUG_LOG("\t\tAdding host " + val);
+			config.host = val;
 		}
 
 		if (key == "server_name") {
+			if (item.children.at(1).type != TokenType::Value) {
+				ERROR_LOG("Invalid type for host, skipping");
+				continue;
+			}
 			DEBUG_LOG("\t\tAdding server_name " + item.children.at(1).value);
 			config.serverName = item.children.at(1).value;
 		}
@@ -259,8 +270,35 @@ Config Parser::convertToServerData(const Token& block) {
 
 		if (key == "routes") {
 			for (auto r : item.children.at(1).children) {
-				if (r.children.at(1).type != TokenType::Value)
+				if (r.children.at(1).type != TokenType::Value) {
+					INFO_LOG("Found something else than a value matching routes <---------------------------------");
+					switch (r.children.at(1).type) {
+						case TokenType::Object:
+							INFO_LOG("\tObject");
+						break;
+						case TokenType::Array:
+							INFO_LOG("\tArray");
+						break;
+						case TokenType::Identifier:
+							INFO_LOG("\tIdentifier");
+						break;
+						case TokenType::Element:
+							INFO_LOG("\tElement");
+						break;
+						case TokenType::Value:
+							INFO_LOG("\tValue");
+						break;
+						case TokenType::Primitive:
+							INFO_LOG("\tPrimitive");
+						break;
+						case TokenType::Null:
+							INFO_LOG("\tNull");
+						break;
+						default:
+						break;
+					}
 					continue;
+				}
 				DEBUG_LOG("\t\tAdding route " + r.children.at(0).value + " -> " + r.children.at(1).value);
 				config.routes[r.children.at(0).value] = r.children.at(1).value;
 			}

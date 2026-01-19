@@ -150,7 +150,7 @@ void	Request::parseRequest(void) {
 		_status = RequestStatus::Invalid;
 		_keepAlive = false;
 		_buffer.clear();
-		return ;
+		return;
 	}
 	else if (!_buffer.empty() && (_contentLen.has_value() && _body.size() < _contentLen.value())) {
 		size_t	missingLen = _contentLen.value() - _body.size();
@@ -204,13 +204,15 @@ void	Request::fillHost(void) {
  * and HTTP version.
  */
 void	Request::parseRequestLine(std::string &req) {
-	std::string method, target, httpVersion;
+	std::string					method, target, httpVersion;
 	std::vector<std::string>	methods = { "GET", "POST", "DELETE" };
-	method = splitReqLine(req, " ");
-	target = splitReqLine(req, " ");
-	httpVersion = req;
-	size_t i ;
-	for (i = 0; i < methods.size(); i++)
+
+	method		= splitReqLine(req, " ");
+	target		= splitReqLine(req, " ");
+	httpVersion	= req;
+
+	size_t	i = 0;
+	for (; i < methods.size(); i++)
 	{
 		if (methods[i] == method)
 			break;
@@ -519,8 +521,8 @@ bool	Request::isUniqueHeader(std::string const& key) {
 	};
 	auto	it = uniques.find(key);
 	if (it != uniques.end())
-		return true ;
-	return false ;
+		return true;
+	return false;
 }
 
 /**
@@ -531,9 +533,9 @@ bool	Request::areValidChars(std::string& s) {
 	{
 		if (s[i] < 32 || s[i] >= 127 || s[i] == '<' || s[i] == '>'
 			|| s[i] == '"' || s[i] == '\\')
-			return false ;
+			return false;
 	}
-	return true ;
+	return true;
 }
 
 /**
@@ -572,7 +574,7 @@ bool	Request::validateAndAssignTarget(std::string& target) {
  */
 bool	Request::validateAndAssignHttp(std::string& httpVersion) {
 	if (!std::regex_match(httpVersion, std::regex("HTTP/1.([01])")))
-		return false ;
+		return false;
 	_request.httpVersion = httpVersion;
 	return true;
 }
