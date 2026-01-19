@@ -203,7 +203,7 @@ Config Parser::convertToServerData(const Token& block) {
 		}
 
 		// set server name value
-		if (key == "serverName") {
+		if (key == "server_name") {
 			DEBUG_LOG("\t\tAdding serverName " + item.children.at(1).value);
 			config.serverName = item.children.at(1).value;
 		}

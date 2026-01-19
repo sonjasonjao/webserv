@@ -105,10 +105,10 @@ void	Request::checkReqTimeouts(void) {
 }
 
 /**
- * Helper to split the buffer with delimiter. Returns the current line until
- * the delimiter and updates _buffer by removing that extracted string.
+ * Helper to extract a string until delimiter from buffer. Returns the extracted string
+ * until delimiter and updates _buffer by removing that extracted string.
  */
-std::string	splitReqLine(std::string& orig, std::string delim)
+std::string	extractFromLine(std::string& orig, std::string delim)
 {
 	auto it = orig.find(delim);
 	std::string tmp = "";
@@ -130,7 +130,7 @@ std::string	splitReqLine(std::string& orig, std::string delim)
  */
 void	Request::parseRequest(void) {
 	if (_request.method == RequestMethod::Unknown) {
-		std::string	reqLine = splitReqLine(_buffer, CRLF);
+		std::string	reqLine = extractFromLine(_buffer, CRLF);
 		parseRequestLine(reqLine);
 		if (_status == RequestStatus::Invalid) {
 			_buffer.clear();
@@ -199,10 +199,15 @@ void	Request::fillHost(void) {
 void	Request::parseRequestLine(std::string &req) {
 	std::string method, target, httpVersion;
 	std::vector<std::string>	methods = { "GET", "POST", "DELETE" };
-	method = splitReqLine(req, " ");
-	target = splitReqLine(req, " ");
+	method = extractFromLine(req, " ");
+	target = extractFromLine(req, " ");
 	httpVersion = req;
-	size_t i ;
+	if (method.empty() || target.empty() || httpVersion.empty()) {
+		_status = RequestStatus::Invalid;
+		fillHost();
+		return;
+	}
+	size_t i = 0;
 	for (i = 0; i < methods.size(); i++)
 	{
 		if (methods[i] == method)
@@ -245,7 +250,7 @@ void	Request::parseHeaders(std::string& str) {
 	size_t	headEnd = str.find("\r\n\r\n");
 	if (headEnd == std::string::npos)
 		headEnd = str.size();
-	_headerSize += headEnd;
+	_headerSize = headEnd;
 	if (_headerSize > HEADERS_MAX_SIZE) {
 		_status = RequestStatus::Invalid;
 		_keepAlive = false;
@@ -258,7 +263,7 @@ void	Request::parseHeaders(std::string& str) {
 			_completeHeaders = true;
 			break;
 		}
-		line = splitReqLine(str, CRLF);
+		line = extractFromLine(str, CRLF);
 		const size_t point = line.find(":");
 		if (point == std::string::npos) {
 			_status = RequestStatus::Error;
@@ -287,7 +292,7 @@ void	Request::parseHeaders(std::string& str) {
 				continue;
 			}
 			while (getline(values, oneValue, ';')) {
-				if (oneValue[0] == ' ')
+				if (!oneValue.empty() && oneValue[0] == ' ')
 					oneValue = oneValue.substr(1);
 				_headers[key].emplace_back(oneValue);
 			}
@@ -298,7 +303,7 @@ void	Request::parseHeaders(std::string& str) {
 				continue;
 			}
 			while (getline(values, oneValue, ',')) {
-				if (oneValue[0] == ' ')
+				if (!oneValue.empty() && oneValue[0] == ' ')
 					oneValue = oneValue.substr(1);
 				_headers[key].emplace_back(oneValue);
 			}
@@ -336,7 +341,7 @@ void	Request::parseChunked(void) {
 					return;
 				}
 				_buffer = _buffer.substr(pos + 2);
-				std::string	tmp = splitReqLine(_buffer, CRLF);
+				std::string	tmp = extractFromLine(_buffer, CRLF);
 				if (tmp.size() != len) {
 					_status = RequestStatus::Invalid;
 					_keepAlive = false;
@@ -363,7 +368,7 @@ void	Request::parseChunked(void) {
 					return;
 				}
 				_buffer = _buffer.substr(pos + 2);
-				std::string	tmp = splitReqLine(_buffer, CRLF);
+				std::string	tmp = extractFromLine(_buffer, CRLF);
 				if (tmp.size() != len) {
 					_status = RequestStatus::Invalid;
 					_keepAlive = false;
@@ -373,7 +378,7 @@ void	Request::parseChunked(void) {
 				_body += tmp;
 				pos = _buffer.find(CRLF);
 			}
-			_body += splitReqLine(_buffer, "0\r\n\r\n");
+			_body += extractFromLine(_buffer, "0\r\n\r\n");
 			_status = RequestStatus::CompleteReq;
 		}
 		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
@@ -665,7 +670,7 @@ void	Request::resetSendStart(void) {
 
 void	Request::resetBuffer(void) {
 	if (!_buffer.empty()) {
-		INFO_LOG("The remaining request data in buffer following one compele request will be discarded");
+		INFO_LOG("The remaining request data in buffer following one complete request will be discarded");
 		_buffer.clear();
 	}
 }
