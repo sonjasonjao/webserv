@@ -183,124 +183,178 @@ Config Parser::convertToServerData(const Token& block) {
 
 	Config config;
 
-	DEBUG_LOG("\tConverting server config tokens to server data");
+	DEBUG_LOG("Converting server config tokens to server data");
 
-	for (auto item : block.children) {
-		if (item.children.size() < 2) {
-			ERROR_LOG("Key without value, skipping");
+	for (auto const &item : block.children) {
+		if (item.children.size() != 2) {
+			ERROR_LOG("\tNo key value pair, skipping");
 			continue;
 		}
 
 		// extract the value of the key from the AST
 		std::string	key = getKey(item);
+		Token		tok = item.children.at(1);
 
 		// set host or the IP address value
 		if (key == "host") {
-			if (item.children.at(1).type != TokenType::Value) {
-				ERROR_LOG("Invalid type for host, skipping");
+			if (tok.type != TokenType::Value && tok.type != TokenType::Primitive) {
+				ERROR_LOG("\tInvalid token type for host, skipping");
 				continue;
 			}
-			std::string	val = item.children.at(1).value;
-
-			if (val != "localhost" && !isValidIPv4(val)) {
-				throw ParserException(ERROR_LOG("Invalid IPv4 address value: " + val));
+			if (tok.value != "localhost" && !isValidIPv4(tok.value)) {
+				throw ParserException(ERROR_LOG("\tInvalid IPv4 address value: " + tok.value));
 			}
-			DEBUG_LOG("\t\tAdding host " + val);
-			config.host = val;
+
+			DEBUG_LOG("\thost = " + tok.value);
+			config.host = tok.value;
 		}
 
 		if (key == "server_name") {
-			if (item.children.at(1).type != TokenType::Value) {
-				ERROR_LOG("Invalid type for host, skipping");
+			if (tok.type != TokenType::Value) {
+				ERROR_LOG("\tInvalid token type for server_name, skipping");
 				continue;
 			}
-			DEBUG_LOG("\t\tAdding server_name " + item.children.at(1).value);
-			config.serverName = item.children.at(1).value;
+
+			DEBUG_LOG("\tserver name = " + tok.value);
+			config.serverName = tok.value;
 		}
 
 		if (key == "directory_listing") {
-			std::string	val = item.children.at(1).value;
-
-			if (val != "true" && val != "false") {
-				ERROR_LOG("Unrecognized value for directory_listing, retaining default value false");
-			} else {
-				config.directoryListing = (item.children.at(1).value == "true");
-				DEBUG_LOG(std::string("\t\tSet directory listing to ") + (config.directoryListing ? "true" : "false"));
+			if (tok.type != TokenType::Value && tok.type != TokenType::Primitive) {
+				ERROR_LOG("\tInvalid token type for directory_listing, retaining default falue false");
+				continue;
 			}
+			if (tok.value != "true" && tok.value != "false") {
+				ERROR_LOG("\tUnrecognized value for directory_listing, retaining default value false");
+				continue;
+			}
+
+			config.directoryListing = (item.children.at(1).value == "true");
+			DEBUG_LOG(std::string("\tdirectory listing = ") + (config.directoryListing ? "true" : "false"));
 		}
 
 		if (key == "autoindex") {
-			std::string	val = item.children.at(1).value;
+			if (tok.type != TokenType::Value && tok.type != TokenType::Primitive) {
+				ERROR_LOG("\tInvalid token type for autoindex, retaining default value false");
+				continue;
+			}
+			if (tok.value != "true" && tok.value != "false") {
+				ERROR_LOG("\tInvalid value for autoindex: " + tok.value + ", retaining default value false");
+				continue;
+			}
 
-			if (val != "true" && val != "false") {
-				ERROR_LOG("Invalid value for autoindex: " + val);
-			} else {
-				config.autoindex = (item.children.at(1).value == "true");
-				DEBUG_LOG(std::string("\t\tSet autoindexing to ") + (config.autoindex ? "true" : "false"));
+			config.autoindex = (item.children.at(1).value == "true");
+			DEBUG_LOG(std::string("\tautoindex = ") + (config.autoindex ? "true" : "false"));
+		}
+
+		if (key == "client_max_body_size") {
+			if (tok.type != TokenType::Value && tok.type != TokenType::Primitive) {
+				ERROR_LOG("\tInvalid token type for client_max_body_size, skipping");
+				continue;
+			}
+			if (!std::all_of(tok.value.begin(), tok.value.end(), isdigit)) {
+				ERROR_LOG("\tInvalid value for client_max_body_size: " + tok.value);
+				continue;
+			}
+			try {
+				config.requestMaxBodySize = std::stoul(tok.value);
+				DEBUG_LOG("\tclient max body size = " + std::to_string(config.requestMaxBodySize));
+			} catch (std::exception const &e) {
+				ERROR_LOG(std::string("\tError setting client max body size: ") + e.what());
 			}
 		}
 
 		if (key == "status_pages") {
-			for (auto e : item.children.at(1).children) {
-				if (e.children.at(1).type != TokenType::Value) {
-					ERROR_LOG("Invalid token type for status_pages, skipping");
-					continue;
-				}
-				DEBUG_LOG("\t\tMapping status page "
-					+ std::to_string(std::stoi(e.children.at(0).value))
-					+ " to " + e.children.at(1).value);
-				config.statusPages[e.children.at(0).value] = e.children.at(1).value;
-			}
-		}
-
-		if (key == "client_max_body_size") {
-			std::string	val = item.children.at(1).value;
-
-			if (!std::all_of(val.begin(), val.end(), isdigit)) {
-				ERROR_LOG("Invalid value for client_max_body_size: " + val);
+			DEBUG_LOG("\tSetting status pages");
+			if (tok.type != TokenType::Object) {
+				ERROR_LOG("\tInvalid token type for status_pages, skipping");
 				continue;
 			}
-			try {
-				DEBUG_LOG("\t\tSetting requestMaxBodySize to " + val);
-				config.requestMaxBodySize = std::stoul(val);
-			} catch (std::exception const &e) {
-				ERROR_LOG(std::string("Error setting requestMaxBodySize: ") + e.what());
+			for (auto const &e : tok.children) {
+				if (e.children.size() != 2) {
+					ERROR_LOG("\t\tNo key value pair, skipping");
+					continue;
+				}
+				if (e.children.at(1).type != TokenType::Value) {
+					ERROR_LOG("\t\tInvalid token type for status_pages, skipping");
+					continue;
+				}
+
+				std::string	pageNumber	= e.children.at(0).value;
+				std::string	route		= e.children.at(1).value;
+
+				if (pageNumber.length() != 3 || !std::all_of(pageNumber.begin(), pageNumber.end(), isdigit)) {
+					ERROR_LOG("\t\tInvalid value for status page key, skipping");
+					continue;
+				}
+
+				DEBUG_LOG("\t\t" + pageNumber + " -> " + route);
+				config.statusPages[pageNumber] = route;
 			}
 		}
 
 		if (key == "routes") {
-			for (auto r : item.children.at(1).children) {
-				if (r.children.at(1).type != TokenType::Value) {
-					INFO_LOG("Found something else than a value matching routes <---------------------------------");
-					switch (r.children.at(1).type) {
-						case TokenType::Object:
-							INFO_LOG("\tObject");
-						break;
-						case TokenType::Array:
-							INFO_LOG("\tArray");
-						break;
-						case TokenType::Identifier:
-							INFO_LOG("\tIdentifier");
-						break;
-						case TokenType::Element:
-							INFO_LOG("\tElement");
-						break;
-						case TokenType::Value:
-							INFO_LOG("\tValue");
-						break;
-						case TokenType::Primitive:
-							INFO_LOG("\tPrimitive");
-						break;
-						case TokenType::Null:
-							INFO_LOG("\tNull");
-						break;
-						default:
-						break;
-					}
+			DEBUG_LOG("\tSetting routes");
+			if (tok.type != TokenType::Object) {
+				ERROR_LOG("\t\tInvalid token type for routes, skipping");
+				continue;
+			}
+			for (auto const &r : tok.children) {
+				if (r.children.size() != 2) {
+					ERROR_LOG("\t\tNo key value pair, skipping");
 					continue;
 				}
-				DEBUG_LOG("\t\tAdding route " + r.children.at(0).value + " -> " + r.children.at(1).value);
-				config.routes[r.children.at(0).value] = r.children.at(1).value;
+
+				std::string	uri = r.children.at(0).value;
+				Route		route;
+
+				if (r.children.at(1).type == TokenType::Value) {
+					DEBUG_LOG("\t\t" + uri + " -> " + r.children.at(1).value);
+					route.target = r.children.at(1).value;
+					route.allowedMethods = std::nullopt;
+					config.routes[uri] = route;
+				} else if (r.children.at(1).type == TokenType::Object) {
+					if (r.children.at(1).children.size() != 2) {
+						ERROR_LOG("\t\t\tWrong number of key value pairs, skipping");
+						continue;
+					}
+					for (auto const &e : r.children.at(1).children) {
+						if (e.children.size() != 2) {
+							ERROR_LOG("\t\t\t\tWrong number of key value pairs, skipping");
+							continue;
+						}
+
+						std::string	left	= e.children.at(0).value;
+						Token		right	= e.children.at(1);
+
+						if (left == "target" && right.type == TokenType::Value) {
+							route.target = right.value;
+						} else if (left == "allowed_methods") {
+							if (right.type != TokenType::Array) {
+								ERROR_LOG("\t\t\t\tIncorrect token type for allowed_methods, skipping");
+								route.allowedMethods = std::nullopt;
+								continue;
+							}
+							route.allowedMethods = std::vector<std::string>();
+							for (auto const &a : right.children) {
+								if (a.value != "GET" && a.value != "POST" && a.value != "DELETE") {
+									ERROR_LOG("\t\t\t\t\tIncorrect value '" + a.value + "'for allowed_methods list element, skipping");
+									continue;
+								}
+								route.allowedMethods->emplace_back(a.value);
+							}
+						}
+					}
+					if (route.target.empty() || route.allowedMethods == std::nullopt) {
+						ERROR_LOG("\t\t\tBad route configuration, skipping");
+						continue;
+					}
+					DEBUG_LOG("\t\t" + uri + " -> " + route.target);
+					config.routes[uri] = route;
+				} else {
+					ERROR_LOG("\t\t\tInvalid token type for route target, skipping");
+					continue;
+				}
 			}
 		}
 	}

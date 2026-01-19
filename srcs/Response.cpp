@@ -257,7 +257,7 @@ static std::string	route(std::string target, Config const &conf)
 	auto	it = conf.routes.find(target);
 
 	if (it != conf.routes.end())
-		return it->second;
+		return it->second.target;
 
 	// Check for a partial route for target, exclude possible "/" substitution at this step
 	for (auto const &[key, val] : conf.routes) {
@@ -267,7 +267,7 @@ static std::string	route(std::string target, Config const &conf)
 		auto	pos = target.find(key);
 
 		if (pos != std::string::npos) {
-			target.replace(pos, key.length(), val);
+			target.replace(pos, key.length(), val.target);
 			return target;
 		}
 	}
@@ -276,7 +276,7 @@ static std::string	route(std::string target, Config const &conf)
 	it = conf.routes.find("/");
 
 	if (it != conf.routes.end()) {
-		std::string	route = it->second;
+		std::string	route = it->second.target;
 
 		if (target[0] == '/')
 			target = target.substr(1);
@@ -296,7 +296,7 @@ static std::string	getContentType(std::string target)
 	if (pos == std::string::npos)
 		return contentType;
 
-	auto		filenameExtension	= target.substr(pos);
+	auto	filenameExtension	= target.substr(pos);
 
 	for (auto &c : filenameExtension)
 		c = std::tolower(c);
@@ -329,8 +329,8 @@ static std::string const	&getResponsePageContent(std::string const &key, Config 
 	} else {	// Othewise check normal routes
 		auto	it = conf.routes.find(key);
 
-		if (it != conf.routes.end() && resourceExists(it->second))
-			return Pages::getPageContent(getAbsPath(it->second));
+		if (it != conf.routes.end() && resourceExists(it->second.target))
+			return Pages::getPageContent(getAbsPath(it->second.target));
 	}
 
 	// Retrieve default
