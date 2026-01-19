@@ -43,8 +43,6 @@ class Server
 
 		Server const	&operator=(Server const &other) = delete;
 
-		std::vector<Config> const	&getConfigs() const;
-
 		void			createServerSockets(void);
 		int				createSingleServerSocket(Config conf);
 		void			run(void);
@@ -59,4 +57,6 @@ class Server
 		bool			isServerFd(int fd);
 		Config const	&matchConfig(Request const &req);
 		ReqIter			getRequestByFd(int fd);
+
+		std::vector<Config> const	&getConfigs() const;
 };

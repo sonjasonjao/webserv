@@ -12,10 +12,6 @@
 #define HEADERS_MAX_SIZE		8000
 #define CLIENT_MAX_BODY_SIZE	1000000
 
-/**
- * Mandatory methods required in the subject, do we want to add more? -> Will affect
- * request parsing and possibly class member attributes.
- */
 enum class RequestMethod
 {
 	Get,
@@ -27,7 +23,7 @@ enum class RequestMethod
 /**
  * WaitingData is set for a new client by default, and ReadyForResponse whenever a response is
  * formed and ready to be sent from server. Error indicates there is a critical error in the HTTP
- * request, and thus client must be immediately disconnected.
+ * request, and thus client must be immediately disconnected without sending a response.
  */
 enum class RequestStatus
 {
@@ -78,38 +74,38 @@ class Request
 		Request(int fd, int serverFd);
 		~Request() = default;
 
-		void				saveRequest(std::string const &buf);
-		void				handleRequest(void);
-		void				parseRequest(void);
-		void				parseRequestLine(std::string &req);
-		void				parseHeaders(std::string &str);
-		bool				fillKeepAlive(void);
-		bool				validateHeaders(void);
-		void				parseChunked(void);
-		void				printData(void) const;
-		bool				isUniqueHeader(std::string const &key);
-		bool				validateAndAssignTarget(std::string &target);
-		bool				areValidChars(std::string &target);
-		bool				validateAndAssignHttp(std::string &httpVersion);
-		void				setStatus(RequestStatus status);
-		void				reset(void);
-		void				resetKeepAlive(void);
-		void				checkReqTimeouts(void);
-		void				setIdleStart(void);
-		void				setRecvStart(void);
-		void				setSendStart(void);
-		void				resetSendStart(void);
-		void				resetBuffer(void);
+		void	saveRequest(std::string const &buf);
+		void	handleRequest(void);
+		void	parseRequest(void);
+		void	parseRequestLine(std::string &req);
+		void	parseHeaders(std::string &str);
+		bool	fillKeepAlive(void);
+		bool	validateHeaders(void);
+		void	parseChunked(void);
+		void	printData(void) const;
+		bool	isUniqueHeader(std::string const &key);
+		bool	validateAndAssignTarget(std::string &target);
+		bool	areValidChars(std::string &target);
+		bool	validateAndAssignHttp(std::string &httpVersion);
+		void	setStatus(RequestStatus status);
+		void	reset(void);
+		void	resetKeepAlive(void);
+		void	checkReqTimeouts(void);
+		void	setIdleStart(void);
+		void	setRecvStart(void);
+		void	setSendStart(void);
+		void	resetSendStart(void);
+		void	resetBuffer(void);
 
-		RequestMethod						getRequestMethod(void) const;
-		std::string const					&getHttpVersion(void) const;
-		std::string const					&getBody(void) const;
-		std::string const					&getTarget(void) const;
-		std::vector<std::string> const		*getHeader(std::string const &key) const;
-		std::string							getHost(void) const;
-		int									getFd(void) const;
-		int									getServerFd(void) const;
-		bool								getKeepAlive(void) const;
-		RequestStatus						getStatus(void) const;
-		std::string const					&getBuffer(void) const;
+		RequestMethod					getRequestMethod(void) const;
+		std::string const				&getHttpVersion(void) const;
+		std::string const				&getBody(void) const;
+		std::string const				&getTarget(void) const;
+		std::vector<std::string> const	*getHeader(std::string const &key) const;
+		std::string						getHost(void) const;
+		int								getFd(void) const;
+		int								getServerFd(void) const;
+		bool							getKeepAlive(void) const;
+		RequestStatus					getStatus(void) const;
+		std::string const				&getBuffer(void) const;
 };

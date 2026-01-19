@@ -206,8 +206,8 @@ void	Server::handleNewClient(int listener)
 }
 
 /**
- * Receives data from the client that poll() has recognized to have sent something. Message
- * (= request) will be parsed and response formed.
+ * Receives data from the client that poll() has recognized to have sent something.
+ * Request will be parsed and response formed.
  *
  * If buffer initially had more than one complete request, or e.g. remaining data after
  * content-length amount of body, resetBuffer will discard that.
@@ -318,8 +318,8 @@ Config const	&Server::matchConfig(Request const &req)
 
 /**
  * In case of a client that has disconnected itself, or will be disconnected (invalid request,
- * critical error in request, or keepAlive being false), this function closes its fd and removes
- * it from _pfds.
+ * critical error in request, timeout, or keepAlive being false), this function closes its fd
+ * and removes it from _pfds.
  */
 void	Server::removeClientFromPollFds(size_t& i)
 {

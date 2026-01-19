@@ -8,9 +8,9 @@
 constexpr char const * const	CRLF = "\r\n";
 
 /**
- * Initializes attribute values for request. Http version is now by default initialized to HTTP/1.1,
- * so if the http version given in the request is invalid, 1.1 will be used to send the error page
- * response.
+ * Initializes attribute values for request. Http version is HTTP/1.1 by default,
+ * so if the http version given in the request is invalid, 1.1 will be used to send the error
+ * page response.
  */
 Request::Request(int fd, int serverFd) : _fd(fd), _serverFd(serverFd), _headerSize(0),
 	_keepAlive(false), _chunked(false), _completeHeaders(false) {
@@ -32,8 +32,7 @@ void	Request::saveRequest(std::string const& buf) {
 /**
  * Checks whether the buffer so far includes "\r\n\r\n". If not, and the headers section hasn't
  * been received completely (ending with "\r\n\r\n"), we assume the request is partial. In that
- * case, Host header is filled, so if the completing part of request never arrives, Host is
- * available for error page response forming.
+ * case, we go back to poll() to wait for the rest of the response before parsing.
  */
 void	Request::handleRequest(void) {
 	if (_buffer.find("\r\n\r\n") == std::string::npos && !_completeHeaders) {
@@ -44,8 +43,8 @@ void	Request::handleRequest(void) {
 }
 
 /**
- * After receiving and parsing a complete request, and handling it (= building a response and
- * sending it), these properties of the current client are reset for a possible following request.
+ * After receiving and parsing a complete request, and building a response,
+ * these properties of the current client are reset for a possible following request.
  */
 void	Request::reset(void) {
 	_request.target.clear();
@@ -105,7 +104,7 @@ void	Request::checkReqTimeouts(void) {
 
 /**
  * Helper to extract a string until delimiter from buffer. Returns the extracted string
- * until delimiter and updates _buffer by removing that extracted string.
+ * and updates _buffer by removing that extracted string.
  */
 std::string	extractFromLine(std::string& orig, std::string delim)
 {
@@ -123,7 +122,7 @@ std::string	extractFromLine(std::string& orig, std::string delim)
 }
 
 /**
- * Validates and parses different sections of the request. After the last valid
+ * Validates and parses request section by section. After the last valid
  * header line, if there is remaining data, and content-length is found in headers, that length
  * of data is stored in _body - if chunked is found in headers, the rest is handled as chunks.
  */
@@ -511,7 +510,7 @@ bool	Request::areValidChars(std::string& s) {
  * protocol.
  *
  * In case the URI includes '?', we use it as a separator to get the query.
- * We must later split the possible query with '&' which separates different queries.
+ * Later in CGI handler, the possible query will be split with &'s.
  */
 bool	Request::validateAndAssignTarget(std::string& target) {
 	if (target.size() == 1 && target != "/")
@@ -644,7 +643,7 @@ void	Request::resetSendStart(void) {
 
 void	Request::resetBuffer(void) {
 	if (!_buffer.empty()) {
-		INFO_LOG("The remaining request data in buffer following one complete request will be discarded");
+		INFO_LOG("Discarded remaining request data in buffer after one complete request");
 		_buffer.clear();
 	}
 }
