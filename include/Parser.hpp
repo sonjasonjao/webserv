@@ -19,7 +19,7 @@
 
 struct Config {
 	std::string	host;		// IP or hostname on which this server listens, e.g. "0.0.0.0" or "127.0.0.1"
-	std::string	host_name;	// List of server names (virtual hosts) handled by this server eg : {"example.com", "www.example.com"}
+	std::string	serverName;	// List of server names (virtual hosts) handled by this server eg : {"example.com", "www.example.com"}
 
 	uint16_t	port = 0;	// Port on which this server listens
 
