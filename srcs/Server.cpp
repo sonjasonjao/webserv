@@ -273,7 +273,8 @@ void	Server::handleClientData(size_t& i)
 			}
 			it->setUploadDir(conf.upload_dir);
 		}
-
+	}
+	
 	if (it->getStatus() == RequestStatus::Error)
 	{
 		ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
@@ -313,8 +314,7 @@ void	Server::handleClientData(size_t& i)
  * match Host header value in the request. If no host name match is found, returns the
  * default config of that serverGroup.
  */
-Config const	&Server::matchConfig(Request const &req)
-{
+Config const	&Server::matchConfig(Request const &req) {
 	int fd = req.getServerFd();
 	ServerGroup	*tmp = nullptr;
 	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++)

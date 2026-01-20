@@ -150,9 +150,8 @@ void	Request::parseRequest(void) {
             return;
         }
 
-		std::string	reqLine = splitReqLine(_buffer, CRLF);
-		std::istringstream	req(reqLine);
-		parseRequestLine(req);
+		std::string	reqLine = extractFromLine(_buffer, CRLF);
+		parseRequestLine(reqLine);
 		if (_status == RequestStatus::Invalid) {
 			_buffer.clear();
 			return;
