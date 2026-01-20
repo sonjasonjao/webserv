@@ -208,6 +208,11 @@ Config Parser::convertToServerData(const Token& block) {
 			config.host_name = item.children.at(1).value;
 		}
 
+		if (key == "upload_dir") {
+			DEBUG_LOG("\t\tAdding uploading directory " + item.children.at(1).value);
+			config.upload_dir = item.children.at(1).value;
+		}
+
 		if (key == "directory_listing") {
 			std::string	val = item.children.at(1).value;
 

@@ -736,7 +736,7 @@ std::ofstream*	Request::getUploadFD(void) {
 }
 
 size_t	Request::getCurrentUploadPosition(void) {
-	return _curr_upload_pos;
+	return (_curr_upload_pos);
 }
 
 void	Request::setCurrentUploadPosition(size_t pos) {
@@ -751,6 +751,14 @@ size_t	Request::getContentLength(void) const {
 	if(_contentLen.has_value())
 		return (_contentLen.value());
 	return (0);
+}
+
+void	Request::setUploadDir(std::string path) {
+	_uploadDir = path;
+}
+
+std::string	Request::getUploadDir(void) {
+	return (_uploadDir);
 }
 
 void	Request::handleFileUpload(void) {
@@ -827,7 +835,7 @@ void	Request::handleFileUpload(void) {
 			}
 		} else {
 			try {
-				auto fd = initial_save_to_disk(mp);
+				auto fd = initial_save_to_disk(mp, _uploadDir);
 				if (!fd) {
 					ERROR_LOG("Failed to initialize upload file descriptor");
 					_status = RequestStatus::Error;

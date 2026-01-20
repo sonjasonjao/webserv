@@ -66,6 +66,7 @@ class Request
 		std::string						_body;
 		std::optional<size_t>			_contentLen;
 		std::optional<std::string>		_boundary;
+		std::string						_uploadDir;
 		bool							_keepAlive;
 		bool							_chunked;
 		bool							_completeHeaders;
@@ -109,6 +110,8 @@ class Request
 		size_t					getCurrentUploadPosition(void);
 		void					setCurrentUploadPosition(size_t pos);
 		void					handleFileUpload(void);
+		void					setUploadDir(std::string path);
+		std::string				getUploadDir(void);
 
 		RequestMethod						getRequestMethod(void) const;
 		std::string const					&getHttpVersion(void) const;

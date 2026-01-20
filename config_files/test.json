@@ -8,9 +8,8 @@
 
             "directory_listing" : true,
             "autoindex"         : false,
-
-            "upload_dir"                            : "www/uploads",
-            "client_max_body_size"                  : 1048576,
+            "upload_dir"        : "www/test_uploads",
+            "client_max_body_size"                  : 11048576,
 
             "routes" : {
                 "/"         : "www/pages",
