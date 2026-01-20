@@ -90,12 +90,12 @@ class Request
 		void	setStatus(RequestStatus status);
 		void	reset(void);
 		void	resetKeepAlive(void);
+		void	setStatusAndKeepAlive(RequestStatus status, bool clearBuffer);
 		void	checkReqTimeouts(void);
 		void	setIdleStart(void);
 		void	setRecvStart(void);
 		void	setSendStart(void);
 		void	resetSendStart(void);
-		void	resetBuffer(void);
 
 		RequestMethod					getRequestMethod(void) const;
 		std::string const				&getHttpVersion(void) const;

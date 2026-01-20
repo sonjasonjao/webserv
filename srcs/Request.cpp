@@ -68,6 +68,13 @@ void	Request::resetKeepAlive(void) {
 	_keepAlive = false;
 }
 
+void	Request::setStatusAndKeepAlive(RequestStatus status, bool clearBuffer) {
+	_status = status;
+	_keepAlive = false;
+	if (clearBuffer)
+		_buffer.clear();
+}
+
 /**
  * In handleConnections, each client fd is checked for possible timeouts by comparing
  * the stored _idleStart, _recvStart, and _sendStart with the current time stamp. Helper
@@ -80,25 +87,22 @@ void	Request::checkReqTimeouts(void) {
 	auto		durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	timePoint	init = {};
 	if (durMs.count() > IDLE_TIMEOUT) {
-		_status = RequestStatus::IdleTimeout;
 		DEBUG_LOG("Idle timeout with client fd " + std::to_string(_fd));
-		_keepAlive = false;
+		setStatusAndKeepAlive(RequestStatus::IdleTimeout, false);
 		return;
 	}
 	diff = now - _recvStart;
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	if (_recvStart != init && durMs.count() > RECV_TIMEOUT) {
-		_status = RequestStatus::RecvTimeout;
 		DEBUG_LOG("Recv timeout with client fd " + std::to_string(_fd));
-		_keepAlive = false;
+		setStatusAndKeepAlive(RequestStatus::RecvTimeout, false);
 		return;
 	}
 	diff = now - _sendStart;
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	if (_sendStart != init && durMs.count() > SEND_TIMEOUT) {
-		_status = RequestStatus::SendTimeout;
 		DEBUG_LOG("Send timeout with client fd " + std::to_string(_fd));
-		_keepAlive = false;
+		setStatusAndKeepAlive(RequestStatus::SendTimeout, false);
 	}
 }
 
@@ -141,26 +145,25 @@ void	Request::parseRequest(void) {
 		_buffer.clear();
 		return;
 	}
-	if (!_contentLen.has_value() && !_chunked)
-		_status = RequestStatus::CompleteReq;
+	if (!_contentLen.has_value() && !_chunked) {
+		if (_buffer.empty())
+			_status = RequestStatus::CompleteReq;
+		else
+			setStatusAndKeepAlive(RequestStatus::Invalid, true);
+	}
 	else if (!_buffer.empty() && (_contentLen.has_value() && _body.size() < _contentLen.value())) {
 		size_t	missingLen = _contentLen.value() - _body.size();
-		if (missingLen < _buffer.size()) {
-			std::string	toAdd = _buffer.substr(0, missingLen);
-			_body += toAdd;
-			_buffer = _buffer.substr(missingLen);
+		if (missingLen != _buffer.size()) {
+			setStatusAndKeepAlive(RequestStatus::Invalid, true);
+			return;
 		}
 		else {
 			_body += _buffer;
 			_buffer.clear();
 		}
-		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
-			_status = RequestStatus::ContentTooLarge;
-			_keepAlive = false;
-			_buffer.clear();
-			return;
-		}
-		if (_body.size() < _contentLen.value())
+		if (_body.size() > CLIENT_MAX_BODY_SIZE)
+			setStatusAndKeepAlive(RequestStatus::ContentTooLarge, false);
+		else if (_body.size() < _contentLen.value())
 			_status = RequestStatus::WaitingData;
 		else if (_body.size() == _contentLen.value())
 			_status = RequestStatus::CompleteReq;
@@ -227,8 +230,7 @@ void	Request::parseHeaders(std::string& str) {
 		headEnd = str.size();
 	_headerSize = headEnd;
 	if (_headerSize > HEADERS_MAX_SIZE) {
-		_status = RequestStatus::Invalid;
-		_keepAlive = false;
+		setStatusAndKeepAlive(RequestStatus::Invalid, false);
 		return;
 	}
 	while (!str.empty()) {
@@ -240,21 +242,26 @@ void	Request::parseHeaders(std::string& str) {
 		line = extractFromLine(str, CRLF);
 		const size_t point = line.find(":");
 		if (point == std::string::npos) {
-			_status = RequestStatus::Error;
-			_keepAlive = false;
+			setStatusAndKeepAlive(RequestStatus::Error, false);
 			return;
 		}
 		std::string	key = line.substr(0, point);
 		for (size_t i = 0; i < key.size(); i++)
 			key[i] = std::tolower(static_cast<unsigned char>(key[i]));
-		std::string value = line.substr(point + 2, line.size() - (point + 2));
+		if (line.length() <= point + 1) {
+			setStatusAndKeepAlive(RequestStatus::Invalid, false);
+			return;
+		}
+		std::string value = line.substr(point + 1, line.size() - (point + 1));
+		auto realStart = value.find_first_not_of(' ');
+		if (realStart != 0)
+			value = value.substr(realStart);
 		if (key != "content-type") {
 			for (size_t i = 0; i < value.size(); i++)
 				value[i] = std::tolower(static_cast<unsigned char>(value[i]));
 		}
 		if (_headers.find(key) != _headers.end() && isUniqueHeader(key)) {
-			_status = RequestStatus::Invalid;
-			_keepAlive = false;
+			setStatusAndKeepAlive(RequestStatus::Invalid, false);
 			return;
 		}
 		std::istringstream	values(value);
@@ -284,11 +291,8 @@ void	Request::parseHeaders(std::string& str) {
 	}
 	if (!_completeHeaders)
 		_status = RequestStatus::WaitingData;
-	if (_headers.empty() || !validateHeaders()) {
-		_status = RequestStatus::Invalid;
-		_keepAlive = false;
-		return;
-	}
+	if (_headers.empty() || !validateHeaders())
+		setStatusAndKeepAlive(RequestStatus::Invalid, false);
 }
 
 /**
@@ -308,17 +312,13 @@ void	Request::parseChunked(void) {
 				}
 				catch (const std::exception& e)
 				{
-					_status = RequestStatus::Invalid;
-					_keepAlive = false;
-					_buffer.clear();
+					setStatusAndKeepAlive(RequestStatus::Invalid, true);
 					return;
 				}
 				_buffer = _buffer.substr(pos + 2);
 				std::string	tmp = extractFromLine(_buffer, CRLF);
 				if (tmp.size() != len) {
-					_status = RequestStatus::Invalid;
-					_keepAlive = false;
-					_buffer.clear();
+					setStatusAndKeepAlive(RequestStatus::Invalid, true);
 					return;
 				}
 				_body += tmp;
@@ -335,17 +335,13 @@ void	Request::parseChunked(void) {
 				}
 				catch (const std::exception& e)
 				{
-					_status = RequestStatus::Invalid;
-					_keepAlive = false;
-					_buffer.clear();
+					setStatusAndKeepAlive(RequestStatus::Invalid, true);
 					return;
 				}
 				_buffer = _buffer.substr(pos + 2);
 				std::string	tmp = extractFromLine(_buffer, CRLF);
 				if (tmp.size() != len) {
-					_status = RequestStatus::Invalid;
-					_keepAlive = false;
-					_buffer.clear();
+					setStatusAndKeepAlive(RequestStatus::Invalid, true);
 					return;
 				}
 				_body += tmp;
@@ -355,17 +351,15 @@ void	Request::parseChunked(void) {
 			_status = RequestStatus::CompleteReq;
 		}
 		else if (finder == std::string::npos && pos == std::string::npos) {
-			_status = RequestStatus::Invalid;
-			_keepAlive = false;
-			_buffer.clear();
+			setStatusAndKeepAlive(RequestStatus::Invalid, true);
 			return;
 		}
 		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
-			_status = RequestStatus::ContentTooLarge;
-			_keepAlive = false;
-			_buffer.clear();
+			setStatusAndKeepAlive(RequestStatus::ContentTooLarge, false);
 			return;
 		}
+		if (!_buffer.empty())
+			setStatusAndKeepAlive(RequestStatus::Invalid, true);
 	}
 }
 
@@ -414,10 +408,6 @@ bool	Request::validateHeaders(void) {
 	auto	it = _headers.find("host");
 	if (_request.httpVersion == "HTTP/1.1" && (it == _headers.end() || it->second.empty()))
 		return false;
-	for (auto const& [key, values] : _headers) {
-		if (values.size() > 1 && isUniqueHeader(key))
-			return false;
-	}
 	if (!fillKeepAlive())
 		return false;
 	it = _headers.find("content-length");
@@ -645,13 +635,6 @@ void	Request::setSendStart(void) {
 
 void	Request::resetSendStart(void) {
 	_sendStart = {};
-}
-
-void	Request::resetBuffer(void) {
-	if (!_buffer.empty()) {
-		INFO_LOG("Discarded remaining request data in buffer after one complete request");
-		_buffer.clear();
-	}
 }
 
 std::string	Request::getHost(void) const {

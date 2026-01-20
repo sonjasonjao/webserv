@@ -287,8 +287,6 @@ void	Server::handleClientData(size_t& i)
 	it->reset();
 	it->setStatus(RequestStatus::ReadyForResponse);
 	_pfds[i].events |= POLLOUT;
-
-	it->resetBuffer();
 }
 
 /**
