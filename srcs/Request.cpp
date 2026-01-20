@@ -844,7 +844,7 @@ void	Request::handleFileUpload(void) {
 			}
 		} else {
 			try {
-				auto fd = initial_save_to_disk(mp, _uploadDir);
+				auto fd = initial_save_to_disk(mp, getUploadDir());
 				if (!fd) {
 					ERROR_LOG("Failed to initialize upload file descriptor");
 					_status = RequestStatus::Error;

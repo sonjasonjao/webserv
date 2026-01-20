@@ -217,16 +217,12 @@ void	Server::handleClientData(size_t& i)
 	if (_clients.empty())
 		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 			+ std::to_string(_pfds[i].fd)));
-
 	auto it = getRequestByFd(_pfds[i].fd);
-
 	if (it == _clients.end())
 		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 			+ std::to_string(_pfds[i].fd)));
-
 	if (it->getStatus() != RequestStatus::WaitingData)
 		return;
-
 	char	buf[RECV_BUF_SIZE + 1];
 
 	int		numBytes = recv(_pfds[i].fd, buf, RECV_BUF_SIZE, 0);
@@ -249,7 +245,6 @@ void	Server::handleClientData(size_t& i)
 
 	INFO_LOG("Received client data from fd " + std::to_string(_pfds[i].fd));
 	std::cout << "\n---- Request data ----\n" << buf << "----------------------\n\n";
-
 	if (!_clients.empty())
 	{
 		auto it = getRequestByFd(_pfds[i].fd);
@@ -261,20 +256,21 @@ void	Server::handleClientData(size_t& i)
 		it->setIdleStart();
 		it->setRecvStart();
 		it->saveRequest(std::string(buf, numBytes));
+		
+		Config const	&conf = matchConfig(*it);
 
+		it->setUploadDir(conf.upload_dir);
 		it->handleRequest();
-
+		
 		if(it->isHeadersCompleted() && it->getStatus() != RequestStatus::PayloadTooLarge) {
-			Config const	&conf = matchConfig(*it);
 			if(conf.client_max_body_size > 0 && it->getContentLength() > conf.client_max_body_size) {
+		
 				it->setStatus(RequestStatus::PayloadTooLarge);
 				ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit "
 				+ std::to_string(conf.client_max_body_size));
 			}
-			it->setUploadDir(conf.upload_dir);
 		}
 	}
-	
 	if (it->getStatus() == RequestStatus::Error)
 	{
 		ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
@@ -284,27 +280,22 @@ void	Server::handleClientData(size_t& i)
 
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 		_clients.erase(it);
-
 		return;
 	}
+	if (it->getStatus() == RequestStatus::WaitingData && it->getStatus() != RequestStatus::PayloadTooLarge)
+	{
 
-		if (it->getStatus() == RequestStatus::WaitingData && it->getStatus() != RequestStatus::PayloadTooLarge)
-		{
-			INFO_LOG("Waiting for more data to complete partial request");
-
+		INFO_LOG("Waiting for more data to complete partial request");
 		return;
 	}
-
 	INFO_LOG("Building response to client fd " + std::to_string(_pfds[i].fd));
 
 	Config const	&conf = matchConfig(*it);
-
 	DEBUG_LOG("Matched config: " + conf.host + " " + conf.serverName + " " + std::to_string(conf.port));
 	_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
 	it->reset();
 	it->setStatus(RequestStatus::ReadyForResponse);
 	_pfds[i].events |= POLLOUT;
-
 	it->resetBuffer();
 }
 
