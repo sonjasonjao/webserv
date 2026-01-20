@@ -25,6 +25,7 @@ struct Route {
 struct Config {
 	std::string	host;		// IP on which this server listens, e.g. "0.0.0.0", "127.0.0.1" or "localhost"
 	std::string	serverName;	// Assigned name of server in config file, e.g. "localhost" or "www.example.com"
+	std::string	uploadDir;	// Activates or deactivates upload directory behavior
 
 	uint16_t	port = 0;	// Port on which this server listens
 
