@@ -126,8 +126,10 @@ int	Server::createSingleServerSocket(Config conf)
 
 	freeaddrinfo(servinfo);
 
-	if (listen(listener, MAX_PENDING) < 0)
+	if (listen(listener, MAX_PENDING) < 0) {
+		close(listener);
 		throw std::runtime_error(ERROR_LOG("listen: " + std::string(strerror(errno))));
+	}
 
 	INFO_LOG("Server listening on fd " + std::to_string(listener));
 
@@ -353,24 +355,27 @@ void	Server::removeClientFromPollFds(size_t& i)
 void	Server::sendResponse(size_t& i)
 {
 	auto it = getRequestByFd(_pfds[i].fd);
-	if (it == _clients.end()) {
-		ERROR_LOG("Could not find a response to send to this client");
-		return;
-	}
+	if (it == _clients.end())
+		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
+			+ std::to_string(_pfds[i].fd)));
 	if (it->getStatus() != RequestStatus::ReadyForResponse
 		&& it->getStatus() != RequestStatus::RecvTimeout)
 		return;
 
-	auto	&res = _responses.at(_pfds[i].fd).front();
-
-	INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
-	it->setIdleStart();
-	it->setSendStart();
-	res.sendToClient();
-	if (!res.sendIsComplete())
-	{
-		INFO_LOG("Response partially sent, waiting for server to complete response sending");
-		return;
+	try {
+		auto	&res = _responses.at(_pfds[i].fd).front();
+		INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
+		it->setIdleStart();
+		it->setSendStart();
+		res.sendToClient();
+		if (!res.sendIsComplete())
+		{
+			INFO_LOG("Response partially sent, waiting for server to complete response sending");
+			return;
+		}
+	} catch (std::exception const &e) {
+		throw std::runtime_error(ERROR_LOG("Unexpected error in finding response for fd "
+			+ std::to_string(_pfds[i].fd)));
 	}
 
 	DEBUG_LOG("Removing front element of _responses container for fd " + std::to_string(_pfds[i].fd));
@@ -430,7 +435,7 @@ void	Server::checkTimeouts(void)
 				_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
 				sendResponse(i);
 			}
-			if (it->getStatus() == RequestStatus::IdleTimeout
+			else if (it->getStatus() == RequestStatus::IdleTimeout
 				|| it->getStatus() == RequestStatus::SendTimeout) {
 				removeClientFromPollFds(i);
 				INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");

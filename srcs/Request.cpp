@@ -108,8 +108,8 @@ void	Request::checkReqTimeouts(void) {
  */
 std::string	extractFromLine(std::string& orig, std::string delim)
 {
-	auto it = orig.find(delim);
 	std::string tmp = "";
+	auto it = orig.find(delim);
 	if (it != std::string::npos)
 	{
 		tmp = orig.substr(0, it);
@@ -353,6 +353,12 @@ void	Request::parseChunked(void) {
 			}
 			_body += extractFromLine(_buffer, "0\r\n\r\n");
 			_status = RequestStatus::CompleteReq;
+		}
+		else if (finder == std::string::npos && pos == std::string::npos) {
+			_status = RequestStatus::Invalid;
+			_keepAlive = false;
+			_buffer.clear();
+			return;
 		}
 		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
 			_status = RequestStatus::ContentTooLarge;
