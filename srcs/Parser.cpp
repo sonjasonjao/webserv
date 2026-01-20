@@ -248,7 +248,7 @@ Config Parser::convertToServerData(const Token& block) {
 
 				DEBUG_LOG("\t" + key + " = " + tok.value);
 
-				if (key == "directoryListing")
+				if (key == "directory_listing")
 					config.directoryListing = (tok.value == "true");
 				else
 					config.autoindex = (tok.value == "true");
@@ -280,7 +280,7 @@ Config Parser::convertToServerData(const Token& block) {
 					throw ParserException(ERROR_LOG("\t\t'" + key + "': bad key value pair"));
 
 				if (e.children.at(1).type != TokenType::Value)
-					throw ParserException(ERROR_LOG("\t\tInvalid token type for '" + key + "'"));
+					throw ParserException(ERROR_LOG("\t\tInvalid token type for '" + key + "' target"));
 
 				std::string	pageNumber	= e.children.at(0).value;
 				std::string	route		= e.children.at(1).value;
@@ -295,7 +295,7 @@ Config Parser::convertToServerData(const Token& block) {
 		else if (key == "routes") {
 			DEBUG_LOG("\tSetting routes");
 			if (tok.type != TokenType::Object)
-				throw ParserException(ERROR_LOG("\t\tInvalid token type for '" + key + "'"));
+				throw ParserException(ERROR_LOG("\tInvalid token type for '" + key + "'"));
 
 			for (auto const &r : tok.children) {
 				if (r.children.size() != 2) {
@@ -307,65 +307,77 @@ Config Parser::convertToServerData(const Token& block) {
 				Token	const &rightToken	= r.children.at(1);
 
 				if (rightToken.type != TokenType::Object && rightToken.type != TokenType::Value)
-					throw ParserException(ERROR_LOG("\t\t\tInvalid token type for route target"));
+					throw ParserException(ERROR_LOG("\t\tInvalid token type for '" + key + "' target"));
 
-				std::string	uri = leftToken.value;
+				std::string	uri		= leftToken.value;
 				Route		route;
 
-				// Simplest case, simple key value, allowed methods unspecified -> nullopt means all methods ok
+				// Simplest case, simple key value, allowed methods unspecified
 				if (rightToken.type == TokenType::Value) {
 					DEBUG_LOG("\t\t" + uri + " -> " + rightToken.value);
-					route.target = rightToken.value;
-					route.allowedMethods = std::nullopt;
-					config.routes[uri] = route;
+					route.original		= uri;
+					route.target		= rightToken.value;
+					config.routes[uri]	= route;
 
 					continue;
 				}
 
 				// Object case
 				if (rightToken.children.size() != 2)
-					throw ParserException(ERROR_LOG("\t\t\t" + key + ": wrong number of key value pairs"));
+					throw ParserException(ERROR_LOG("\t\t" + key + ": wrong number of key value pairs"));
 
 				for (auto const &e : rightToken.children) {
 					if (e.children.size() != 2)
-						throw ParserException(ERROR_LOG("\t\t\t\t" + key + ": wrong number of key value pairs"));
+						throw ParserException(ERROR_LOG("\t\t\t" + key + ": wrong number of key value pairs"));
 
 					Token const	&left	= e.children.at(0);
 					Token const	&right	= e.children.at(1);
 
 					// Order of target and allowed methods is free to choose
 					if (left.value == "target" && right.type == TokenType::Value) {
+						route.original = uri;
 						route.target = right.value;
 					} else if (left.value == "allowed_methods") {
 						if (right.type != TokenType::Array)
-							throw ParserException(ERROR_LOG("\t\t\t\tIncorrect token type for " + left.value));
+							throw ParserException(ERROR_LOG("\t\t\tIncorrect token type for '" + left.value + "' target"));
 
-						route.allowedMethods = std::vector<std::string>();
 						for (auto const &a : right.children) {
 							if (a.value != "GET" && a.value != "POST" && a.value != "DELETE")
-								throw ParserException(ERROR_LOG("\t\t\t\t\tIncorrect value '" + a.value + "' for allowed_methods list element"));
+								throw ParserException(ERROR_LOG("\t\t\t\tIncorrect value '" + a.value + "' for '" + left.value + "' array element"));
 
-							route.allowedMethods->emplace_back(a.value);
+							route.allowedMethods.emplace_back(a.value);
 						}
 					}
 				}
-				if (route.target.empty() || route.allowedMethods == std::nullopt)
-					throw ParserException(ERROR_LOG("\t\t\tBad route configuration, missing allowed methods"));
+				if (route.target.empty() || route.allowedMethods.empty())
+					throw ParserException(ERROR_LOG("\t\t\tBad route configuration"));
 
 				DEBUG_LOG("\t\t" + uri + " -> " + route.target);
+				DEBUG_LOG("\t\tAllowed methods");
+				for (auto const &a : route.allowedMethods)
+					DEBUG_LOG("\t\t\t" + a);
+
 				config.routes[uri] = route;
-			}
+			} /* ---- Allowed methods ---- */
 		} else if (key == "allowed_methods") {
+			if (tok.type != TokenType::Array)
+				throw ParserException(ERROR_LOG("\tInvalid token type for '" + key + "'"));
 
-		}
+			for (auto const &a : tok.children) {
+				if (a.value != "GET" && a.value != "POST" && a.value != "DELETE")
+					throw ParserException(ERROR_LOG("\t\tIncorrect value '" + a.value + "' for allowed_methods array element"));
+				if (std::find(config.allowedMethods.begin(), config.allowedMethods.end(), a.value) != config.allowedMethods.end())
+					throw ParserException(ERROR_LOG("\t\tDuplicate '" + a.value + "' for allowed_methods array element"));
+
+				config.allowedMethods.emplace_back(a.value);
+			}
+			DEBUG_LOG("\tAllowed methods");
+			for (auto const &a : config.allowedMethods)
+				DEBUG_LOG("\t\t" + a);
+		} /* ---- Everything else ---- */
 		else {
-			std::vector<std::string> const	otherOptions {
-				"listen",
-				"allowed_methods"
-			};
-
-			if (std::find(otherOptions.begin(), otherOptions.end(), key) == otherOptions.end())
-				throw ParserException(ERROR_LOG("Unknown option: " + key));
+			if (key != "listen")
+				throw ParserException(ERROR_LOG("\tUnknown option: " + key));
 		}
 	}
 	return (config);

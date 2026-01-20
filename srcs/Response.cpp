@@ -15,6 +15,7 @@
 
 constexpr char const * const	CRLF = "\r\n";
 
+static Route				getRoute(std::string uri, Config const &conf);
 static std::string			route(std::string target, Config const &conf);
 static std::string const	&getResponsePageContent(std::string const &key, Config const &conf);
 static std::string			getContentType(std::string sv);
@@ -27,15 +28,9 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 
 	// If request has already been flagged as bad don't continue
 	switch (req.getStatus()) {
-		case RequestStatus::ContentTooLarge:
-			_statusCode = ContentTooLarge;
-		break;
-		case RequestStatus::Invalid:
-			_statusCode = BadRequest;
-		break;
-		case RequestStatus::RecvTimeout:
-			_statusCode = RequestTimeout;
-		break;
+		case RequestStatus::ContentTooLarge:	_statusCode = ContentTooLarge;	break;
+		case RequestStatus::Invalid:			_statusCode = BadRequest;		break;
+		case RequestStatus::RecvTimeout:		_statusCode = RequestTimeout;	break;
 		default: break;
 	}
 	if (_statusCode != Unassigned) {
@@ -50,6 +45,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		return;
 	}
 
+	(void)route;
 	std::string	reqTarget = req.getTarget();
 
 	// Be prepared for shenanigans, validate URI format for target early
@@ -66,11 +62,54 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 
 	// Save original request target before routing
 	reqTarget = _target;
-	if (reqTarget != "/" && reqTarget.size() > 1 && reqTarget[0] == '/')
+	if (reqTarget.size() > 1 && reqTarget[0] == '/')
 		reqTarget = reqTarget.substr(1);
 
 	// Perform routing, aka mapping of a file or directory to another
-	_target = route(_target, _conf);
+	Route	route = getRoute(_target, _conf);
+
+	// A non empty string signifies a matched route
+	if (!route.original.empty()) {
+		if (_target.length() > 1 && _target[0] == '/')
+			_target = _target.substr(1);
+		if (_target.back() == '/')
+			_target.pop_back();
+		if (route.original == "/") {
+			if (route.target.back() == '/')
+				route.target.pop_back();
+			_target = route.target + "/" + _target;
+		} else {
+			_target.replace(_target.find(route.original), route.original.length(), route.target);
+		}
+	}
+
+	// Check for possibly forbidden methods early
+	auto const	*okMethods = &route.allowedMethods;
+
+	if (okMethods->size() == 0)
+		okMethods = &_conf.allowedMethods;
+
+	if (!route.original.empty() && okMethods->size() > 0) {
+		RequestMethod	method = _req.getRequestMethod();
+		std::string		methodString;
+
+		switch (method) {
+			case RequestMethod::Get:	methodString = "GET";		break;
+			case RequestMethod::Post:	methodString = "POST";		break;
+			case RequestMethod::Delete:	methodString = "DELETE";	break;
+			default:					methodString = "";			break;
+		}
+
+		auto const	&m = *okMethods;
+
+		if (methodString.empty() || std::find(m.begin(), m.end(), methodString) == m.end()) {
+			DEBUG_LOG("Method '" + methodString + "' not in list of allowed methods");
+			_statusCode = Forbidden;
+			formResponse();
+
+			return;
+		}
+	}
 
 	INFO_LOG("Routing " + reqTarget + " to " + _target);
 
@@ -157,16 +196,16 @@ int	Response::getResponseCode() const
 
 void	Response::formResponse()
 {
-	_headerSection =	std::string("Server: ") + _req.getHost() + CRLF;
+	_headerSection =	std::string("Server: ") + _conf.serverName + CRLF;
 	_headerSection +=	"Date: " + getImfFixdate() + CRLF;
 
 	// If the body is non empty it means directory listing has been activated
 	if (!_body.empty()) {
-		_startLine		= _req.getHttpVersion() + " 200 OK";
-		_contentType	= "text/html";
+		_startLine		 = _req.getHttpVersion() + " 200 OK";
+		_contentType	 = "text/html";
 		_headerSection	+= "Content-Type: " + _contentType + std::string(CRLF);
 		_headerSection	+= "Content-Length: " + std::to_string(_body.length()) + CRLF;
-		_content		= _startLine + CRLF + _headerSection + CRLF + _body;
+		_content		 = _startLine + CRLF + _headerSection + CRLF + _body;
 
 		return;
 	}
@@ -247,6 +286,37 @@ bool	Response::sendIsComplete() const
 
 /* -------------------------------------------------------------------------- */
 
+static Route	getRoute(std::string uri, Config const &conf)
+{
+	// If the target isn't "/" remove any extra '/' characters, as they don't have any meaning (root access is forbidden)
+	if (uri.length() > 1 && uri[0] == '/')
+		uri = uri.substr(1);
+
+	// Check for an exact route for target
+	auto	it = conf.routes.find(uri);
+
+	if (it != conf.routes.end())
+		return it->second;
+
+	// Check for a partial route for target, exclude possible "/" substitution at this step
+	for (auto const &[key, val] : conf.routes) {
+		if (key == "/")
+			continue;
+
+		auto	pos = uri.find(key);
+
+		if (pos != std::string::npos)
+			return val;
+	}
+
+	// If a route for "/" exists use that in case of no exact or partial match
+	it = conf.routes.find("/");
+	if (it != conf.routes.end())
+		return it->second;
+
+	return Route();
+}
+
 static std::string	route(std::string target, Config const &conf)
 {
 	// If the target isn't "/" remove any extra '/' characters, as they don't have any meaning (root access is forbidden)
@@ -274,7 +344,6 @@ static std::string	route(std::string target, Config const &conf)
 
 	// If a route for "/" exists, add the value to the beginning of the target
 	it = conf.routes.find("/");
-
 	if (it != conf.routes.end()) {
 		std::string	route = it->second.target;
 

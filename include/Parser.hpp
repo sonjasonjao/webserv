@@ -6,7 +6,6 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <optional>
 
 #include "CustomException.hpp"
 #include "JSON.hpp"
@@ -18,8 +17,9 @@
 #define EXTENSION "json"
 
 struct Route {
-	std::string								target;
-	std::optional<std::vector<std::string>>	allowedMethods	= std::nullopt;
+	std::string					original;
+	std::string					target;
+	std::vector<std::string>	allowedMethods;
 };
 
 struct Config {
@@ -31,6 +31,8 @@ struct Config {
 
 	std::map<std::string, std::string>	statusPages;	// Mapping from HTTP status code to custom page path.
 	std::map<std::string, Route>		routes;			// Set of routes (URI -> path definitions) for this server.
+
+	std::vector<std::string>	allowedMethods;
 
 	size_t	requestMaxBodySize	= 0;	// in bytes
 
