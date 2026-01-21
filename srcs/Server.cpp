@@ -282,7 +282,7 @@ void	Server::handleClientData(size_t& i)
 		_clients.erase(it);
 		return;
 	}
-	if (it->getStatus() == RequestStatus::WaitingData && it->getStatus() != RequestStatus::PayloadTooLarge)
+	if (it->getStatus() == RequestStatus::WaitingData)
 	{
 
 		INFO_LOG("Waiting for more data to complete partial request");
