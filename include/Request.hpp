@@ -44,6 +44,7 @@ struct RequestLine
 	std::optional<std::string>	query;
 	std::string					httpVersion;
 	RequestMethod				method;
+	std::string					methodString;
 };
 
 class Request
@@ -108,4 +109,5 @@ class Request
 		bool							getKeepAlive(void) const;
 		RequestStatus					getStatus(void) const;
 		std::string const				&getBuffer(void) const;
+		std::string const				&getMethodString(void) const;
 };

@@ -187,6 +187,7 @@ void	Request::parseRequestLine(std::string &req) {
 		_status = RequestStatus::Invalid;
 		return;
 	}
+	_request.methodString = method;
 	size_t i = 0;
 	for (i = 0; i < methods.size(); i++)
 	{
@@ -697,4 +698,8 @@ std::vector<std::string> const	*Request::getHeader(std::string const &key) const
 	} catch (std::exception const &e) {
 		return nullptr;
 	}
+}
+
+std::string const	&Request::getMethodString(void) const {
+	return _request.methodString;
 }
