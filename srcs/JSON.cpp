@@ -3,7 +3,8 @@
 /**
  * this function will print the AST recursively, pure debugging function
  */
-void printToken(const Token& root, int indent) {
+void printToken(const Token& root, int indent)
+{
 	for (int i = 0; i < indent; ++i) {
 		std::cout << " ";
 	}
@@ -23,7 +24,8 @@ void printToken(const Token& root, int indent) {
  * @return corresponding string value, default or unmatching will result
  * empty string
  */
-std::string typeToString(TokenType type) {
+std::string typeToString(TokenType type)
+{
 	switch (type)
 	{
 		case (TokenType::Array):
@@ -50,7 +52,8 @@ std::string typeToString(TokenType type) {
  * @return new copy of the string without leading and trailing
  * white spaces
  */
-std::string trim(std::string_view sv) {
+std::string trim(std::string_view sv)
+{
 	const size_t start = sv.find_first_not_of(" \t\n");
 	if (start == std::string::npos) {
 		return ("");
@@ -67,7 +70,8 @@ std::string trim(std::string_view sv) {
  * @param string and the character need to check
  * @return index of the first occuranece of the character in the string
  */
-size_t unquotedDelimiter(std::string_view sv, const char c) {
+size_t unquotedDelimiter(std::string_view sv, const char c)
+{
 	size_t	pos					= std::string::npos;
 	bool	in_quote			= false;
 	int		curly_braces_depth	= 0;
@@ -107,7 +111,8 @@ size_t unquotedDelimiter(std::string_view sv, const char c) {
  * @param string need to check
  * @return TokenType enum value base on the format of the string
  */
-TokenType getTokenType(const std::string& str) {
+TokenType getTokenType(const std::string& str)
+{
 	if (str.empty()) {
 		return (TokenType::Null);
 	}
@@ -133,8 +138,8 @@ TokenType getTokenType(const std::string& str) {
  * @param string need to split
  * @return vector filled with tokens
  */
-std::vector<std::string> splitElements(std::string_view sv) {
-
+std::vector<std::string> splitElements(std::string_view sv)
+{
 	std::vector<std::string> tokens;
 
 	if (unquotedDelimiter(sv, ',') != std::string::npos) {
@@ -159,7 +164,8 @@ std::vector<std::string> splitElements(std::string_view sv) {
  * @param string and type of the token needed to create
  * @return token value of Token Type
  */
-Token createToken(const std::string& str, TokenType type) {
+Token createToken(const std::string& str, TokenType type)
+{
 	Token token;
 	if (type == TokenType::Identifier || type == TokenType::Value) {
 		token.type = type;
@@ -178,7 +184,8 @@ Token createToken(const std::string& str, TokenType type) {
  * @param string the token needed to create
  * @return token value of Toekn Type
  */
-Token createToken(const std::string& str) {
+Token createToken(const std::string& str)
+{
 	Token token;
 	size_t len = str.length();
 	TokenType type = getTokenType(str);
@@ -248,7 +255,8 @@ Token createToken(const std::string& str) {
  * @param token in the format of string
  * @return value of the key component
  */
-std::string getKey(const Token& token) {
+std::string getKey(const Token& token)
+{
 	if (token.type != TokenType::Element) {
 		return ("");
 	}
@@ -267,7 +275,8 @@ std::string getKey(const Token& token) {
  * @param string need to remove the '"' marks
  * @return new string with out any '"' marks
  */
-std::string removeQuotes(const std::string& str) {
+std::string removeQuotes(const std::string& str)
+{
 	if (str.length() >= 2 && str.front() == '"' && str.back() == '"') {
 		return (trim(str.substr(1, str.length() - 2)));
 	}

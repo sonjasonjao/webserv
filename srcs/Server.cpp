@@ -259,8 +259,8 @@ void	Server::handleClientData(size_t& i)
 	it->setUploadDir(conf.upload_dir);
 	it->handleRequest();
 
-	if(it->isHeadersCompleted()) {
-		if(conf.client_max_body_size > 0 && it->getContentLength() > conf.client_max_body_size) {
+	if (it->isHeadersCompleted()) {
+		if (conf.client_max_body_size > 0 && it->getContentLength() > conf.client_max_body_size) {
 			it->setStatus(RequestStatus::ContentTooLarge);
 			ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit "
 			+ std::to_string(conf.client_max_body_size));
@@ -302,9 +302,11 @@ void	Server::handleClientData(size_t& i)
  * match Host header value in the request. If no host name match is found, returns the
  * default config of that serverGroup.
  */
-Config const	&Server::matchConfig(Request const &req) {
-	int fd = req.getServerFd();
-	ServerGroup	*tmp = nullptr;
+Config const	&Server::matchConfig(Request const &req)
+{
+	int			fd		= req.getServerFd();
+	ServerGroup	*tmp	= nullptr;
+
 	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++)
 	{
 		if (it->fd == fd) {
@@ -358,7 +360,8 @@ void	Server::removeClientFromPollFds(size_t& i)
  */
 void	Server::sendResponse(size_t& i)
 {
-	auto it = getRequestByFd(_pfds[i].fd);
+	auto	it = getRequestByFd(_pfds[i].fd);
+
 	if (it == _clients.end()) {
 		ERROR_LOG("Could not find a response to send to this client");
 		return;
@@ -424,7 +427,8 @@ void	Server::checkTimeouts(void)
 {
 	for (size_t i = 0; i < _pfds.size(); i++) {
 		if (!isServerFd(_pfds[i].fd)) {
-			auto it = getRequestByFd(_pfds[i].fd);
+			auto	it = getRequestByFd(_pfds[i].fd);
+
 			if (it == _clients.end())
 				throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 					+ std::to_string(_pfds[i].fd)));
@@ -451,7 +455,8 @@ void	Server::checkTimeouts(void)
  */
 bool	Server::isServerFd(int fd)
 {
-	auto it = _serverGroups.begin();
+	auto	it = _serverGroups.begin();
+
 	while (it != _serverGroups.end())
 	{
 		if (it->fd == fd)

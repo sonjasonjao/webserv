@@ -7,7 +7,8 @@
 #include <stack>
 
 Parser::Parser(const std::string& file_name)
-	:_file_name(file_name), _file() {
+	:	_file_name(file_name), _file()
+{
 	std::error_code ec;
 	/**
 	 * Try to locate the file in the current file system, will throw an error
@@ -49,7 +50,8 @@ Parser::Parser(const std::string& file_name)
 	tokenizeFile();
 }
 
-Parser::~Parser() {
+Parser::~Parser()
+{
 	/**
 	 * At the end if the file descriptor is still open, it will be closed gracefully
 	 */
@@ -64,7 +66,8 @@ Parser::~Parser() {
  * @param void - class method will have access to all the class attributes
  * @return void - all the tokens will be saved to an internal container
  */
-void Parser::tokenizeFile(void) {
+void Parser::tokenizeFile(void)
+{
 	std::string	line;
 	std::string	output;
 
@@ -152,14 +155,16 @@ void Parser::tokenizeFile(void) {
  * config struct data
  * @return const reference to the requested data structure
  */
-const Config& Parser::getServerConfig(size_t index) {
+const Config	&Parser::getServerConfig(size_t index)
+{
 	return (_server_configs.at(index));
 }
 
 /**
  * will return the whole configs vector for server construction.
  */
-const std::vector<Config>	&Parser::getServerConfigs(void) const {
+const std::vector<Config>	&Parser::getServerConfigs(void) const
+{
 	return _server_configs;
 }
 
@@ -167,7 +172,8 @@ const std::vector<Config>	&Parser::getServerConfigs(void) const {
  * will return the size of the internal container, useful info when required
  * to loop through the entire vector
  */
-size_t Parser::getNumberOfServerConfigs(void) {
+size_t	Parser::getNumberOfServerConfigs(void)
+{
 	return (_server_configs.size());
 }
 
@@ -179,8 +185,8 @@ size_t Parser::getNumberOfServerConfigs(void) {
  * @return	value of the config created on the fly, will recreate the similar
  *			data in the respective vector, temporary data so no reference
  */
-Config Parser::convertToServerData(const Token& block) {
-
+Config Parser::convertToServerData(const Token& block)
+{
 	Config config;
 
 	DEBUG_LOG("\tConverting server config tokens to server data");
@@ -235,10 +241,10 @@ Config Parser::convertToServerData(const Token& block) {
 			}
 		}
 
-		if(key == "client_max_body_size") {
+		if (key == "client_max_body_size") {
 			std::string val = item.children.at(1).value;
 			DEBUG_LOG("\t\t Set client_max_body_size to " + val);
-			if(!isUnsignedIntLiteral(val)) {
+			if (!isUnsignedIntLiteral(val)) {
 				throw ParserException(ERROR_LOG("Invalid client_max_body_size value"));
 			}
 			config.client_max_body_size = std::stoull(val);
@@ -272,7 +278,8 @@ Config Parser::convertToServerData(const Token& block) {
  * @param root, key block of data in the AST need to convert
  * @return vector of strings
  */
-std::vector<std::string> Parser::getCollectionBykey(const Token& root, const std::string& key) {
+std::vector<std::string>	Parser::getCollectionBykey(const Token& root, const std::string& key)
+{
 	std::vector<std::string> collection;
 	for (auto item : root.children) {
 		std::string itemKey = getKey(item);
@@ -291,7 +298,8 @@ std::vector<std::string> Parser::getCollectionBykey(const Token& root, const std
  * this function will check and return if a string is a valid JSON string in respect of
  * brackets, quotes, separators and primitive values
  */
-bool Parser::isValidJSONString(std::string_view sv) {
+bool Parser::isValidJSONString(std::string_view sv)
+{
 	std::stack<char> brackets;
 	std::string buffer;
 
@@ -399,7 +407,8 @@ bool Parser::isValidJSONString(std::string_view sv) {
  * this function will check if a given string is a valid primitive value
  * an integer, a fractional value, IPv4, true or false
  */
-bool Parser::isPrimitiveValue(std::string_view sv) {
+bool Parser::isPrimitiveValue(std::string_view sv)
+{
 	if (sv.empty())
 		return (false);
 

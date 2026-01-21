@@ -1,5 +1,6 @@
-#include "../include/Request.hpp"
-#include "../include/Log.hpp"
+#include "Request.hpp"
+#include "Log.hpp"
+#include "Utils.hpp"
 #include <regex>
 #include <iostream>
 #include <unordered_set>
@@ -12,16 +13,16 @@ constexpr char const * const	CRLF = "\r\n";
  * so if the http version given in the request is invalid, 1.1 will be used to send the error page
  * response.
  */
-Request::Request(int fd, int serverFd) :
-	_fd(fd),
-	_serverFd(serverFd),
-	_keepAlive(false),
-	_chunked(false),
-	_completeHeaders(false),
-	_uploadFD(nullptr),
-	_headerSize(0),
-	_curr_upload_pos(0) {
-
+Request::Request(int fd, int serverFd)
+	:	_fd(fd),
+		_serverFd(serverFd),
+		_keepAlive(false),
+		_chunked(false),
+		_completeHeaders(false),
+		_uploadFD(nullptr),
+		_headerSize(0),
+		_currUploadPos(0)
+{
 	_request.method = RequestMethod::Unknown;
 	_status = RequestStatus::WaitingData;
 	_idleStart = std::chrono::high_resolution_clock::now();
@@ -33,7 +34,8 @@ Request::Request(int fd, int serverFd) :
 /**
  * Saves the current buffer filled by recv into the combined buffer of this client.
  */
-void	Request::saveRequest(std::string const& buf) {
+void	Request::saveRequest(std::string const& buf)
+{
 	_buffer += buf;
 }
 
@@ -43,7 +45,8 @@ void	Request::saveRequest(std::string const& buf) {
  * case, Host header is filled, so if the completing part of request never arrives, Host is
  * available for error page response forming.
  */
-void	Request::handleRequest(void) {
+void	Request::handleRequest(void)
+{
 	if (_buffer.find("\r\n\r\n") == std::string::npos && !_completeHeaders) {
 		_status = RequestStatus::WaitingData;
 	}
@@ -55,7 +58,8 @@ void	Request::handleRequest(void) {
  * After receiving and parsing a complete request, and handling it (= building a response and
  * sending it), these properties of the current client are reset for a possible following request.
  */
-void	Request::reset(void) {
+void	Request::reset(void)
+{
 	_request.target.clear();
 	_request.method = RequestMethod::Unknown;
 	_request.httpVersion.clear();
@@ -67,8 +71,8 @@ void	Request::reset(void) {
 	_chunked = false;
 	_completeHeaders = false;
 	_recvStart = {};
-	_curr_upload_pos = 0;
-	if(_uploadFD) {
+	_currUploadPos = 0;
+	if (_uploadFD) {
 		_uploadFD->close();
 		_uploadFD.reset();
 	}
@@ -79,7 +83,8 @@ void	Request::reset(void) {
  * Resets the keepAlive status separately from other resets, only after keepAlive status of the
  * latest request has been checked.
  */
-void	Request::resetKeepAlive(void) {
+void	Request::resetKeepAlive(void)
+{
 	_keepAlive = false;
 }
 
@@ -89,7 +94,8 @@ void	Request::resetKeepAlive(void) {
  * variable init is used to check whether _recvStart or _sendStart has ever been updated
  * after the initialization to zero.
  */
-void	Request::checkReqTimeouts(void) {
+void	Request::checkReqTimeouts(void)
+{
 	auto		now = std::chrono::high_resolution_clock::now();
 	auto		diff = now - _idleStart;
 	auto		durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
@@ -123,8 +129,9 @@ void	Request::checkReqTimeouts(void) {
  */
 std::string	extractFromLine(std::string& orig, std::string delim)
 {
-	auto it = orig.find(delim);
-	std::string tmp = "";
+	auto		it	= orig.find(delim);
+	std::string	tmp	= "";
+
 	if (it != std::string::npos)
 	{
 		tmp = orig.substr(0, it);
@@ -141,7 +148,8 @@ std::string	extractFromLine(std::string& orig, std::string delim)
  * header line, if there is remaining data, and content-length is found in headers, that length
  * of data is stored in _body - if chunked is found in headers, the rest is handled as chunks.
  */
-void	Request::parseRequest(void) {
+void	Request::parseRequest(void)
+{
 	if (_request.method == RequestMethod::Unknown) {
 
 		// Ignoring empty lines (CRLF) before the request-line
@@ -170,7 +178,7 @@ void	Request::parseRequest(void) {
 
 	if (!_contentLen.has_value() && !_chunked)
 		_status = RequestStatus::CompleteReq;
-	else if(_request.method == RequestMethod::Post && _boundary.has_value()) {
+	else if (_request.method == RequestMethod::Post && _boundary.has_value()) {
 		handleFileUpload();
 	}
 	else if (!_buffer.empty() && (_contentLen.has_value() && _body.size() < _contentLen.value())) {
@@ -204,7 +212,8 @@ void	Request::parseRequest(void) {
  * Splits the request line into tokens, recognises method, and validates target path
  * and HTTP version.
  */
-void	Request::parseRequestLine(std::string &req) {
+void	Request::parseRequestLine(std::string &req)
+{
 	std::string method, target, httpVersion;
 	std::vector<std::string>	methods = { "GET", "POST", "DELETE" };
 	method = extractFromLine(req, " ");
@@ -214,7 +223,7 @@ void	Request::parseRequestLine(std::string &req) {
 		_status = RequestStatus::Invalid;
 		return;
 	}
-	size_t i = 0;
+	size_t	i = 0;
 	for (i = 0; i < methods.size(); i++)
 	{
 		if (methods[i] == method)
@@ -250,7 +259,8 @@ void	Request::parseRequestLine(std::string &req) {
  * boundary= literal. Content-Type will be split by semicolons to store individual
  * values, and for other headers, split will be done with commas.
  */
-void	Request::parseHeaders(std::string& str) {
+void	Request::parseHeaders(std::string& str)
+{
 	std::string	line;
 	size_t	headEnd = str.find("\r\n\r\n");
 	if (headEnd == std::string::npos)
@@ -325,7 +335,8 @@ void	Request::parseHeaders(std::string& str) {
  * In the case of a chunked request, attempts to check the size of each chunk and split the
  * string accordingly to store that chunk into body.
  */
-void	Request::parseChunked(void) {
+void	Request::parseChunked(void)
+{
 	while (!_buffer.empty()) {
 		auto	pos = _buffer.find(CRLF);
 		auto	finder = _buffer.find("0\r\n\r\n");
@@ -398,7 +409,8 @@ void	Request::parseChunked(void) {
  * _keepAlive will be set accordingly. If it has neither of those,
  * by default 1.1 request will keep connection alive, and 1.0 request won't.
  */
-bool	Request::fillKeepAlive(void) {
+bool	Request::fillKeepAlive(void)
+{
 	auto	it = _headers.find("connection");
 	bool	hasClose = false;
 	bool	hasKeepAlive = false;
@@ -434,7 +446,8 @@ bool	Request::fillKeepAlive(void) {
  * flag if needed, and content-length, to set the length, and transfer-encoding for
  * chunked flag.
  */
-bool	Request::validateHeaders(void) {
+bool	Request::validateHeaders(void)
+{
 	auto	it = _headers.find("host");
 	if (_request.httpVersion == "HTTP/1.1" && (it == _headers.end() || it->second.empty()))
 		return false;
@@ -481,7 +494,8 @@ bool	Request::validateHeaders(void) {
 /**
  * Defines headers that can have only one value, and checks if any of them has more.
  */
-bool	Request::isUniqueHeader(std::string const& key) {
+bool	Request::isUniqueHeader(std::string const& key)
+{
 	std::unordered_set<std::string>	uniques = {
 		"access-control-request-method",
 		"alt-used", // added
@@ -524,7 +538,8 @@ bool	Request::isUniqueHeader(std::string const& key) {
 /**
  * Validates target path characters.
  */
-bool	Request::areValidChars(std::string& s) {
+bool	Request::areValidChars(std::string& s)
+{
 	for (size_t i = 0; i < s.size(); i++)
 	{
 		if (s[i] < 32 || s[i] >= 127 || s[i] == '<' || s[i] == '>'
@@ -542,7 +557,8 @@ bool	Request::areValidChars(std::string& s) {
  * In case the URI includes '?', we use it as a separator to get the query.
  * We must later split the possible query with '&' which separates different queries.
  */
-bool	Request::validateAndAssignTarget(std::string& target) {
+bool	Request::validateAndAssignTarget(std::string& target)
+{
 	if (target.size() == 1 && target != "/")
 		return false;
 	if (!areValidChars(target))
@@ -568,7 +584,8 @@ bool	Request::validateAndAssignTarget(std::string& target) {
 /**
  * Only accepts HTTP/1.0 and HTTP/1.1 as valid versions on the request line.
  */
-bool	Request::validateAndAssignHttp(std::string& httpVersion) {
+bool	Request::validateAndAssignHttp(std::string& httpVersion)
+{
 	if (!std::regex_match(httpVersion, std::regex("HTTP/1.([01])")))
 		return false ;
 	_request.httpVersion = httpVersion;
@@ -652,33 +669,39 @@ void	Request::printData(void) const
 	std::cout << "\n";
 }
 
-void	Request::setIdleStart(void) {
+void	Request::setIdleStart(void)
+{
 	_idleStart = std::chrono::high_resolution_clock::now();
 	DEBUG_LOG("Fd " + std::to_string(_fd) + " _idleStart set to " + std::to_string(_idleStart.time_since_epoch().count()));
 }
 
-void	Request::setRecvStart(void) {
+void	Request::setRecvStart(void)
+{
 	_recvStart = std::chrono::high_resolution_clock::now();
 	DEBUG_LOG("Fd " + std::to_string(_fd) + " _recvStart set to " + std::to_string(_recvStart.time_since_epoch().count()));
 }
 
-void	Request::setSendStart(void) {
+void	Request::setSendStart(void)
+{
 	_sendStart = std::chrono::high_resolution_clock::now();
 	DEBUG_LOG("Fd " + std::to_string(_fd) + " _sendStart set to " + std::to_string(_sendStart.time_since_epoch().count()));
 }
 
-void	Request::resetSendStart(void) {
+void	Request::resetSendStart(void)
+{
 	_sendStart = {};
 }
 
-void	Request::resetBuffer(void) {
+void	Request::resetBuffer(void)
+{
 	if (!_buffer.empty()) {
 		INFO_LOG("The remaining request data in buffer following one complete request will be discarded");
 		_buffer.clear();
 	}
 }
 
-std::string	Request::getHost(void) const {
+std::string	Request::getHost(void) const
+{
 	std::string	host;
 	try
 	{
@@ -691,43 +714,58 @@ std::string	Request::getHost(void) const {
 	return host;
 }
 
-int	Request::getFd(void) const {
+int	Request::getFd(void) const
+{
 	return _fd;
 }
 
-int	Request::getServerFd(void) const {
+int	Request::getServerFd(void) const
+{
 	return _serverFd;
 }
 
-bool	Request::getKeepAlive(void) const {
+bool	Request::getKeepAlive(void) const
+{
 	return _keepAlive;
 }
 
-RequestStatus	Request::getStatus(void) const {
+bool	Request::isHeadersCompleted(void) const
+{
+	return (_completeHeaders);
+}
+
+RequestStatus	Request::getStatus(void) const
+{
 	return _status;
 }
 
-void	Request::setStatus(RequestStatus status) {
+void	Request::setStatus(RequestStatus status)
+{
 	_status = status;
 }
 
-std::string const	&Request::getBuffer(void) const {
+std::string const	&Request::getBuffer(void) const
+{
 	return _buffer;
 }
 
-RequestMethod	Request::getRequestMethod() const {
+RequestMethod	Request::getRequestMethod() const
+{
 	return _request.method;
 }
 
-std::string const	&Request::getHttpVersion() const {
+std::string const	&Request::getHttpVersion() const
+{
 	return _request.httpVersion;
 }
 
-std::string const	&Request::getBody() const {
+std::string const	&Request::getBody() const
+{
 	return _body;
 }
 
-std::string const	&Request::getTarget() const {
+std::string const	&Request::getTarget() const
+{
 	return _request.target;
 }
 
@@ -740,55 +778,34 @@ std::vector<std::string> const	*Request::getHeader(std::string const &key) const
 	}
 }
 
-void	Request::setUploadFD(std::unique_ptr<std::ofstream> outfile) {
-	_uploadFD = std::move(outfile);
-}
-
-std::ofstream*	Request::getUploadFD(void) {
-	return (_uploadFD.get());
-}
-
-size_t	Request::getCurrentUploadPosition(void) {
-	return (_curr_upload_pos);
-}
-
-void	Request::setCurrentUploadPosition(size_t pos) {
-	_curr_upload_pos = pos;
-}
-
-bool	Request::isHeadersCompleted(void) const {
-	return (_completeHeaders);
-}
-
-size_t	Request::getContentLength(void) const {
-	if(_contentLen.has_value())
+size_t	Request::getContentLength(void) const
+{
+	if (_contentLen.has_value())
 		return (_contentLen.value());
 	return (0);
 }
 
-void	Request::setUploadDir(std::string path) {
+void	Request::setUploadDir(std::string path)
+{
 	_uploadDir = path;
 }
 
-std::string	Request::getUploadDir(void) {
-	return (_uploadDir);
-}
+void	Request::handleFileUpload(void)
+{
 
-void	Request::handleFileUpload(void) {
+	std::string	partDelimiter	= "--" + _boundary.value();
+	std::string	endDelimiter	= partDelimiter + "--";
+	size_t		currPos			= _currUploadPos;
 
-	std::string partDelimiter = "--" + _boundary.value();
-	std::string endDelimiter =  partDelimiter + "--";
-
-	size_t currPos = this->getCurrentUploadPosition();
 	while (true) {
 		size_t partStart = _buffer.find(partDelimiter, currPos);
 
-		if(partStart == std::string::npos) {
+		if (partStart == std::string::npos) {
 			_status = RequestStatus::WaitingData;
 			break;
 		}
 
-		if(_buffer.compare(partStart, endDelimiter.length(), endDelimiter) == 0) {
+		if (_buffer.compare(partStart, endDelimiter.length(), endDelimiter) == 0) {
 			_status = RequestStatus::CompleteReq;
 			// Remove only the processed multipart data including end delimiter
 			_buffer.erase(0, partStart + endDelimiter.length());
@@ -802,13 +819,13 @@ void	Request::handleFileUpload(void) {
 
 		size_t headerStart = partStart + partDelimiter.length();
 
-		if(_buffer.substr(headerStart, 2) == "\r\n") {
+		if (_buffer.substr(headerStart, 2) == "\r\n") {
 			headerStart += 2;
 		}
 
 		size_t partEnd = _buffer.find(partDelimiter, headerStart);
 
-		if(partEnd == std::string::npos) {
+		if (partEnd == std::string::npos) {
 			_status = RequestStatus::WaitingData;
 			break;
 		}
@@ -824,18 +841,18 @@ void	Request::handleFileUpload(void) {
 		MultipartPart mp;
 		size_t header_end = raw_part.find("\r\n\r\n");
 
-		if(header_end != std::string::npos) {
+		if (header_end != std::string::npos) {
 			mp.headers = raw_part.substr(0, header_end);
 			mp.data = raw_part.substr(header_end + 4);
 			mp.name = extractQuotedValue(mp.headers, "name=");
 			mp.filename = extractQuotedValue(mp.headers, "filename=");
 			mp.contentType = extractValue(mp.headers, "Content-Type: ");
 		}
-		if(_uploadFD) {
+		if (_uploadFD) {
 			try {
+				std::ofstream*	ofs = _uploadFD.get();
 
-				std::ofstream* ofs = this->getUploadFD();
-				if(ofs) {
+				if (ofs) {
 					saveToDisk(mp, *ofs);
 				} else {
 					ERROR_LOG("Upload FD became null unexpectedly");
@@ -850,20 +867,20 @@ void	Request::handleFileUpload(void) {
 			}
 		} else {
 			try {
-				auto fd = initialSaveToDisk(mp, getUploadDir());
+				auto fd = initialSaveToDisk(mp, _uploadDir);
 				if (!fd) {
 					ERROR_LOG("Failed to initialize upload file descriptor");
 					_status = RequestStatus::Error;
 					return;
 				}
-				this->setUploadFD(std::move(fd));
+				_uploadFD = std::move(fd);
 			} catch (const std::exception& e) {
 				ERROR_LOG("Failed to initialize upload: " + std::string(e.what()));
 				_status = RequestStatus::Error;
 				return;
 			}
 		}
-		this->setCurrentUploadPosition(partEnd);
+		_currUploadPos = partEnd;
 		currPos = partEnd;
 	}
 }

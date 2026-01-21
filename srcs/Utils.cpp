@@ -316,9 +316,9 @@ bool	isValidImfFixdate(std::string_view sv)
 	if (hours > 23 || minutes > 59 || seconds > 59)
 		return false;
 
-	// RFC 7231: IMF-fixdate timestamps must use GMT as the timezone
 	if (parts[5] != "GMT")
 		return false;
+
 	return true;
 }
 
@@ -404,7 +404,7 @@ bool	isPositiveDoubleLiteral(std::string_view sv)
 	bool	hasWholePart		= false;
 	bool	hasFractionalPart	= false;
 
-	if(sv.empty()) {
+	if (sv.empty()) {
 		return false;
 	}
 
@@ -441,48 +441,51 @@ bool	isPositiveDoubleLiteral(std::string_view sv)
 /**
  * helper function to extract a value from a string based on a prefix
 */
-std::string extractValue(const std::string& source, const std::string& key) {
-	size_t pos = source.find(key);
+std::string	extractValue(const std::string& source, const std::string& key)
+{
+	size_t	pos = source.find(key);
 
-	if(pos == std::string::npos) {
+	if (pos == std::string::npos) {
 		return ("");
 	}
-
 	pos += key.length();
-	size_t end = source.find_first_of("\r\n,;", pos);
+
+	size_t	end = source.find_first_of("\r\n,;", pos);
+
 	return (source.substr(pos, end - pos));
 }
 
 /**
  * helper function to extract a quoted value from a string based on a prefix
 */
-std::string extractQuotedValue(const std::string& source, const std::string& key) {
-	size_t pos = source.find(key);
+std::string	extractQuotedValue(const std::string& source, const std::string& key)
+{
+	size_t	pos = source.find(key);
 
-	if(pos == std::string::npos) {
+	if (pos == std::string::npos) {
 		return ("");
 	}
 
 	pos += key.length();
 
-	size_t quote_start = source.find('"', pos);
-	
-	if(quote_start == std::string::npos) {
+	size_t	quote_start = source.find('"', pos);
+
+	if (quote_start == std::string::npos) {
 		return ("");
 	}
 
-	size_t quote_end = source.find('"', quote_start + 1);
+	size_t	quote_end = source.find('"', quote_start + 1);
 
-	if(quote_end == std::string::npos) {
+	if (quote_end == std::string::npos) {
 		return ("");
 	}
 
 	return (source.substr(quote_start + 1, quote_end - quote_start - 1));
 }
 
-bool saveToDisk(const MultipartPart& part, std::ofstream& outfile) {
-	
-	if(!outfile.is_open()) {
+bool	saveToDisk(const MultipartPart& part, std::ofstream& outfile)
+{
+	if (!outfile.is_open()) {
 		throw std::runtime_error(DEBUG_LOG("File " + part.filename + " save process failed!"));
 	}
 	outfile.write(part.data.c_str(), part.data.size());
@@ -493,15 +496,15 @@ bool saveToDisk(const MultipartPart& part, std::ofstream& outfile) {
 	return (true);
 }
 
-std::unique_ptr<std::ofstream> initialSaveToDisk(const MultipartPart& part, const std::string& path) {
-	if(part.filename.empty()) {
+std::unique_ptr<std::ofstream>	initialSaveToDisk(const MultipartPart& part, const std::string& path) {
+	if (part.filename.empty()) {
 		return (nullptr);
 	}
 
 	std::string dir_name = path;			// destination to save the file
-	
+
 	try {
-		if(!std::filesystem::exists(dir_name)) {		// will create if not exists
+		if (!std::filesystem::exists(dir_name)) {		// will create if not exists
 			std::filesystem::create_directories(dir_name);
 		}
 	} catch (const std::filesystem::filesystem_error& e) {
@@ -530,7 +533,7 @@ std::unique_ptr<std::ofstream> initialSaveToDisk(const MultipartPart& part, cons
 	// file handler to write data
 	std::unique_ptr<std::ofstream> outfile = std::make_unique<std::ofstream>(unique_path, std::ios::binary);
 
-	if(outfile && outfile->is_open()) {
+	if (outfile && outfile->is_open()) {
 		outfile->write(part.data.c_str(), part.data.size());
 		if (outfile->good()) {
 			DEBUG_LOG("File " + part.filename + " initial write successful!");
@@ -540,7 +543,7 @@ std::unique_ptr<std::ofstream> initialSaveToDisk(const MultipartPart& part, cons
 			return (nullptr);
 		}
 	} else {
-		DEBUG_LOG("File " + part.filename + " save process failed!");		
+		DEBUG_LOG("File " + part.filename + " save process failed!");
 		return (nullptr);
 	}
 	return (outfile);
