@@ -11,6 +11,7 @@
 #include <fstream>
 #include <cerrno>
 #include <cstring>
+#include <iostream>
 
 /**
  * The IMF fixdate is the preferred format for HTTP timestamps
@@ -427,7 +428,7 @@ bool	isPositiveDoubleLiteral(std::string_view sv)
 
 	try {
 		std::stod(std::string(sv));
-	} catch ( std::exception const &e ) {
+	} catch (std::exception const &e) {
 		return false;
 	}
 

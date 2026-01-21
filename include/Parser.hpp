@@ -5,7 +5,6 @@
 #include <cctype>
 #include <string>
 #include <vector>
-#include <stack>
 #include <map>
 
 #include "CustomException.hpp"
@@ -17,16 +16,25 @@
  */
 #define EXTENSION "json"
 
+struct Route {
+	std::string					original;
+	std::string					target;
+	std::vector<std::string>	allowedMethods;
+};
+
 struct Config {
-	std::string	host;		// IP or hostname on which this server listens, e.g. "0.0.0.0" or "127.0.0.1"
-	std::string	serverName;	// List of server names (virtual hosts) handled by this server eg : {"example.com", "www.example.com"}
+	std::string	host;		// IP on which this server listens, e.g. "0.0.0.0", "127.0.0.1" or "localhost"
+	std::string	serverName;	// Assigned name of server in config file, e.g. "localhost" or "www.example.com"
+	std::string	uploadDir;	// Activates or deactivates upload directory behavior
 
 	uint16_t	port = 0;	// Port on which this server listens
 
-	std::map<std::string, std::string>	status_pages;	// Mapping from HTTP status code to custom page path.
-	std::map<std::string, std::string>	routes;			// Set of routes (URI -> path definitions) for this server.
+	std::map<std::string, std::string>	statusPages;	// Mapping from HTTP status code to custom page path.
+	std::map<std::string, Route>		routes;			// Set of routes (URI -> path definitions) for this server.
 
-	size_t	client_max_body_size = 0;	// Default maximum allowed size (in bytes) of the request body for this server
+	std::vector<std::string>	allowedMethods;
+
+	size_t	requestMaxBodySize	= 0;	// in bytes
 
 	bool	directoryListing	= false;
 	bool	autoindex			= false;
@@ -78,17 +86,13 @@ public:
 	 * First version of getter method to get a final server configuration information. As the first
 	 * version only return some dummy values to start implementing Main loop for Sonja
 	 */
-	const Config& getServerConfig(size_t index);
-
+	const Config&				getServerConfig(size_t index);
 	const std::vector<Config>	&getServerConfigs(void) const;
+	std::vector<std::string>	getCollectionBykey(const Token& root, const std::string& key);
+	size_t						getNumberOfServerConfigs(void);
 
-	size_t getNumberOfServerConfigs(void);
+	Config	convertToServerData(const Token& server);
 
-	Config convertToServerData(const Token& server);
-
-	std::vector<std::string> getCollectionBykey(const Token& root, const std::string& key);
-
-	bool isValidJSONString(std::string_view sv);
-
-	bool isPrimitiveValue(std::string_view sv);
+	bool	isValidJSONString(std::string_view sv);
+	bool	isPrimitiveValue(std::string_view sv);
 };
