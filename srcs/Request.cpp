@@ -773,22 +773,22 @@ std::string	Request::getUploadDir(void) {
 
 void	Request::handleFileUpload(void) {
 
-	std::string part_delimeter = "--" + _boundary.value();
-	std::string end_delimeter =  part_delimeter + "--";
+	std::string partDelimeter = "--" + _boundary.value();
+	std::string endDelimeter =  partDelimeter + "--";
 
-	size_t curr_pos = this->getCurrentUploadPosition();
+	size_t currPos = this->getCurrentUploadPosition();
 	while (true) {
-		size_t part_start = _buffer.find(part_delimeter, curr_pos);
+		size_t partStart = _buffer.find(partDelimeter, currPos);
 		
-		if(part_start == std::string::npos) {
+		if(partStart == std::string::npos) {
 			_status = RequestStatus::WaitingData;
 			break;
 		}
 
-		if(_buffer.compare(part_start, end_delimeter.length(), end_delimeter) == 0) {
+		if(_buffer.compare(partStart, endDelimeter.length(), endDelimeter) == 0) {
 			_status = RequestStatus::CompleteReq;
 			// Remove only the processed multipart data including end delimiter
-			_buffer.erase(0, part_start + end_delimeter.length());
+			_buffer.erase(0, partStart + endDelimeter.length());
 			// Skip trailing CRLF if present
 			
 			if (_buffer.size() >= 2 && _buffer.compare(0, 2, "\r\n") == 0) {
@@ -797,26 +797,26 @@ void	Request::handleFileUpload(void) {
 			break;
 		}
 
-		size_t header_start = part_start + part_delimeter.length();
+		size_t headerStart = partStart + partDelimeter.length();
 		
-		if(_buffer.substr(header_start, 2) == "\r\n") {
-			header_start += 2;
+		if(_buffer.substr(headerStart, 2) == "\r\n") {
+			headerStart += 2;
 		}
 
-		size_t part_end = _buffer.find(part_delimeter, header_start);
+		size_t partEnd = _buffer.find(partDelimeter, headerStart);
 
-		if(part_end == std::string::npos) {
+		if(partEnd == std::string::npos) {
 			_status = RequestStatus::WaitingData;
 			break;
 		}
 
-		if ((part_end - header_start) < 2) {
+		if ((partEnd - headerStart) < 2) {
 			_status = RequestStatus::Error;
 			_keepAlive = false;
 			return;
 		}
 
-		std::string raw_part = _buffer.substr(header_start, part_end - (header_start + 2));
+		std::string raw_part = _buffer.substr(headerStart, partEnd - (headerStart + 2));
 
 		MultipartPart mp;
 		size_t header_end = raw_part.find("\r\n\r\n");
@@ -860,7 +860,7 @@ void	Request::handleFileUpload(void) {
 				return;
 			}
 		}
-		this->setCurrentUploadPosition(part_end);
-		curr_pos = part_end;
+		this->setCurrentUploadPosition(partEnd);
+		currPos = partEnd;
 	} 
 }
