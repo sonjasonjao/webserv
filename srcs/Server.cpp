@@ -249,7 +249,7 @@ void	Server::handleClientData(size_t& i)
 	{
 		auto it = getRequestByFd(_pfds[i].fd);
 
-		if (it ==_clients.end())
+		if (it == _clients.end())
 			throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 				+ std::to_string(_pfds[i].fd)));
 
