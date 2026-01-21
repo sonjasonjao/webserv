@@ -5,14 +5,15 @@
 #include "Parser.hpp"
 
 enum ResponseCode : int {
-	Unassigned		= -1,
-	OK				= 200,
-	NoContent		= 204,
-	BadRequest		= 400,
-	Forbidden		= 403,
-	NotFound		= 404,
-	RequestTimeout	= 408,
-	ContentTooLarge	= 413,
+	Unassigned			= -1,
+	OK					= 200,
+	NoContent			= 204,
+	BadRequest			= 400,
+	Forbidden			= 403,
+	NotFound			= 404,
+	RequestTimeout		= 408,
+	ContentTooLarge		= 413,
+	InternalServerError	= 500,
 };
 
 class Response {
@@ -24,7 +25,7 @@ public:
 	~Response() = default;
 
 	std::string const	&getContent() const;
-	int					getResponseCode() const;
+	int					getStatusCode() const;
 
 	void	sendToClient();
 	bool	sendIsComplete() const;

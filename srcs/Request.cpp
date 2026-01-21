@@ -8,9 +8,9 @@
 constexpr char const * const	CRLF = "\r\n";
 
 /**
- * Initializes attribute values for request. Http version is now by default initialized to HTTP/1.1,
- * so if the http version given in the request is invalid, 1.1 will be used to send the error page
- * response.
+ * Initializes attribute values for request. Http version is HTTP/1.1 by default,
+ * so if the http version given in the request is invalid, 1.1 will be used to send the error
+ * page response.
  */
 Request::Request(int fd, int serverFd) : _fd(fd), _serverFd(serverFd), _headerSize(0),
 	_keepAlive(false), _chunked(false), _completeHeaders(false) {
@@ -32,8 +32,7 @@ void	Request::saveRequest(std::string const& buf) {
 /**
  * Checks whether the buffer so far includes "\r\n\r\n". If not, and the headers section hasn't
  * been received completely (ending with "\r\n\r\n"), we assume the request is partial. In that
- * case, Host header is filled, so if the completing part of request never arrives, Host is
- * available for error page response forming.
+ * case, we go back to poll() to wait for the rest of the response before parsing.
  */
 void	Request::handleRequest(void) {
 	if (_buffer.find("\r\n\r\n") == std::string::npos && !_completeHeaders) {
@@ -44,8 +43,8 @@ void	Request::handleRequest(void) {
 }
 
 /**
- * After receiving and parsing a complete request, and handling it (= building a response and
- * sending it), these properties of the current client are reset for a possible following request.
+ * After receiving and parsing a complete request, and building a response,
+ * these properties of the current client are reset for a possible following request.
  */
 void	Request::reset(void) {
 	_request.target.clear();
@@ -69,6 +68,13 @@ void	Request::resetKeepAlive(void) {
 	_keepAlive = false;
 }
 
+void	Request::setStatusAndKeepAlive(RequestStatus status, bool clearBuffer) {
+	_status = status;
+	_keepAlive = false;
+	if (clearBuffer)
+		_buffer.clear();
+}
+
 /**
  * In handleConnections, each client fd is checked for possible timeouts by comparing
  * the stored _idleStart, _recvStart, and _sendStart with the current time stamp. Helper
@@ -81,36 +87,33 @@ void	Request::checkReqTimeouts(void) {
 	auto		durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	timePoint	init = {};
 	if (durMs.count() > IDLE_TIMEOUT) {
-		_status = RequestStatus::IdleTimeout;
 		DEBUG_LOG("Idle timeout with client fd " + std::to_string(_fd));
-		_keepAlive = false;
+		setStatusAndKeepAlive(RequestStatus::IdleTimeout, false);
 		return;
 	}
 	diff = now - _recvStart;
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	if (_recvStart != init && durMs.count() > RECV_TIMEOUT) {
-		_status = RequestStatus::RecvTimeout;
 		DEBUG_LOG("Recv timeout with client fd " + std::to_string(_fd));
-		_keepAlive = false;
+		setStatusAndKeepAlive(RequestStatus::RecvTimeout, false);
 		return;
 	}
 	diff = now - _sendStart;
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	if (_sendStart != init && durMs.count() > SEND_TIMEOUT) {
-		_status = RequestStatus::SendTimeout;
 		DEBUG_LOG("Send timeout with client fd " + std::to_string(_fd));
-		_keepAlive = false;
+		setStatusAndKeepAlive(RequestStatus::SendTimeout, false);
 	}
 }
 
 /**
  * Helper to extract a string until delimiter from buffer. Returns the extracted string
- * until delimiter and updates _buffer by removing that extracted string.
+ * and updates _buffer by removing that extracted string.
  */
 std::string	extractFromLine(std::string& orig, std::string delim)
 {
-	auto it = orig.find(delim);
 	std::string tmp = "";
+	auto it = orig.find(delim);
 	if (it != std::string::npos)
 	{
 		tmp = orig.substr(0, it);
@@ -123,7 +126,7 @@ std::string	extractFromLine(std::string& orig, std::string delim)
 }
 
 /**
- * Validates and parses different sections of the request. After the last valid
+ * Validates and parses request section by section. After the last valid
  * header line, if there is remaining data, and content-length is found in headers, that length
  * of data is stored in _body - if chunked is found in headers, the rest is handled as chunks.
  */
@@ -142,33 +145,25 @@ void	Request::parseRequest(void) {
 		_buffer.clear();
 		return;
 	}
-	if (!_contentLen.has_value() && !_chunked)
-		_status = RequestStatus::CompleteReq;
-	else if (_contentLen.has_value() && _contentLen.value() > CLIENT_MAX_BODY_SIZE)
-	{
-		_status = RequestStatus::Invalid;
-		_keepAlive = false;
-		_buffer.clear();
-		return;
+	if (!_contentLen.has_value() && !_chunked) {
+		if (_buffer.empty())
+			_status = RequestStatus::CompleteReq;
+		else
+			setStatusAndKeepAlive(RequestStatus::Invalid, true);
 	}
 	else if (!_buffer.empty() && (_contentLen.has_value() && _body.size() < _contentLen.value())) {
 		size_t	missingLen = _contentLen.value() - _body.size();
-		if (missingLen < _buffer.size()) {
-			std::string	toAdd = _buffer.substr(0, missingLen);
-			_body += toAdd;
-			_buffer = _buffer.substr(missingLen);
+		if (missingLen != _buffer.size()) {
+			setStatusAndKeepAlive(RequestStatus::Invalid, true);
+			return;
 		}
 		else {
 			_body += _buffer;
 			_buffer.clear();
 		}
-		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
-			_status = RequestStatus::ContentTooLarge;
-			_keepAlive = false;
-			_buffer.clear();
-			return;
-		}
-		if (_body.size() < _contentLen.value())
+		if (_body.size() > CLIENT_MAX_BODY_SIZE)
+			setStatusAndKeepAlive(RequestStatus::ContentTooLarge, false);
+		else if (_body.size() < _contentLen.value())
 			_status = RequestStatus::WaitingData;
 		else if (_body.size() == _contentLen.value())
 			_status = RequestStatus::CompleteReq;
@@ -183,20 +178,18 @@ void	Request::parseRequest(void) {
  * and HTTP version.
  */
 void	Request::parseRequestLine(std::string &req) {
-	std::string					method, target, httpVersion;
+	std::string method, target, httpVersion;
 	std::vector<std::string>	methods = { "GET", "POST", "DELETE" };
-
-	method		= extractFromLine(req, " ");
-	target		= extractFromLine(req, " ");
-	httpVersion	= req;
-
+	method = extractFromLine(req, " ");
+	target = extractFromLine(req, " ");
+	httpVersion = req;
 	if (method.empty() || target.empty() || httpVersion.empty()) {
 		_status = RequestStatus::Invalid;
 		return;
 	}
-
-	size_t	i = 0;
-	for (; i < methods.size(); i++)
+	_request.methodString = method;
+	size_t i = 0;
+	for (i = 0; i < methods.size(); i++)
 	{
 		if (methods[i] == method)
 			break;
@@ -213,7 +206,7 @@ void	Request::parseRequestLine(std::string &req) {
 			_request.method = RequestMethod::Delete;
 			break;
 		default:
-			_status = RequestStatus::Forbidden;
+			_status = RequestStatus::Invalid;
 			return;
 	}
 	if (!validateAndAssignTarget(target) || !validateAndAssignHttp(httpVersion))
@@ -238,8 +231,7 @@ void	Request::parseHeaders(std::string& str) {
 		headEnd = str.size();
 	_headerSize = headEnd;
 	if (_headerSize > HEADERS_MAX_SIZE) {
-		_status = RequestStatus::Invalid;
-		_keepAlive = false;
+		setStatusAndKeepAlive(RequestStatus::Invalid, false);
 		return;
 	}
 	while (!str.empty()) {
@@ -251,21 +243,26 @@ void	Request::parseHeaders(std::string& str) {
 		line = extractFromLine(str, CRLF);
 		const size_t point = line.find(":");
 		if (point == std::string::npos) {
-			_status = RequestStatus::Error;
-			_keepAlive = false;
+			setStatusAndKeepAlive(RequestStatus::Error, false);
 			return;
 		}
 		std::string	key = line.substr(0, point);
 		for (size_t i = 0; i < key.size(); i++)
 			key[i] = std::tolower(static_cast<unsigned char>(key[i]));
-		std::string value = line.substr(point + 2, line.size() - (point + 2));
+		if (line.length() <= point + 1) {
+			setStatusAndKeepAlive(RequestStatus::Invalid, false);
+			return;
+		}
+		std::string value = line.substr(point + 1, line.size() - (point + 1));
+		auto realStart = value.find_first_not_of(' ');
+		if (realStart != 0)
+			value = value.substr(realStart);
 		if (key != "content-type") {
 			for (size_t i = 0; i < value.size(); i++)
 				value[i] = std::tolower(static_cast<unsigned char>(value[i]));
 		}
 		if (_headers.find(key) != _headers.end() && isUniqueHeader(key)) {
-			_status = RequestStatus::Invalid;
-			_keepAlive = false;
+			setStatusAndKeepAlive(RequestStatus::Invalid, false);
 			return;
 		}
 		std::istringstream	values(value);
@@ -295,11 +292,8 @@ void	Request::parseHeaders(std::string& str) {
 	}
 	if (!_completeHeaders)
 		_status = RequestStatus::WaitingData;
-	if (_headers.empty() || !validateHeaders()) {
-		_status = RequestStatus::Invalid;
-		_keepAlive = false;
-		return;
-	}
+	if (_headers.empty() || !validateHeaders())
+		setStatusAndKeepAlive(RequestStatus::Invalid, false);
 }
 
 /**
@@ -319,18 +313,13 @@ void	Request::parseChunked(void) {
 				}
 				catch (const std::exception& e)
 				{
-					ERROR_LOG(e.what());
-					_status = RequestStatus::Invalid;
-					_keepAlive = false;
-					_buffer.clear();
+					setStatusAndKeepAlive(RequestStatus::Invalid, true);
 					return;
 				}
 				_buffer = _buffer.substr(pos + 2);
 				std::string	tmp = extractFromLine(_buffer, CRLF);
 				if (tmp.size() != len) {
-					_status = RequestStatus::Invalid;
-					_keepAlive = false;
-					_buffer.clear();
+					setStatusAndKeepAlive(RequestStatus::Invalid, true);
 					return;
 				}
 				_body += tmp;
@@ -347,18 +336,13 @@ void	Request::parseChunked(void) {
 				}
 				catch (const std::exception& e)
 				{
-					ERROR_LOG(e.what());
-					_status = RequestStatus::Invalid;
-					_keepAlive = false;
-					_buffer.clear();
+					setStatusAndKeepAlive(RequestStatus::Invalid, true);
 					return;
 				}
 				_buffer = _buffer.substr(pos + 2);
 				std::string	tmp = extractFromLine(_buffer, CRLF);
 				if (tmp.size() != len) {
-					_status = RequestStatus::Invalid;
-					_keepAlive = false;
-					_buffer.clear();
+					setStatusAndKeepAlive(RequestStatus::Invalid, true);
 					return;
 				}
 				_body += tmp;
@@ -367,12 +351,16 @@ void	Request::parseChunked(void) {
 			_body += extractFromLine(_buffer, "0\r\n\r\n");
 			_status = RequestStatus::CompleteReq;
 		}
-		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
-			_status = RequestStatus::ContentTooLarge;
-			_keepAlive = false;
-			_buffer.clear();
+		else if (finder == std::string::npos && pos == std::string::npos) {
+			setStatusAndKeepAlive(RequestStatus::Invalid, true);
 			return;
 		}
+		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
+			setStatusAndKeepAlive(RequestStatus::ContentTooLarge, false);
+			return;
+		}
+		if (!_buffer.empty())
+			setStatusAndKeepAlive(RequestStatus::Invalid, true);
 	}
 }
 
@@ -421,10 +409,6 @@ bool	Request::validateHeaders(void) {
 	auto	it = _headers.find("host");
 	if (_request.httpVersion == "HTTP/1.1" && (it == _headers.end() || it->second.empty()))
 		return false;
-	for (auto const& [key, values] : _headers) {
-		if (values.size() > 1 && isUniqueHeader(key))
-			return false;
-	}
 	if (!fillKeepAlive())
 		return false;
 	it = _headers.find("content-length");
@@ -435,7 +419,6 @@ bool	Request::validateHeaders(void) {
 		}
 		catch(const std::exception& e)
 		{
-			ERROR_LOG(e.what());
 			return false;
 		}
 	}
@@ -501,8 +484,8 @@ bool	Request::isUniqueHeader(std::string const& key) {
 	};
 	auto	it = uniques.find(key);
 	if (it != uniques.end())
-		return true;
-	return false;
+		return true ;
+	return false ;
 }
 
 /**
@@ -513,9 +496,9 @@ bool	Request::areValidChars(std::string& s) {
 	{
 		if (s[i] < 32 || s[i] >= 127 || s[i] == '<' || s[i] == '>'
 			|| s[i] == '"' || s[i] == '\\')
-			return false;
+			return false ;
 	}
-	return true;
+	return true ;
 }
 
 /**
@@ -524,7 +507,7 @@ bool	Request::areValidChars(std::string& s) {
  * protocol.
  *
  * In case the URI includes '?', we use it as a separator to get the query.
- * We must later split the possible query with '&' which separates different queries.
+ * Later in CGI handler, the possible query will be split with &'s.
  */
 bool	Request::validateAndAssignTarget(std::string& target) {
 	if (target.size() == 1 && target != "/")
@@ -554,7 +537,7 @@ bool	Request::validateAndAssignTarget(std::string& target) {
  */
 bool	Request::validateAndAssignHttp(std::string& httpVersion) {
 	if (!std::regex_match(httpVersion, std::regex("HTTP/1.([01])")))
-		return false;
+		return false ;
 	_request.httpVersion = httpVersion;
 	return true;
 }
@@ -655,13 +638,6 @@ void	Request::resetSendStart(void) {
 	_sendStart = {};
 }
 
-void	Request::resetBuffer(void) {
-	if (!_buffer.empty()) {
-		INFO_LOG("The remaining request data in buffer following one complete request will be discarded");
-		_buffer.clear();
-	}
-}
-
 std::string	Request::getHost(void) const {
 	std::string	host;
 	try
@@ -670,7 +646,7 @@ std::string	Request::getHost(void) const {
 	}
 	catch(const std::exception& e)
 	{
-		ERROR_LOG(std::string("Error in matching request host to configuration: ") + e.what());
+		ERROR_LOG("unexpected error in matching request host to configuration");
 	}
 	return host;
 }
@@ -720,7 +696,10 @@ std::vector<std::string> const	*Request::getHeader(std::string const &key) const
 	try {
 		return &_headers.at(key);
 	} catch (std::exception const &e) {
-		ERROR_LOG(e.what());
 		return nullptr;
 	}
+}
+
+std::string const	&Request::getMethodString(void) const {
+	return _request.methodString;
 }

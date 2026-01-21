@@ -207,7 +207,7 @@ Config Parser::convertToServerData(const Token& block) {
 			"client_max_body_size"
 		};
 
-		/* ---- Pure string fields ---- */
+		/* ---- String fields ---- */
 		if (std::find(pureStringFields.begin(), pureStringFields.end(), key) != pureStringFields.end()) {
 
 			if (tok.type != TokenType::Value)
@@ -290,6 +290,8 @@ Config Parser::convertToServerData(const Token& block) {
 
 				DEBUG_LOG("\t\t" + pageNumber + " -> " + route);
 				config.statusPages[pageNumber] = route;
+
+				continue;
 			}
 		} /* ---- Routes ---- */
 		else if (key == "routes") {
@@ -348,7 +350,7 @@ Config Parser::convertToServerData(const Token& block) {
 							route.allowedMethods.emplace_back(a.value);
 						}
 					}
-				}
+				} // Target or allowed methods missing -> error
 				if (route.target.empty() || route.allowedMethods.empty())
 					throw ParserException(ERROR_LOG("\t\t\tBad route configuration"));
 
@@ -358,8 +360,11 @@ Config Parser::convertToServerData(const Token& block) {
 					DEBUG_LOG("\t\t\t" + a);
 
 				config.routes[uri] = route;
-			} /* ---- Allowed methods ---- */
-		} else if (key == "allowed_methods") {
+
+				continue;
+			}
+		} /* ---- Allowed methods server level ---- */
+		else if (key == "allowed_methods") {
 			if (tok.type != TokenType::Array)
 				throw ParserException(ERROR_LOG("\tInvalid token type for '" + key + "'"));
 
@@ -374,6 +379,8 @@ Config Parser::convertToServerData(const Token& block) {
 			DEBUG_LOG("\tAllowed methods");
 			for (auto const &a : config.allowedMethods)
 				DEBUG_LOG("\t\t" + a);
+
+			continue;
 		} /* ---- Everything else ---- */
 		else {
 			if (key != "listen")

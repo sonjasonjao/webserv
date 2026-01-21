@@ -16,17 +16,22 @@
 constexpr char const * const	CRLF = "\r\n";
 
 static Route				getRoute(std::string uri, Config const &conf);
-static std::string			route(std::string target, Config const &conf);
 static std::string const	&getResponsePageContent(std::string const &key, Config const &conf);
 static std::string			getContentType(std::string sv);
 static std::string			getDirectoryList(std::string_view target, std::string_view route);
 static void					listify(std::vector<std::string> const &vec, size_t offset, std::stringstream &stream);
 
+/**
+ * Main functionality for response forming. Categorizes links information from the source request
+ * and matching configuration, validates relevant fields, picks the correct response status code,
+ * and constructs the matching response content buffer.
+ */
 Response::Response(Request const &req, Config const &conf) : _req(req), _conf(conf)
 {
 	static std::string	startDir = std::filesystem::current_path();
 
-	// If request has already been flagged as bad don't continue
+	/* --------------------------------------------- Already flagged requests */
+
 	switch (req.getStatus()) {
 		case RequestStatus::ContentTooLarge:	_statusCode = ContentTooLarge;	break;
 		case RequestStatus::Invalid:			_statusCode = BadRequest;		break;
@@ -35,20 +40,23 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	}
 	if (_statusCode != Unassigned) {
 		formResponse();
+
+		#ifdef DEBUG_LOG
 		std::cout << "\n---- Response content ----\n";
 		if (_contentType.find("image") == std::string::npos)
 			std::cout << _content;
 		else
 			std::cout << "Image data...";
 		std::cout << "\n--------------------------\n\n";
+		#endif
 
 		return;
 	}
 
-	(void)route;
 	std::string	reqTarget = req.getTarget();
 
-	// Be prepared for shenanigans, validate URI format for target early
+	/* ----------------------------------------- Target URI format validation */
+
 	if (!uriFormatOk(reqTarget) || uriTargetAboveRoot(reqTarget)) {
 		DEBUG_LOG("Bad target: " + reqTarget);
 		_statusCode = BadRequest;
@@ -56,6 +64,8 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 
 		return;
 	}
+
+	/* ------------------------------------------------ Target URI sanitation */
 
 	// If the path has any ".." or "./" aka unnecessary parts, remove them
 	_target = std::filesystem::path(reqTarget).lexically_normal();
@@ -65,7 +75,9 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	if (reqTarget.size() > 1 && reqTarget[0] == '/')
 		reqTarget = reqTarget.substr(1);
 
-	// Perform routing, aka mapping of a file or directory to another
+	/* -------------------------------------------------------------- Routing */
+
+	// Look for a route, which is a redirection of a URI/part of a URI to a specific folder or file on the server
 	Route	route = getRoute(_target, _conf);
 
 	// A non empty string signifies a matched route
@@ -83,22 +95,16 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		}
 	}
 
-	// Check for possibly forbidden methods early
+	/* ---------------------------------------------------- Forbidden methods */
+
 	auto const	*okMethods = &route.allowedMethods;
 
+	// If there  is no route level restrictions, look for server level restrictions
 	if (okMethods->size() == 0)
 		okMethods = &_conf.allowedMethods;
 
-	if (!route.original.empty() && okMethods->size() > 0) {
-		RequestMethod	method = _req.getRequestMethod();
-		std::string		methodString;
-
-		switch (method) {
-			case RequestMethod::Get:	methodString = "GET";		break;
-			case RequestMethod::Post:	methodString = "POST";		break;
-			case RequestMethod::Delete:	methodString = "DELETE";	break;
-			default:					methodString = "";			break;
-		}
+	if (okMethods->size() > 0) {
+		std::string	methodString = _req.getMethodString();
 
 		auto const	&m = *okMethods;
 
@@ -113,7 +119,8 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 
 	INFO_LOG("Routing " + reqTarget + " to " + _target);
 
-	// Handle directory listing and/or autoindexing
+	/* ---------------------------------------------------- Directory targets */
+
 	if (std::filesystem::is_directory(_target)) {
 		DEBUG_LOG("Target '" + _target + "' is a directory" );
 		if (!_conf.autoindex && !_conf.directoryListing) {
@@ -135,14 +142,15 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		}
 	}
 
+	/* ------------------------------------------------ Locating the resource */
+
 	std::string	searchDir = startDir;
 
-	// If the route contains a '/' at the beginning define the search dir as root
+	// If the route contains a '/' at the beginning, define the search dir as root
 	if (_target[0] == '/')
 		searchDir = "/";
 
 	// Check if resource can be found and set status code
-	// NOTE: Match allowed methods from route
 	switch (req.getRequestMethod()) {
 		case RequestMethod::Get:
 			if (!Pages::isCached(getAbsPath(_target)) && !resourceExists(_target, searchDir)) {
@@ -174,26 +182,37 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		break;
 	}
 
-	formResponse();
+	formResponse(); /* ---------- Forming the contents of the response buffer */
 
+	#ifdef DEBUG_LOG
 	std::cout << "\n---- Response content ----\n";
 	if (_contentType.find("image") == std::string::npos)
 		std::cout << _content;
 	else
 		std::cout << "Image data...";
 	std::cout << "\n--------------------------\n\n";
+	#endif
 }
 
+/**
+ * @return	Response content buffer string
+ */
 std::string const	&Response::getContent() const
 {
 	return _content;
 }
 
-int	Response::getResponseCode() const
+/**
+ * @return	Response status code
+ */
+int	Response::getStatusCode() const
 {
 	return _statusCode;
 }
 
+/**
+ * Uses previously gathered context to form the response buffer string.
+ */
 void	Response::formResponse()
 {
 	_headerSection =	std::string("Server: ") + _conf.serverName + CRLF;
@@ -261,6 +280,10 @@ void	Response::formResponse()
 	_content = _startLine + CRLF + _headerSection + CRLF + _body;
 }
 
+/**
+ * Function to send response to client, keeps track of already sent bytes and
+ * can be called repeatedly.
+ */
 void	Response::sendToClient()
 {
 	size_t	bytesToSend = _content.length() - _bytesSent;
@@ -279,6 +302,9 @@ void	Response::sendToClient()
 	_bytesSent += bytesSent;
 }
 
+/**
+ * @return	true if all bytes in the response content buffer have been sent, false if not
+ */
 bool	Response::sendIsComplete() const
 {
 	return _bytesSent >= _content.length();
@@ -286,6 +312,10 @@ bool	Response::sendIsComplete() const
 
 /* -------------------------------------------------------------------------- */
 
+/**
+ * @return	Route struct containing the information of the matched route,
+ *			empty struct if no route can be matched
+ */
 static Route	getRoute(std::string uri, Config const &conf)
 {
 	// If the target isn't "/" remove any extra '/' characters, as they don't have any meaning (root access is forbidden)
@@ -317,46 +347,9 @@ static Route	getRoute(std::string uri, Config const &conf)
 	return Route();
 }
 
-static std::string	route(std::string target, Config const &conf)
-{
-	// If the target isn't "/" remove any extra '/' characters, as they don't have any meaning (root access is forbidden)
-	if (target.length() > 1 && target[0] == '/')
-		target = target.substr(1);
-
-	// Check for an exact route for target
-	auto	it = conf.routes.find(target);
-
-	if (it != conf.routes.end())
-		return it->second.target;
-
-	// Check for a partial route for target, exclude possible "/" substitution at this step
-	for (auto const &[key, val] : conf.routes) {
-		if (key == "/")
-			continue;
-
-		auto	pos = target.find(key);
-
-		if (pos != std::string::npos) {
-			target.replace(pos, key.length(), val.target);
-			return target;
-		}
-	}
-
-	// If a route for "/" exists, add the value to the beginning of the target
-	it = conf.routes.find("/");
-	if (it != conf.routes.end()) {
-		std::string	route = it->second.target;
-
-		if (target[0] == '/')
-			target = target.substr(1);
-		if (route.back() == '/')
-			route.pop_back();
-		target = route + "/" + target;
-	}
-
-	return target;
-}
-
+/**
+ * @return	string matching the content type of the target, determined by file extension
+ */
 static std::string	getContentType(std::string target)
 {
 	std::string	contentType			= "text/html";
@@ -386,6 +379,8 @@ static std::string	getContentType(std::string target)
 
 /**
  * NOTE: Assumes that the programmer is using correct error page number strings as keys
+ *
+ * @return	Constant string reference to matching page
  */
 static std::string const	&getResponsePageContent(std::string const &key, Config const &conf)
 {
@@ -406,6 +401,9 @@ static std::string const	&getResponsePageContent(std::string const &key, Config 
 	return Pages::getPageContent("default" + key);
 }
 
+/**
+ * @return	String containing the HTML page with links to the contents of the directory
+ */
 static std::string	getDirectoryList(std::string_view target, std::string_view route)
 {
 	std::vector<std::string>	files;
@@ -453,6 +451,9 @@ static std::string	getDirectoryList(std::string_view target, std::string_view ro
 	return stream.str();
 }
 
+/**
+ * Helper funtion for forming directory lists, creates HTML unordered list out of a vector.
+ */
 static void	listify(std::vector<std::string> const &vec, size_t offset, std::stringstream &stream)
 {
 	stream << "<ul>\n";
