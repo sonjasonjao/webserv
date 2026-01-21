@@ -122,7 +122,7 @@ R"(<!DOCTYPE html>
 	<head>
 	</head>
 	<body>
-		<h1>413: Payload Too Large</h1>
+		<h1>413: Content Too Large</h1>
 		<p>Default fallback page</p>
 	</body>
 </html>
