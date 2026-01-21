@@ -61,23 +61,23 @@ class Request
 
 		int								_fd;
 		int								_serverFd;
-		std::unique_ptr<std::ofstream> 	_uploadFD;
-		size_t							_headerSize;
-		size_t							_curr_upload_pos;
-		std::string						_buffer;
-		struct RequestLine				_request;
-		stringMap						_headers;
-		std::string						_body;
-		std::optional<size_t>			_contentLen;
-		std::optional<std::string>		_boundary;
-		std::string						_uploadDir;
+		RequestStatus					_status;
 		bool							_keepAlive;
 		bool							_chunked;
 		bool							_completeHeaders;
-		RequestStatus					_status;
+		std::unique_ptr<std::ofstream> 	_uploadFD;
 		timePoint						_idleStart;
 		timePoint						_recvStart;
 		timePoint						_sendStart;
+		size_t							_headerSize;
+		size_t							_curr_upload_pos;
+		std::optional<size_t>			_contentLen;
+		stringMap						_headers;
+		struct RequestLine				_request;
+		std::string						_buffer;
+		std::string						_body;
+		std::optional<std::string>		_boundary;
+		std::string						_uploadDir;
 
 	public:
 		Request() = delete;
