@@ -217,7 +217,9 @@ void	Server::handleClientData(size_t& i)
 	if (_clients.empty())
 		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 			+ std::to_string(_pfds[i].fd)));
+	
 	auto it = getRequestByFd(_pfds[i].fd);
+	
 	if (it == _clients.end())
 		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 			+ std::to_string(_pfds[i].fd)));
@@ -246,8 +248,6 @@ void	Server::handleClientData(size_t& i)
 	INFO_LOG("Received client data from fd " + std::to_string(_pfds[i].fd));
 	std::cout << "\n---- Request data ----\n" << buf << "----------------------\n\n";
 	
-	auto it = getRequestByFd(_pfds[i].fd);
-
 	if (it == _clients.end())
 		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 			+ std::to_string(_pfds[i].fd)));
