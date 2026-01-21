@@ -841,6 +841,7 @@ void	Request::handleFileUpload(void) {
 				}
 			} catch (const std::exception& e) {
 				ERROR_LOG("Failed to save upload part: " + std::string(e.what()));
+				_uploadFD->close();
 				_status = RequestStatus::Error;
 				return;
 			}
