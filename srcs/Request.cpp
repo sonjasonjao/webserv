@@ -810,13 +810,13 @@ void	Request::handleFileUpload(void) {
 			break;
 		}
 
-		if (part_end < header_start + 2) {
+		if ((part_end - header_start) < 2) {
 			_status = RequestStatus::Error;
 			_keepAlive = false;
 			return;
 		}
 
-		std::string raw_part = _buffer.substr(header_start, part_end - header_start - 2);
+		std::string raw_part = _buffer.substr(header_start, part_end - (header_start + 2));
 
 		MultipartPart mp;
 		size_t header_end = raw_part.find("\r\n\r\n");
