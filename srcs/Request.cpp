@@ -785,13 +785,14 @@ void	Request::handleFileUpload(void) {
 			break;
 		}
 
-		if(_buffer.substr(part_start, end_delimeter.length()) == end_delimeter) {
+		if(_buffer.compare(part_start, end_delimeter.length(), end_delimeter) == 0) {
 			_status = RequestStatus::CompleteReq;
 			// Remove only the processed multipart data including end delimiter
-			_buffer = _buffer.substr(part_start + end_delimeter.length());
+			_buffer.erase(0, part_start + end_delimeter.length());
 			// Skip trailing CRLF if present
-			if (_buffer.substr(0, 2) == "\r\n") {
-				_buffer = _buffer.substr(2);
+			
+			if (_buffer.size() >= 2 && _buffer.compare(0, 2, "\r\n") == 0) {
+				_buffer = _buffer.erase(0, 2);
 			}
 			break;
 		}
