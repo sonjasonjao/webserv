@@ -6,10 +6,10 @@
             "listen"            : ["8081"],
             "allowed_methods"   : ["GET", "POST"],
 
-            "directory_listing" : true,
-            "autoindex"         : false,
-            "upload_dir"        : "www/test_uploads",
-            "client_max_body_size"                  : 1048576,
+            "directory_listing"     : true,
+            "autoindex"             : false,
+            "upload_dir"            : "www/test_uploads",
+            "client_max_body_size"  : 1048576,
 
             "routes" : {
                 "/"         : "www/pages",
