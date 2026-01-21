@@ -315,6 +315,10 @@ bool	isValidImfFixdate(std::string_view sv)
 
 	if (hours > 23 || minutes > 59 || seconds > 59)
 		return false;
+
+	// RFC 7231: IMF-fixdate timestamps must use GMT as the timezone
+	if (parts[5] != "GMT")
+		return false;
 	return true;
 }
 
