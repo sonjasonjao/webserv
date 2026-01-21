@@ -245,32 +245,31 @@ void	Server::handleClientData(size_t& i)
 
 	INFO_LOG("Received client data from fd " + std::to_string(_pfds[i].fd));
 	std::cout << "\n---- Request data ----\n" << buf << "----------------------\n\n";
-	if (!_clients.empty())
-	{
-		auto it = getRequestByFd(_pfds[i].fd);
+	
+	auto it = getRequestByFd(_pfds[i].fd);
 
-		if (it == _clients.end())
-			throw std::runtime_error(ERROR_LOG("Could not find request with fd "
-				+ std::to_string(_pfds[i].fd)));
+	if (it == _clients.end())
+		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
+			+ std::to_string(_pfds[i].fd)));
 
-		it->setIdleStart();
-		it->setRecvStart();
-		it->saveRequest(std::string(buf, numBytes));
+	it->setIdleStart();
+	it->setRecvStart();
+	it->saveRequest(std::string(buf, numBytes));
 		
-		Config const	&conf = matchConfig(*it);
+	Config const	&conf = matchConfig(*it);
 
-		it->setUploadDir(conf.upload_dir);
-		it->handleRequest();
-		
-		if(it->isHeadersCompleted()) {
-			if(conf.client_max_body_size > 0 && it->getContentLength() > conf.client_max_body_size) {
-				it->setStatus(RequestStatus::ContentTooLarge);
-				ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit "
-				+ std::to_string(conf.client_max_body_size));
-				return;
-			}
+	it->setUploadDir(conf.upload_dir);
+	it->handleRequest();
+	
+	if(it->isHeadersCompleted()) {
+		if(conf.client_max_body_size > 0 && it->getContentLength() > conf.client_max_body_size) {
+			it->setStatus(RequestStatus::ContentTooLarge);
+			ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit "
+			+ std::to_string(conf.client_max_body_size));
+			return;
 		}
 	}
+
 	if (it->getStatus() == RequestStatus::Error)
 	{
 		ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
@@ -282,15 +281,15 @@ void	Server::handleClientData(size_t& i)
 		_clients.erase(it);
 		return;
 	}
+	
 	if (it->getStatus() == RequestStatus::WaitingData)
 	{
 
 		INFO_LOG("Waiting for more data to complete partial request");
 		return;
 	}
-	INFO_LOG("Building response to client fd " + std::to_string(_pfds[i].fd));
 
-	Config const	&conf = matchConfig(*it);
+	INFO_LOG("Building response to client fd " + std::to_string(_pfds[i].fd));
 	DEBUG_LOG("Matched config: " + conf.host + " " + conf.serverName + " " + std::to_string(conf.port));
 	_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
 	it->reset();
