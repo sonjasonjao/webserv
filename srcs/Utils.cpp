@@ -410,7 +410,7 @@ bool	isPositiveDoubleLiteral(std::string_view sv)
 		++i;
 
 	if (std::isdigit(*i))
-		hasWholelPart = true;
+		hasWholePart = true;
 	while (i != sv.end() && isdigit(*i))
 		++i;
 	if (i == sv.end() || *i != '.')
@@ -422,7 +422,7 @@ bool	isPositiveDoubleLiteral(std::string_view sv)
 	while (i != sv.end() && isdigit(*i))
 		++i;
 
-	if (i != sv.end() || (!hasWholelPart && !hasFractionalPart))
+	if (i != sv.end() || (!hasWholePart && !hasFractionalPart))
 		return false;
 
 	try {
@@ -437,7 +437,7 @@ bool	isPositiveDoubleLiteral(std::string_view sv)
 /**
  * helper function to extract a value from a string based on a prefix
 */
-std::string extract_value(const std::string& source, const std::string& key) {
+std::string extractValue(const std::string& source, const std::string& key) {
 	size_t pos = source.find(key);
 
 	if(pos == std::string::npos) {
@@ -452,7 +452,7 @@ std::string extract_value(const std::string& source, const std::string& key) {
 /**
  * helper function to extract a quoted value from a string based on a prefix
 */
-std::string extract_quoted_value(const std::string& source, const std::string& key) {
+std::string extractQuotedValue(const std::string& source, const std::string& key) {
 	size_t pos = source.find(key);
 
 	if(pos == std::string::npos) {
@@ -476,7 +476,7 @@ std::string extract_quoted_value(const std::string& source, const std::string& k
 	return (source.substr(quote_start + 1, quote_end - quote_start - 1));
 }
 
-bool save_to_disk(const MultipartPart& part, std::ofstream& outfile) {
+bool saveToDisk(const MultipartPart& part, std::ofstream& outfile) {
 	
 	if(!outfile.is_open()) {
 		throw std::runtime_error(DEBUG_LOG("File " + part.filename + " save process failed!"));
@@ -489,7 +489,7 @@ bool save_to_disk(const MultipartPart& part, std::ofstream& outfile) {
 	return (true);
 }
 
-std::unique_ptr<std::ofstream> initial_save_to_disk(const MultipartPart& part, const std::string& path) {
+std::unique_ptr<std::ofstream> initialSaveToDisk(const MultipartPart& part, const std::string& path) {
 	if(part.filename.empty()) {
 		return (nullptr);
 	}

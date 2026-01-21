@@ -41,7 +41,7 @@ bool						    isPositiveDoubleLiteral(std::string_view sv);
 std::string					    getFileAsString(std::string const &fileName, std::string searchDir = "");
 std::string					    getAbsPath(std::string const &fileName, std::string searchDir = "");
 
-std::string                     extract_value(const std::string& source, const std::string& key);
-std::string                     extract_quoted_value(const std::string& source, const std::string& key);
-bool                            save_to_disk(const MultipartPart& part, std::ofstream& outfile);
-std::unique_ptr<std::ofstream>  initial_save_to_disk(const MultipartPart& part, const std::string& path);
+std::string                     extractValue(const std::string& source, const std::string& key);
+std::string                     extractQuotedValue(const std::string& source, const std::string& key);
+bool                            saveToDisk(const MultipartPart& part, std::ofstream& outfile);
+std::unique_ptr<std::ofstream>  initialSaveToDisk(const MultipartPart& part, const std::string& path);

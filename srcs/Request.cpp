@@ -824,16 +824,16 @@ void	Request::handleFileUpload(void) {
 		if(header_end != std::string::npos) {
 			mp.headers = raw_part.substr(0, header_end);
 			mp.data = raw_part.substr(header_end + 4);
-			mp.name = extract_quoted_value(mp.headers, "name=");
-			mp.filename = extract_quoted_value(mp.headers, "filename=");
-			mp.content_type = extract_value(mp.headers, "Content-Type: ");
+			mp.name = extractQuotedValue(mp.headers, "name=");
+			mp.filename = extractQuotedValue(mp.headers, "filename=");
+			mp.content_type = extractValue(mp.headers, "Content-Type: ");
 		}
 		if(_uploadFD) {
 			try {
 				
 				std::ofstream* ofs = this->getUploadFD();
 				if(ofs) {
-					save_to_disk(mp, *ofs);
+					saveToDisk(mp, *ofs);
 				} else {
 					ERROR_LOG("Upload FD became null unexpectedly");
 					_status = RequestStatus::Error;
@@ -847,7 +847,7 @@ void	Request::handleFileUpload(void) {
 			}
 		} else {
 			try {
-				auto fd = initial_save_to_disk(mp, getUploadDir());
+				auto fd = initialSaveToDisk(mp, getUploadDir());
 				if (!fd) {
 					ERROR_LOG("Failed to initialize upload file descriptor");
 					_status = RequestStatus::Error;
