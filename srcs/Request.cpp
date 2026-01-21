@@ -68,7 +68,10 @@ void	Request::reset(void) {
 	_completeHeaders = false;
 	_recvStart = {};
 	_curr_upload_pos = 0;
-	if(_uploadFD) _uploadFD.reset();
+	if(_uploadFD) {
+		_uploadFD->close();
+		_uploadFD.reset();
+	}
 	_boundary.reset();
 }
 
