@@ -217,14 +217,16 @@ void	Server::handleClientData(size_t& i)
 	if (_clients.empty())
 		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 			+ std::to_string(_pfds[i].fd)));
-	
+
 	auto it = getRequestByFd(_pfds[i].fd);
-	
+
 	if (it == _clients.end())
 		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 			+ std::to_string(_pfds[i].fd)));
+
 	if (it->getStatus() != RequestStatus::WaitingData)
 		return;
+
 	char	buf[RECV_BUF_SIZE + 1];
 
 	int		numBytes = recv(_pfds[i].fd, buf, RECV_BUF_SIZE, 0);
@@ -247,20 +249,16 @@ void	Server::handleClientData(size_t& i)
 
 	INFO_LOG("Received client data from fd " + std::to_string(_pfds[i].fd));
 	std::cout << "\n---- Request data ----\n" << buf << "----------------------\n\n";
-	
-	if (it == _clients.end())
-		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
-			+ std::to_string(_pfds[i].fd)));
 
 	it->setIdleStart();
 	it->setRecvStart();
 	it->saveRequest(std::string(buf, numBytes));
-		
+
 	Config const	&conf = matchConfig(*it);
 
 	it->setUploadDir(conf.upload_dir);
 	it->handleRequest();
-	
+
 	if(it->isHeadersCompleted()) {
 		if(conf.client_max_body_size > 0 && it->getContentLength() > conf.client_max_body_size) {
 			it->setStatus(RequestStatus::ContentTooLarge);
@@ -281,7 +279,7 @@ void	Server::handleClientData(size_t& i)
 		_clients.erase(it);
 		return;
 	}
-	
+
 	if (it->getStatus() == RequestStatus::WaitingData)
 	{
 

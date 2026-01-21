@@ -65,7 +65,7 @@ class Request
 		bool							_keepAlive;
 		bool							_chunked;
 		bool							_completeHeaders;
-		std::unique_ptr<std::ofstream> 	_uploadFD;
+		std::unique_ptr<std::ofstream>	_uploadFD;
 		timePoint						_idleStart;
 		timePoint						_recvStart;
 		timePoint						_sendStart;

@@ -21,7 +21,7 @@
  * @struct MultipartPart
  * @brief Represents an individual entity within a multipart/form-data payload.
  *
- * This structure stores both the metadata (headers) and the payload (data) 
+ * This structure stores both the metadata (headers) and the payload (data)
  * for a single part of a multipart message.
  *
  * FIELDS:
@@ -36,7 +36,7 @@ struct MultipartPart {
     std::string headers;
     std::string name;
     std::string filename;
-    std::string content_type;
+    std::string contentType;
     std::string data;
 };
 

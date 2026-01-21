@@ -12,11 +12,11 @@ constexpr char const * const	CRLF = "\r\n";
  * so if the http version given in the request is invalid, 1.1 will be used to send the error page
  * response.
  */
-Request::Request(int fd, int serverFd) : 
-	_fd(fd), 
+Request::Request(int fd, int serverFd) :
+	_fd(fd),
 	_serverFd(serverFd),
 	_keepAlive(false),
-	_chunked(false), 
+	_chunked(false),
 	_completeHeaders(false),
 	_uploadFD(nullptr),
 	_headerSize(0),
@@ -146,13 +146,13 @@ void	Request::parseRequest(void) {
 
 		// Ignoring empty lines (CRLF) before the request-line
 		while (_buffer.substr(0, 2) == CRLF) {
-            _buffer = _buffer.substr(2);
-        }
+			_buffer = _buffer.substr(2);
+		}
 
-        // If buffer is empty after skipping CRLFs, wait for more data
-        if (_buffer.empty()) {
-            return;
-        }
+		// If buffer is empty after skipping CRLFs, wait for more data
+		if (_buffer.empty()) {
+			return;
+		}
 
 		std::string	reqLine = extractFromLine(_buffer, CRLF);
 		parseRequestLine(reqLine);
@@ -167,7 +167,7 @@ void	Request::parseRequest(void) {
 		_buffer.clear();
 		return;
 	}
-	
+
 	if (!_contentLen.has_value() && !_chunked)
 		_status = RequestStatus::CompleteReq;
 	else if(_request.method == RequestMethod::Post && _boundary.has_value()) {
@@ -782,7 +782,7 @@ void	Request::handleFileUpload(void) {
 	size_t currPos = this->getCurrentUploadPosition();
 	while (true) {
 		size_t partStart = _buffer.find(partDelimiter, currPos);
-		
+
 		if(partStart == std::string::npos) {
 			_status = RequestStatus::WaitingData;
 			break;
@@ -793,7 +793,7 @@ void	Request::handleFileUpload(void) {
 			// Remove only the processed multipart data including end delimiter
 			_buffer.erase(0, partStart + endDelimiter.length());
 			// Skip trailing CRLF if present
-			
+
 			if (_buffer.size() >= 2 && _buffer.compare(0, 2, "\r\n") == 0) {
 				_buffer = _buffer.erase(0, 2);
 			}
@@ -801,7 +801,7 @@ void	Request::handleFileUpload(void) {
 		}
 
 		size_t headerStart = partStart + partDelimiter.length();
-		
+
 		if(_buffer.substr(headerStart, 2) == "\r\n") {
 			headerStart += 2;
 		}
@@ -829,11 +829,11 @@ void	Request::handleFileUpload(void) {
 			mp.data = raw_part.substr(header_end + 4);
 			mp.name = extractQuotedValue(mp.headers, "name=");
 			mp.filename = extractQuotedValue(mp.headers, "filename=");
-			mp.content_type = extractValue(mp.headers, "Content-Type: ");
+			mp.contentType = extractValue(mp.headers, "Content-Type: ");
 		}
 		if(_uploadFD) {
 			try {
-				
+
 				std::ofstream* ofs = this->getUploadFD();
 				if(ofs) {
 					saveToDisk(mp, *ofs);
@@ -865,5 +865,5 @@ void	Request::handleFileUpload(void) {
 		}
 		this->setCurrentUploadPosition(partEnd);
 		currPos = partEnd;
-	} 
+	}
 }
