@@ -484,8 +484,8 @@ bool	Request::isUniqueHeader(std::string const& key) {
 	};
 	auto	it = uniques.find(key);
 	if (it != uniques.end())
-		return true ;
-	return false ;
+		return true;
+	return false;
 }
 
 /**
@@ -496,9 +496,9 @@ bool	Request::areValidChars(std::string& s) {
 	{
 		if (s[i] < 32 || s[i] >= 127 || s[i] == '<' || s[i] == '>'
 			|| s[i] == '"' || s[i] == '\\')
-			return false ;
+			return false;
 	}
-	return true ;
+	return true;
 }
 
 /**
@@ -537,7 +537,7 @@ bool	Request::validateAndAssignTarget(std::string& target) {
  */
 bool	Request::validateAndAssignHttp(std::string& httpVersion) {
 	if (!std::regex_match(httpVersion, std::regex("HTTP/1.([01])")))
-		return false ;
+		return false;
 	_request.httpVersion = httpVersion;
 	return true;
 }
