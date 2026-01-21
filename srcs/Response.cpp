@@ -33,8 +33,8 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		case RequestStatus::RecvTimeout:
 			_statusCode = RequestTimeout;
 		break;
-		case RequestStatus::PayloadTooLarge:
-			_statusCode = PayloadTooLarge;
+		case RequestStatus::ContentTooLarge:
+			_statusCode = ContentTooLarge;
 		break;
 		default: break;
 	}

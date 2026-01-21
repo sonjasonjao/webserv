@@ -41,8 +41,7 @@ enum class RequestStatus
 	SendTimeout,
 	ContentTooLarge,
 	Invalid,
-	Error,
-	PayloadTooLarge
+	Error
 };
 
 struct RequestLine

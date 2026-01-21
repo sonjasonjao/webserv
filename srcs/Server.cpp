@@ -262,12 +262,12 @@ void	Server::handleClientData(size_t& i)
 		it->setUploadDir(conf.upload_dir);
 		it->handleRequest();
 		
-		if(it->isHeadersCompleted() && it->getStatus() != RequestStatus::PayloadTooLarge) {
+		if(it->isHeadersCompleted()) {
 			if(conf.client_max_body_size > 0 && it->getContentLength() > conf.client_max_body_size) {
-		
-				it->setStatus(RequestStatus::PayloadTooLarge);
+				it->setStatus(RequestStatus::ContentTooLarge);
 				ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit "
 				+ std::to_string(conf.client_max_body_size));
+				return;
 			}
 		}
 	}
