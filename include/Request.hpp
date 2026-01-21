@@ -109,4 +109,5 @@ class Request
 		bool								getKeepAlive(void) const;
 		RequestStatus						getStatus(void) const;
 		std::string const					&getBuffer(void) const;
+		std::optional<std::string> const	&getQuery(void) const;
 };

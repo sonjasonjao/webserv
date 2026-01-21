@@ -700,3 +700,7 @@ std::vector<std::string> const	*Request::getHeader(std::string const &key) const
 		return nullptr;
 	}
 }
+
+std::optional<std::string> const &Request::getQuery(void) const {
+	return (_request.query);
+}
