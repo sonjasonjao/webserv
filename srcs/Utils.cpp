@@ -397,7 +397,7 @@ bool	isUnsignedIntLiteral(std::string_view sv)
 
 bool	isPositiveDoubleLiteral(std::string_view sv)
 {
-	bool	hasWholelPart		= false;
+	bool	hasWholePart		= false;
 	bool	hasFractionalPart	= false;
 
 	if(sv.empty()) {
