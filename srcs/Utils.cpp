@@ -517,6 +517,7 @@ std::unique_ptr<std::ofstream> initial_save_to_disk(const MultipartPart& part, c
 			DEBUG_LOG("File " + part.filename + " initial write successful!");
 		} else {
 			DEBUG_LOG("File " + part.filename + " initial write failed!");
+			outfile->close();
 			return (nullptr);
 		}
 	} else {
