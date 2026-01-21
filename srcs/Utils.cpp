@@ -512,8 +512,23 @@ std::unique_ptr<std::ofstream> initialSaveToDisk(const MultipartPart& part, cons
 	// constructing the file path
 	std::filesystem::path target_path = std::filesystem::path(dir_name) / std::filesystem::path(part.filename).filename();
 
+	// resolve filename conflicts by appending a counter if needed
+	std::filesystem::path unique_path = target_path;
+	if (std::filesystem::exists(unique_path)) {
+		std::filesystem::path parent = unique_path.parent_path();
+		std::string stem = unique_path.stem().string();
+		std::string ext = unique_path.extension().string();
+		std::size_t counter = 1;
+		do {
+			std::ostringstream oss;
+			oss << stem << "_" << counter << ext;
+			unique_path = parent / oss.str();
+			++counter;
+		} while (std::filesystem::exists(unique_path));
+	}
+
 	// file handler to write data
-	std::unique_ptr<std::ofstream> outfile = std::make_unique<std::ofstream>(target_path, std::ios::binary);
+	std::unique_ptr<std::ofstream> outfile = std::make_unique<std::ofstream>(unique_path, std::ios::binary);
 
 	if(outfile && outfile->is_open()) {
 		outfile->write(part.data.c_str(), part.data.size());
