@@ -205,7 +205,7 @@ void	Response::formResponse()
 			_body		= getResponsePageContent("408", _conf);
 		break;
 		case 413:
-			_startLine	= _req.getHttpVersion() + " 413 Payload Too Large";
+			_startLine	= _req.getHttpVersion() + " 413 Content Too Large";
 			_body		= getResponsePageContent("413", _conf);
 		break;
 		default:
