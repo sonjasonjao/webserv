@@ -773,22 +773,22 @@ std::string	Request::getUploadDir(void) {
 
 void	Request::handleFileUpload(void) {
 
-	std::string partDelimeter = "--" + _boundary.value();
-	std::string endDelimeter =  partDelimeter + "--";
+	std::string partDelimiter = "--" + _boundary.value();
+	std::string endDelimiter =  partDelimiter + "--";
 
 	size_t currPos = this->getCurrentUploadPosition();
 	while (true) {
-		size_t partStart = _buffer.find(partDelimeter, currPos);
+		size_t partStart = _buffer.find(partDelimiter, currPos);
 		
 		if(partStart == std::string::npos) {
 			_status = RequestStatus::WaitingData;
 			break;
 		}
 
-		if(_buffer.compare(partStart, endDelimeter.length(), endDelimeter) == 0) {
+		if(_buffer.compare(partStart, endDelimiter.length(), endDelimiter) == 0) {
 			_status = RequestStatus::CompleteReq;
 			// Remove only the processed multipart data including end delimiter
-			_buffer.erase(0, partStart + endDelimeter.length());
+			_buffer.erase(0, partStart + endDelimiter.length());
 			// Skip trailing CRLF if present
 			
 			if (_buffer.size() >= 2 && _buffer.compare(0, 2, "\r\n") == 0) {
@@ -797,13 +797,13 @@ void	Request::handleFileUpload(void) {
 			break;
 		}
 
-		size_t headerStart = partStart + partDelimeter.length();
+		size_t headerStart = partStart + partDelimiter.length();
 		
 		if(_buffer.substr(headerStart, 2) == "\r\n") {
 			headerStart += 2;
 		}
 
-		size_t partEnd = _buffer.find(partDelimeter, headerStart);
+		size_t partEnd = _buffer.find(partDelimiter, headerStart);
 
 		if(partEnd == std::string::npos) {
 			_status = RequestStatus::WaitingData;
