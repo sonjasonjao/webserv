@@ -15,12 +15,12 @@ constexpr char const * const	CRLF = "\r\n";
 Request::Request(int fd, int serverFd) : 
 	_fd(fd), 
 	_serverFd(serverFd),
-	_uploadFD(nullptr), 
-	_curr_upload_pos(0),
-	_headerSize(0),
-	_keepAlive(false), 
+	_keepAlive(false),
 	_chunked(false), 
-	_completeHeaders(false) {
+	_completeHeaders(false),
+	_uploadFD(nullptr),
+	_headerSize(0),
+	_curr_upload_pos(0) {
 
 	_request.method = RequestMethod::Unknown;
 	_status = RequestStatus::WaitingData;
