@@ -701,14 +701,11 @@ void	Request::resetBuffer(void)
 std::string	Request::getHost(void) const
 {
 	std::string	host;
-	try
-	{
+
+	try {
 		host = (_headers.at("host")).front();
-	}
-	catch(const std::exception& e)
-	{
-		ERROR_LOG("unexpected error in matching request host to configuration");
-	}
+	} catch(const std::exception& e) {}
+
 	return host;
 }
 

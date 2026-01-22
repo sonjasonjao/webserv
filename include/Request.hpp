@@ -80,8 +80,6 @@ class Request
 	public:
 		Request() = delete;
 		Request(int fd, int serverFd);
-		Request(Request&& ) = default;
-		Request& operator=(Request&& ) = default;
 		~Request() = default;
 
 		void	saveRequest(std::string const &buf);

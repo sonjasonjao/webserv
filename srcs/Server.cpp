@@ -317,9 +317,12 @@ Config const	&Server::matchConfig(Request const &req)
 		throw std::runtime_error(ERROR_LOG("Unexpected error in matching request with server config"));
 	for (auto it = tmp->configs.begin(); it != tmp->configs.end(); it++)
 	{
-		if (it->serverName == req.getHost())
+		if (it->serverName == req.getHost()) {
+			DEBUG_LOG("Matched configuration: " + it->serverName);
 			return *it;
+		}
 	}
+	DEBUG_LOG("No matching config, using default: " + tmp->defaultConf->serverName);
 	return *(tmp->defaultConf);
 }
 
