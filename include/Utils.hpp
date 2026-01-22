@@ -24,7 +24,5 @@ bool	isValidImfFixdate(std::string_view sv);
 bool	isUnsignedIntLiteral(std::string_view sv);
 bool	isPositiveDoubleLiteral(std::string_view sv);
 
-std::unique_ptr<std::ofstream>	initialSaveToDisk(const MultipartPart& part, const std::string& path);
 std::string						extractValue(const std::string& source, const std::string& key);
 std::string						extractQuotedValue(const std::string& source, const std::string& key);
-bool							saveToDisk(const MultipartPart& part, std::ofstream& outfile);

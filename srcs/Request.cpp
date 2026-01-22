@@ -793,7 +793,6 @@ void	Request::handleFileUpload(void)
 		}
 
 		if (_buffer.compare(partStart, endDelimiter.length(), endDelimiter) == 0) {
-			_status = RequestStatus::CompleteReq;
 			// Remove only the processed multipart data including end delimiter
 			_buffer.erase(0, partStart + endDelimiter.length());
 			// Skip trailing CRLF if present
@@ -801,6 +800,7 @@ void	Request::handleFileUpload(void)
 			if (_buffer.size() >= 2 && _buffer.compare(0, 2, "\r\n") == 0) {
 				_buffer = _buffer.erase(0, 2);
 			}
+			_status = RequestStatus::Created;
 			break;
 		}
 
@@ -835,39 +835,84 @@ void	Request::handleFileUpload(void)
 			mp.filename = extractQuotedValue(mp.headers, "filename=");
 			mp.contentType = extractValue(mp.headers, "Content-Type: ");
 		}
-		if (_uploadFD) {
-			try {
-				std::ofstream*	ofs = _uploadFD.get();
 
-				if (ofs) {
-					saveToDisk(mp, *ofs);
-				} else {
-					ERROR_LOG("Upload FD became null unexpectedly");
-					_status = RequestStatus::Error;
-					return;
-				}
-			} catch (const std::exception& e) {
-				ERROR_LOG("Failed to save upload part: " + std::string(e.what()));
-				_uploadFD->close();
-				_status = RequestStatus::Error;
-				return;
-			}
-		} else {
-			try {
-				auto fd = initialSaveToDisk(mp, _uploadDir);
-				if (!fd) {
-					ERROR_LOG("Failed to initialize upload file descriptor");
-					_status = RequestStatus::Error;
-					return;
-				}
-				_uploadFD = std::move(fd);
-			} catch (const std::exception& e) {
-				ERROR_LOG("Failed to initialize upload: " + std::string(e.what()));
-				_status = RequestStatus::Error;
-				return;
-			}
-		}
+		if (_uploadFD)
+			saveToDisk(mp);
+		else
+			initialSaveToDisk(mp);
+
 		_currUploadPos = partEnd;
 		currPos = partEnd;
+	}
+}
+
+void	Request::saveToDisk(const MultipartPart& part)
+{
+	if (!_uploadFD) {
+		ERROR_LOG("Can not created the file, fileFD not valid");
+		_status = RequestStatus::InternalServerError;
+		return;
+	}
+
+	_uploadFD->write(part.data.c_str(), part.data.size());
+
+	if (!_uploadFD->good()) {
+		ERROR_LOG("Writing data to the file failed");
+		_status = RequestStatus::InternalServerError;
+		return;
+	}
+
+	DEBUG_LOG("File " + part.filename + " saved successfully!");
+	_status = RequestStatus::Created;
+}
+
+void	Request::initialSaveToDisk(const MultipartPart& part) {
+
+	// if the upload directory has not set in the config file upload operation can not process
+	if(!_uploadDir.has_value()) {
+		ERROR_LOG("Upload directory has not set in the config file");
+		_status = RequestStatus::UnprocessableContent;
+		return;
+	}
+
+	try {
+		// will create if not exists
+		if (!std::filesystem::exists(_uploadDir.value()))
+			std::filesystem::create_directories(_uploadDir.value());
+
+	} catch (const std::filesystem::filesystem_error& e) {
+		ERROR_LOG("Failed to create upload directory: " + std::string(e.what()));
+		_status = RequestStatus::InternalServerError;
+		return;
+	}
+
+	// constructing the file path
+	std::filesystem::path target_path = std::filesystem::path(_uploadDir.value()) / std::filesystem::path(part.filename).filename();
+
+	// if filename conflicts will treat as an error
+	if (std::filesystem::exists(target_path)) {
+		ERROR_LOG("A file already exists in the directory with the same file name");
+		_status = RequestStatus::Conflict;
+		return;
+	}
+
+	// file handler to write data
+	std::unique_ptr<std::ofstream> _uploadFD = std::make_unique<std::ofstream>(target_path, std::ios::binary);
+
+	if (_uploadFD && _uploadFD->is_open()) {
+		_uploadFD->write(part.data.c_str(), part.data.size());
+		if (_uploadFD->good()) {
+			DEBUG_LOG("File " + part.filename + " initial write successful!");
+			_status = RequestStatus::Created;
+		} else {
+			ERROR_LOG("File " + part.filename + " initial write failed!");
+			_uploadFD->close();
+			_status = RequestStatus::InternalServerError;
+			return;
+		}
+	} else {
+		ERROR_LOG("File " + part.filename + " save process failed!");
+		_status = RequestStatus::InternalServerError;
+		return;
 	}
 }

@@ -6,6 +6,8 @@
 #include <optional>
 #include <chrono>
 #include <memory>
+#include <fstream>
+#include <filesystem>
 
 #define IDLE_TIMEOUT			10000 // timeout values to be decided, and should they be in Server.hpp?
 #define RECV_TIMEOUT			5000
@@ -40,7 +42,11 @@ enum class RequestStatus
 	SendTimeout,
 	ContentTooLarge,
 	Invalid,
-	Error
+	Error,
+	InternalServerError,
+	Created,
+	Conflict,
+	UnprocessableContent
 };
 
 struct RequestLine
@@ -94,7 +100,10 @@ class Request
 		std::string						_buffer;
 		std::string						_body;
 		std::optional<std::string>		_boundary;
-		std::string						_uploadDir;
+		std::optional<std::string>		_uploadDir;
+
+		void	initialSaveToDisk(const MultipartPart& part);
+		void	saveToDisk(const MultipartPart& part);
 
 	public:
 		Request() = delete;
