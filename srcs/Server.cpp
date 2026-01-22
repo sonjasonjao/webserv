@@ -42,8 +42,7 @@ Server::Server(Parser& parser)
 bool	Server::isGroupMember(Config& conf)
 {
 	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++) {
-		if (it->defaultConf->host == conf.host
-			&& it->defaultConf->port == conf.port) {
+		if (it->defaultConf->host == conf.host && it->defaultConf->port == conf.port) {
 			it->configs.emplace_back(conf);
 			return true;
 		}
@@ -77,7 +76,6 @@ int	Server::createSingleServerSocket(Config conf)
 	int	listener;
 	int	yes = 1;
 	int	ret;
-
 	struct addrinfo	hints, *servinfo, *p;
 
 	memset(&hints, 0, sizeof(hints));
@@ -150,6 +148,7 @@ void	Server::createServerSockets(void)
 void	Server::run(void)
 {
 	createServerSockets();
+
 	while (endSignal == false) {
 		int	pollCount = poll(_pfds.data(), _pfds.size(), POLL_TIMEOUT);
 		if (pollCount < 0)
@@ -160,6 +159,7 @@ void	Server::run(void)
 		}
 		handleConnections();
 	}
+
 	if (endSignal == SIGINT) {
 		std::cout << '\n';
 		INFO_LOG("Server closed with SIGINT signal");
@@ -226,7 +226,6 @@ void	Server::handleClientData(size_t& i)
 
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 		_clients.erase(it);
-
 		return;
 	}
 	buf[numBytes] = '\0';
@@ -266,7 +265,8 @@ void	Server::prepareResponse(Request &req)
 
 	Config const	&conf = matchConfig(req);
 
-	DEBUG_LOG("Matched config: " + conf.host + " " + conf.serverName + " " + std::to_string(conf.port));
+	DEBUG_LOG("Matched config: " + conf.host + " " + conf.serverName + " "
+		+ std::to_string(conf.port));
 	_responses[req.getFd()].emplace_back(Response(req, conf));
 	req.reset();
 	req.setStatus(RequestStatus::ReadyForResponse);
@@ -280,8 +280,9 @@ void	Server::prepareResponse(Request &req)
  */
 Config const	&Server::matchConfig(Request const &req)
 {
-	int fd = req.getServerFd();
+	int			fd = req.getServerFd();
 	ServerGroup	*tmp = nullptr;
+
 	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++) {
 		if (it->fd == fd) {
 			tmp = &(*it);
@@ -290,6 +291,7 @@ Config const	&Server::matchConfig(Request const &req)
 	}
 	if (tmp == nullptr)
 		throw std::runtime_error(ERROR_LOG("Unexpected error in matching request with server config"));
+
 	for (auto it = tmp->configs.begin(); it != tmp->configs.end(); it++) {
 		if (it->serverName == req.getHost())
 			return *it;
@@ -314,7 +316,6 @@ void	Server::removeClientFromPollFds(size_t& i)
 		_pfds[i] = _pfds[_pfds.size() - 1];
 		_pfds.pop_back();
 		i--;
-
 		return;
 	}
 
@@ -363,15 +364,16 @@ void	Server::sendResponse(size_t& i)
 	_pfds[i].events &= ~POLLOUT;
 
 	DEBUG_LOG("Keep alive status: " + std::to_string(it->getKeepAlive()));
-	if (it->getStatus() == RequestStatus::Invalid || it->getStatus() == RequestStatus::ContentTooLarge
+	if (it->getStatus() == RequestStatus::Invalid
+		|| it->getStatus() == RequestStatus::ContentTooLarge
 		|| !it->getKeepAlive()) {
 		removeClientFromPollFds(i);
 
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 		_clients.erase(it);
-
 		return;
 	}
+
 	it->resetKeepAlive();
 	it->setStatus(RequestStatus::WaitingData);
 }
@@ -402,15 +404,16 @@ void	Server::checkTimeouts(void)
 			if (it == _clients.end())
 				throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 					+ std::to_string(_pfds[i].fd)));
+
 			it->checkReqTimeouts();
+
 			if (it->getStatus() == RequestStatus::RecvTimeout) {
 				Config	 const &conf = matchConfig(*it);
 
 				DEBUG_LOG("Matched config: " + conf.host + " " + conf.serverName + " " + std::to_string(conf.port));
 				_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
 				sendResponse(i);
-			}
-			else if (it->getStatus() == RequestStatus::IdleTimeout
+			} else if (it->getStatus() == RequestStatus::IdleTimeout
 				|| it->getStatus() == RequestStatus::SendTimeout) {
 				removeClientFromPollFds(i);
 				INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
