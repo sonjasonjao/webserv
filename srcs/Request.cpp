@@ -153,14 +153,12 @@ void	Request::parseRequest(void)
 	if (_request.method == RequestMethod::Unknown) {
 
 		// Ignoring empty lines (CRLF) before the request-line
-		while (_buffer.substr(0, 2) == CRLF) {
+		while (_buffer.substr(0, 2) == CRLF)
 			_buffer = _buffer.substr(2);
-		}
 
 		// If buffer is empty after skipping CRLFs, wait for more data
-		if (_buffer.empty()) {
+		if (_buffer.empty())
 			return;
-		}
 
 		std::string	reqLine = extractFromLine(_buffer, CRLF);
 		parseRequestLine(reqLine);
