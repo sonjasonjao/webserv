@@ -75,34 +75,9 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	if (reqTarget.size() > 1 && reqTarget[0] == '/')
 		reqTarget = reqTarget.substr(1);
 
-	/* DELETE */
+	// In case of DELETE request, skip routing and proceed to handle separately
 	if (req.getRequestMethod() == RequestMethod::Delete) {
-		/*If uploadDir is not given in config, file deletion is disabled*/
-		if (!_conf.uploadDir.has_value()) {
-			_statusCode = Forbidden;
-			formResponse();
-			return;
-		}
-		std::string	uploadDir = _conf.uploadDir.value();
-		if (_target.length() > 1 && _target[0] == '/')
-			_target = _target.substr(1);
-		if (uploadDir.back() == '/')
-			uploadDir.pop_back();
-		_target = uploadDir + "/" + _target;
-
-		if (!resourceExists(_target)) {
-			INFO_LOG("Response: Resource " + _target + " could not be found");
-			_statusCode = NotFound;
-		}
-		else {
-			if (std::filesystem::remove(_target) == false) {
-				DEBUG_LOG("INTERNAL SERVER ERROR"); // _statusCode set to 500 and handled
-			}
-			INFO_LOG("Resource " + _target + " deleted");
-			_statusCode = NoContent;
-		}
-		formResponse();
-
+		handleDelete();
 		return;
 	}
 	/* -------------------------------------------------------------- Routing */
@@ -215,6 +190,37 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		std::cout << "Image data...";
 	std::cout << "\n--------------------------\n\n";
 	#endif
+}
+
+void	Response::handleDelete(void)
+{
+	// If uploadDir is not given in config, file deletion is disabled
+	if (!_conf.uploadDir.has_value()) {
+		_statusCode = Forbidden;
+		formResponse();
+		return;
+	}
+	/*Target will be modified if needed for correct format: '/' is removed
+	from start, but is needed between uploadDir and target given in request*/
+	std::string	uploadDir = _conf.uploadDir.value();
+	if (_target.length() > 1 && _target[0] == '/')
+		_target = _target.substr(1);
+	if (uploadDir.back() == '/')
+		uploadDir.pop_back();
+	_target = uploadDir + "/" + _target;
+
+	if (!resourceExists(_target)) {
+		INFO_LOG("Response: Resource " + _target + " could not be found");
+		_statusCode = NotFound;
+	}
+	else {
+		if (std::filesystem::remove(_target) == false) {
+			DEBUG_LOG("INTERNAL SERVER ERROR"); // _statusCode set to 500 and handled
+		}
+		INFO_LOG("Resource " + _target + " deleted");
+		_statusCode = NoContent;
+	}
+	formResponse();
 }
 
 /**

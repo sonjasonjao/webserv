@@ -33,6 +33,7 @@ public:
 private:
 
 	void	formResponse();
+	void	handleDelete();
 
 	Request const	&_req;
 	Config const	&_conf;
