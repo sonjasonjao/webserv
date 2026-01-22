@@ -9,6 +9,8 @@
 #include <thread>
 #include <signal.h>
 #include <sys/wait.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "Request.hpp"
 #include "Utils.hpp"
