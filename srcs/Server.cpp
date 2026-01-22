@@ -41,8 +41,7 @@ Server::Server(Parser& parser)
  */
 bool	Server::isGroupMember(Config& conf)
 {
-	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++)
-	{
+	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++) {
 		if (it->defaultConf->host == conf.host
 			&& it->defaultConf->port == conf.port) {
 			it->configs.emplace_back(conf);
@@ -59,8 +58,7 @@ bool	Server::isGroupMember(Config& conf)
  */
 void	Server::groupConfigs(void)
 {
-	for (auto it = _configs.begin(); it != _configs.end(); it++)
-	{
+	for (auto it = _configs.begin(); it != _configs.end(); it++) {
 		if (_serverGroups.empty() || !isGroupMember(*it)) {
 			ServerGroup	newServGroup;
 			newServGroup.fd = -1;
@@ -91,28 +89,23 @@ int	Server::createSingleServerSocket(Config conf)
 	if (ret != 0)
 		throw std::runtime_error(ERROR_LOG("getaddrinfo: " + std::string(gai_strerror(ret))));
 
-	for (p = servinfo; p != NULL; p = p->ai_next)
-	{
+	for (p = servinfo; p != NULL; p = p->ai_next) {
 		listener = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-		if (listener < 0)
-		{
+		if (listener < 0) {
 			ERROR_LOG("socket: " + std::string(strerror(errno)));
 			continue;
 		}
-		if (setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) < 0)
-		{
+		if (setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) < 0) {
 			ERROR_LOG("setsockopt: " + std::string(strerror(errno)));
 			close(listener);
 			continue;
 		}
-		if (bind(listener, p->ai_addr, p->ai_addrlen) < 0)
-		{
+		if (bind(listener, p->ai_addr, p->ai_addrlen) < 0) {
 			ERROR_LOG("bind: " + std::string(strerror(errno)));
 			close(listener);
 			continue;
 		}
-		if (fcntl(listener, F_SETFL, O_NONBLOCK) < 0)
-		{
+		if (fcntl(listener, F_SETFL, O_NONBLOCK) < 0) {
 			ERROR_LOG("fcntl: " + std::string(strerror(errno)));
 			close(listener);
 			continue;
@@ -142,8 +135,7 @@ int	Server::createSingleServerSocket(Config conf)
  */
 void	Server::createServerSockets(void)
 {
-	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++)
-	{
+	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++) {
 		int sockfd = createSingleServerSocket(*(it->defaultConf));
 		_pfds.push_back({ sockfd, POLLIN, 0 });
 		it->fd = sockfd;
@@ -158,8 +150,7 @@ void	Server::createServerSockets(void)
 void	Server::run(void)
 {
 	createServerSockets();
-	while (endSignal == false)
-	{
+	while (endSignal == false) {
 		int	pollCount = poll(_pfds.data(), _pfds.size(), POLL_TIMEOUT);
 		if (pollCount < 0)
 		{
@@ -196,8 +187,7 @@ void	Server::handleNewClient(int listener)
 		return;
 	}
 
-	if (fcntl(clientFd, F_SETFL, O_NONBLOCK) < 0)
-	{
+	if (fcntl(clientFd, F_SETFL, O_NONBLOCK) < 0) {
 		close(clientFd);
 		throw std::runtime_error(ERROR_LOG("fcntl: " + std::string(strerror(errno))));
 	}
@@ -208,11 +198,8 @@ void	Server::handleNewClient(int listener)
 }
 
 /**
- * Receives data from the client that poll() has recognized to have sent something.
- * Request will be parsed and response formed.
- *
- * If buffer initially had more than one complete request, or e.g. remaining data after
- * content-length amount of body, resetBuffer will discard that.
+ * Finds the Request object of the client that poll() has recognized to have sent something,
+ * calls recv() to get the data, and parses the request.
  */
 void	Server::handleClientData(size_t& i)
 {
@@ -221,20 +208,15 @@ void	Server::handleClientData(size_t& i)
 			+ std::to_string(_pfds[i].fd)));
 
 	auto it = getRequestByFd(_pfds[i].fd);
-
 	if (it == _clients.end())
 		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 			+ std::to_string(_pfds[i].fd)));
-
 	if (it->getStatus() != RequestStatus::WaitingData)
 		return;
 
 	char	buf[RECV_BUF_SIZE + 1];
-
 	int		numBytes = recv(_pfds[i].fd, buf, RECV_BUF_SIZE, 0);
-
-	if (numBytes <= 0)
-	{
+	if (numBytes <= 0) {
 		if (numBytes == 0)
 			INFO_LOG("Client disconnected on fd " + std::to_string(_pfds[i].fd));
 		else
@@ -256,35 +238,38 @@ void	Server::handleClientData(size_t& i)
 	it->setRecvStart();
 	it->processRequest(std::string(buf));
 
-	if (it->getStatus() == RequestStatus::Error)
-	{
+	if (it->getStatus() == RequestStatus::Error) {
 		ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
 			+ " connection dropped: suspicious request");
 
 		removeClientFromPollFds(i);
-
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 		_clients.erase(it);
-
 		return;
 	}
-
-	if (it->getStatus() == RequestStatus::WaitingData)
-	{
+	if (it->getStatus() == RequestStatus::WaitingData) {
 		INFO_LOG("Waiting for more data to complete partial request");
-
 		return;
 	}
 
-	INFO_LOG("Building response to client fd " + std::to_string(_pfds[i].fd));
+	prepareResponse(*it);
+	_pfds[i].events |= POLLOUT;
+}
 
-	Config const	&conf = matchConfig(*it);
+/**
+ * Builds the response to be sent to client, resets Request properties, and sets client status
+ * to ReadyForResponse.
+ */
+void	Server::prepareResponse(Request &req)
+{
+	INFO_LOG("Building response to client fd " + std::to_string(req.getFd()));
+
+	Config const	&conf = matchConfig(req);
 
 	DEBUG_LOG("Matched config: " + conf.host + " " + conf.serverName + " " + std::to_string(conf.port));
-	_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
-	it->reset();
-	it->setStatus(RequestStatus::ReadyForResponse);
-	_pfds[i].events |= POLLOUT;
+	_responses[req.getFd()].emplace_back(Response(req, conf));
+	req.reset();
+	req.setStatus(RequestStatus::ReadyForResponse);
 }
 
 /**
@@ -297,8 +282,7 @@ Config const	&Server::matchConfig(Request const &req)
 {
 	int fd = req.getServerFd();
 	ServerGroup	*tmp = nullptr;
-	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++)
-	{
+	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++) {
 		if (it->fd == fd) {
 			tmp = &(*it);
 			break;
@@ -306,8 +290,7 @@ Config const	&Server::matchConfig(Request const &req)
 	}
 	if (tmp == nullptr)
 		throw std::runtime_error(ERROR_LOG("Unexpected error in matching request with server config"));
-	for (auto it = tmp->configs.begin(); it != tmp->configs.end(); it++)
-	{
+	for (auto it = tmp->configs.begin(); it != tmp->configs.end(); it++) {
 		if (it->serverName == req.getHost())
 			return *it;
 	}
@@ -324,8 +307,7 @@ void	Server::removeClientFromPollFds(size_t& i)
 	INFO_LOG("Closing fd " + std::to_string(_pfds[i].fd));
 	close(_pfds[i].fd);
 
-	if (_pfds.size() > (i + 1))
-	{
+	if (_pfds.size() > (i + 1)) {
 		DEBUG_LOG("Overwriting fd " + std::to_string(_pfds[i].fd) + " with fd "
 			+ std::to_string(_pfds[_pfds.size() - 1].fd));
 		INFO_LOG("Removing client fd " + std::to_string(_pfds[i].fd) + " from poll list");
@@ -364,8 +346,7 @@ void	Server::sendResponse(size_t& i)
 		it->setIdleStart();
 		it->setSendStart();
 		res.sendToClient();
-		if (!res.sendIsComplete())
-		{
+		if (!res.sendIsComplete()) {
 			INFO_LOG("Response partially sent, waiting for server to complete response sending");
 			return;
 		}
@@ -383,8 +364,7 @@ void	Server::sendResponse(size_t& i)
 
 	DEBUG_LOG("Keep alive status: " + std::to_string(it->getKeepAlive()));
 	if (it->getStatus() == RequestStatus::Invalid || it->getStatus() == RequestStatus::ContentTooLarge
-		|| !it->getKeepAlive())
-	{
+		|| !it->getKeepAlive()) {
 		removeClientFromPollFds(i);
 
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
@@ -401,8 +381,7 @@ void	Server::sendResponse(size_t& i)
  */
 ReqIter	Server::getRequestByFd(int fd)
 {
-	for (auto it = _clients.begin(); it != _clients.end(); it++)
-	{
+	for (auto it = _clients.begin(); it != _clients.end(); it++) {
 		if (it->getFd() == fd)
 			return it;
 	}
@@ -447,8 +426,7 @@ void	Server::checkTimeouts(void)
 bool	Server::isServerFd(int fd)
 {
 	auto it = _serverGroups.begin();
-	while (it != _serverGroups.end())
-	{
+	while (it != _serverGroups.end()) {
 		if (it->fd == fd)
 			break;
 		it++;
@@ -467,17 +445,13 @@ bool	Server::isServerFd(int fd)
  */
 void	Server::handleConnections(void)
 {
-	for (size_t i = 0; i < _pfds.size(); i++)
-	{
+	for (size_t i = 0; i < _pfds.size(); i++) {
 		if (_pfds[i].revents & (POLLIN | POLLHUP))
 		{
-			if (isServerFd(_pfds[i].fd))
-			{
+			if (isServerFd(_pfds[i].fd)) {
 				INFO_LOG("Handling new client connecting on fd " + std::to_string(_pfds[i].fd));
 				handleNewClient(_pfds[i].fd);
-			}
-			else
-			{
+			} else {
 				INFO_LOG("Handling client data from fd " + std::to_string(_pfds[i].fd));
 				handleClientData(i);
 			}

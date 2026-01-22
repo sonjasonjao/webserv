@@ -48,6 +48,7 @@ class Server
 		void			run(void);
 		void			handleNewClient(int listener);
 		void			handleClientData(size_t &i);
+		void			prepareResponse(Request &req);
 		void			removeClientFromPollFds(size_t &i);
 		void			sendResponse(size_t &i);
 		void			checkTimeouts(void);
