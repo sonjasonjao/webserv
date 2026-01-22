@@ -181,11 +181,14 @@ void	Pages::loadDefaults()
 	defaultPages.clear();
 	defaultPages["default200"] = DEFAULT200;
 	defaultPages["default204"] = DEFAULT204;
+	defaultPages["default207"] = DEFAULT207;
 	defaultPages["default400"] = DEFAULT400;
 	defaultPages["default403"] = DEFAULT403;
 	defaultPages["default404"] = DEFAULT404;
 	defaultPages["default408"] = DEFAULT408;
+	defaultPages["default409"] = DEFAULT409;
 	defaultPages["default413"] = DEFAULT413;
+	defaultPages["default422"] = DEFAULT422;
 	defaultPages["default500"] = DEFAULT500;
 }
 
