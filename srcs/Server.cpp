@@ -254,9 +254,7 @@ void	Server::handleClientData(size_t& i)
 
 	it->setIdleStart();
 	it->setRecvStart();
-	it->saveRequest(std::string(buf));
-
-	it->handleRequest();
+	it->processRequest(std::string(buf));
 
 	if (it->getStatus() == RequestStatus::Error)
 	{

@@ -24,17 +24,12 @@ Request::Request(int fd, int serverFd) : _fd(fd), _serverFd(serverFd), _headerSi
 
 /**
  * Saves the current buffer filled by recv into the combined buffer of this client.
- */
-void	Request::saveRequest(std::string const& buf) {
-	_buffer += buf;
-}
-
-/**
  * Checks whether the buffer so far includes "\r\n\r\n". If not, and the headers section hasn't
  * been received completely (ending with "\r\n\r\n"), we assume the request is partial. In that
  * case, we go back to poll() to wait for the rest of the response before parsing.
  */
-void	Request::handleRequest(void) {
+void	Request::processRequest(std::string const& buf) {
+	_buffer += buf;
 	if (_buffer.find("\r\n\r\n") == std::string::npos && !_completeHeaders) {
 		_status = RequestStatus::WaitingData;
 	}
