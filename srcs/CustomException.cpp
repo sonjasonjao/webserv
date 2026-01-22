@@ -13,11 +13,11 @@ CustomException&	CustomException::operator=(const CustomException& other) noexce
 	if (this != &other) {
 		this->_error_message = other._error_message;
 	}
-	return (*this);
+	return *this;
 }
 
 CustomException::~CustomException() noexcept {}
 
 const char*	CustomException::what() const noexcept {
-	return (_error_message.c_str());
+	return _error_message.c_str();
 }

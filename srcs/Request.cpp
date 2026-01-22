@@ -731,7 +731,7 @@ bool	Request::getKeepAlive(void) const
 
 bool	Request::isHeadersCompleted(void) const
 {
-	return (_completeHeaders);
+	return _completeHeaders;
 }
 
 RequestStatus	Request::getStatus(void) const
@@ -781,8 +781,8 @@ std::vector<std::string> const	*Request::getHeader(std::string const &key) const
 size_t	Request::getContentLength(void) const
 {
 	if (_contentLen.has_value())
-		return (_contentLen.value());
-	return (0);
+		return _contentLen.value();
+	return 0;
 }
 
 void	Request::setUploadDir(std::string path)
