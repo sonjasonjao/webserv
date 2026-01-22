@@ -10,6 +10,7 @@
 
 #include "CustomException.hpp"
 #include "JSON.hpp"
+#include "Request.hpp"
 
 /**
  * Default file_name extension for the configuration file, with out correct extension
@@ -26,7 +27,7 @@ struct Config {
 	std::map<std::string, std::string>	status_pages;	// Mapping from HTTP status code to custom page path.
 	std::map<std::string, std::string>	routes;			// Set of routes (URI -> path definitions) for this server.
 
-	size_t	client_max_body_size	= 0;				// Default maximum allowed size (in bytes) of the request body for this server
+	size_t	client_max_body_size	= CLIENT_MAX_BODY_SIZE;				// Default maximum allowed size (in bytes) of the request body for this server
 	std::string upload_dir			= "www/uploads";	// Default upload directory
 
 	bool	directoryListing	= false;

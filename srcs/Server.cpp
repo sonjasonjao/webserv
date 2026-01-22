@@ -264,7 +264,6 @@ void	Server::handleClientData(size_t& i)
 			it->setStatus(RequestStatus::ContentTooLarge);
 			ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit "
 			+ std::to_string(conf.client_max_body_size));
-			return;
 		}
 	}
 
