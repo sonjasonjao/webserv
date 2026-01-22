@@ -32,6 +32,18 @@ R"(<!DOCTYPE html>
 </html>
 )";
 
+constexpr static char const * const	DEFAULT207	= \
+R"(<!DOCTYPE html>
+<html>
+	<head>
+	</head>
+	<body>
+		<h1>207: Created</h1>
+		<p>Default fallback page</p>
+	</body>
+</html>
+)";
+
 constexpr static char const * const	DEFAULT400	= \
 R"(<!DOCTYPE html>
 <html>
@@ -116,6 +128,18 @@ R"(<!DOCTYPE html>
 </html>
 )";
 
+constexpr static char const * const	DEFAULT409	= \
+R"(<!DOCTYPE html>
+<html>
+	<head>
+	</head>
+	<body>
+		<h1>409: Conflict</h1>
+		<p>Default fallback page</p>
+	</body>
+</html>
+)";
+
 constexpr static char const * const	DEFAULT413	= \
 R"(<!DOCTYPE html>
 <html>
@@ -123,6 +147,18 @@ R"(<!DOCTYPE html>
 	</head>
 	<body>
 		<h1>413: Content Too Large</h1>
+		<p>Default fallback page</p>
+	</body>
+</html>
+)";
+
+constexpr static char const * const	DEFAULT422	= \
+R"(<!DOCTYPE html>
+<html>
+	<head>
+	</head>
+	<body>
+		<h1>422: Unprocessable content</h1>
 		<p>Default fallback page</p>
 	</body>
 </html>
