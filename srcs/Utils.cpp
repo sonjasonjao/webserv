@@ -217,7 +217,7 @@ bool	uriTargetAboveRoot(std::string_view uri)
 		}
 	}
 
-	return (up > down);
+	return up > down;
 }
 
 /**
@@ -446,13 +446,13 @@ std::string	extractValue(const std::string& source, const std::string& key)
 	size_t	pos = source.find(key);
 
 	if (pos == std::string::npos) {
-		return ("");
+		return "";
 	}
 	pos += key.length();
 
 	size_t	end = source.find_first_of("\r\n,;", pos);
 
-	return (source.substr(pos, end - pos));
+	return source.substr(pos, end - pos);
 }
 
 /**
@@ -463,7 +463,7 @@ std::string	extractQuotedValue(const std::string& source, const std::string& key
 	size_t	pos = source.find(key);
 
 	if (pos == std::string::npos) {
-		return ("");
+		return "";
 	}
 
 	pos += key.length();
@@ -471,16 +471,16 @@ std::string	extractQuotedValue(const std::string& source, const std::string& key
 	size_t	quote_start = source.find('"', pos);
 
 	if (quote_start == std::string::npos) {
-		return ("");
+		return "";
 	}
 
 	size_t	quote_end = source.find('"', quote_start + 1);
 
 	if (quote_end == std::string::npos) {
-		return ("");
+		return "";
 	}
 
-	return (source.substr(quote_start + 1, quote_end - quote_start - 1));
+	return source.substr(quote_start + 1, quote_end - quote_start - 1);
 }
 
 bool	saveToDisk(const MultipartPart& part, std::ofstream& outfile)
@@ -493,12 +493,12 @@ bool	saveToDisk(const MultipartPart& part, std::ofstream& outfile)
 		throw std::runtime_error(DEBUG_LOG("File " + part.filename + " write failed!"));
 	}
 	DEBUG_LOG("File " + part.filename + " saved successfully!");
-	return (true);
+	return true;
 }
 
 std::unique_ptr<std::ofstream>	initialSaveToDisk(const MultipartPart& part, const std::string& path) {
 	if (part.filename.empty()) {
-		return (nullptr);
+		return nullptr;
 	}
 
 	std::string dir_name = path;			// destination to save the file
@@ -509,7 +509,7 @@ std::unique_ptr<std::ofstream>	initialSaveToDisk(const MultipartPart& part, cons
 		}
 	} catch (const std::filesystem::filesystem_error& e) {
 		ERROR_LOG("Failed to create upload directory: " + std::string(e.what()));
-		return (nullptr);
+		return nullptr;
 	}
 
 	// constructing the file path
@@ -540,13 +540,13 @@ std::unique_ptr<std::ofstream>	initialSaveToDisk(const MultipartPart& part, cons
 		} else {
 			DEBUG_LOG("File " + part.filename + " initial write failed!");
 			outfile->close();
-			return (nullptr);
+			return nullptr;
 		}
 	} else {
 		DEBUG_LOG("File " + part.filename + " save process failed!");
-		return (nullptr);
+		return nullptr;
 	}
-	return (outfile);
+	return outfile;
 }
 
 //#define TEST

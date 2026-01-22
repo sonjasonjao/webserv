@@ -157,7 +157,7 @@ void Parser::tokenizeFile(void)
  */
 const Config	&Parser::getServerConfig(size_t index)
 {
-	return (_server_configs.at(index));
+	return _server_configs.at(index);
 }
 
 /**
@@ -174,7 +174,7 @@ const std::vector<Config>	&Parser::getServerConfigs(void) const
  */
 size_t	Parser::getNumberOfServerConfigs(void)
 {
-	return (_server_configs.size());
+	return _server_configs.size();
 }
 
 /**
@@ -270,7 +270,7 @@ Config Parser::convertToServerData(const Token& block)
 			}
 		}
 	}
-	return (config);
+	return config;
 }
 
 /**
@@ -291,7 +291,7 @@ std::vector<std::string>	Parser::getCollectionBykey(const Token& root, const std
 			}
 		}
 	}
-	return (collection);
+	return collection;
 }
 
 /**
@@ -362,26 +362,26 @@ bool Parser::isValidJSONString(std::string_view sv)
 				break;
 			case '}':
 				if (brackets.empty() || brackets.top() != '{') {
-					return (false);
+					return false;
 				} else {
 					brackets.pop();
 				}
 				break;
 			case ']':
 				if (brackets.empty() || brackets.top() != '[') {
-					return (false);
+					return false;
 				} else {
 					brackets.pop();
 				}
 				break;
 			case ':': // allowing to have contiguous ':' for IPv6 validation
 				if (prevChar == ',') {
-					return (false);
+					return false;
 				}
 				break;
 			case ',':
 				if (prevChar == ':' || prevChar == ',') {
-					return (false);
+					return false;
 				}
 				break;
 			default:
@@ -393,14 +393,14 @@ bool Parser::isValidJSONString(std::string_view sv)
 
 	if (inQuotes) {
 		std::cerr << "Un-closed double quotations !\n";
-		return (false);
+		return false;
 	}
 
 	if (!brackets.empty()) {
 		std::cerr << "Un-closed brackets " << brackets.top() << "!\n";
-		return (false);
+		return false;
 	}
-	return (true);
+	return true;
 }
 
 /**
@@ -410,10 +410,10 @@ bool Parser::isValidJSONString(std::string_view sv)
 bool Parser::isPrimitiveValue(std::string_view sv)
 {
 	if (sv.empty())
-		return (false);
+		return false;
 
 	if (sv == "true" || sv == "false")
-		return (true);
+		return true;
 
 	if (isValidIPv4(sv) || isValidPort(sv) || isUnsignedIntLiteral(sv) || isPositiveDoubleLiteral(sv))
 		return true;
