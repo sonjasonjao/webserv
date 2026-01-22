@@ -170,7 +170,10 @@ void	Request::parseRequest(void) {
 	}
 	else if (_chunked)
 		parseChunked();
+
+	#if DEBUG_LOGGING
 	printData();
+	#endif
 }
 
 /**

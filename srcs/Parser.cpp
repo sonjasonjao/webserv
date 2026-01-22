@@ -343,21 +343,24 @@ Config Parser::convertToServerData(const Token& block) {
 						if (right.type != TokenType::Array)
 							throw ParserException(ERROR_LOG("\t\t\tIncorrect token type for '" + left.value + "' target"));
 
+						route.allowedMethods = std::vector<std::string>();
 						for (auto const &a : right.children) {
 							if (a.value != "GET" && a.value != "POST" && a.value != "DELETE")
 								throw ParserException(ERROR_LOG("\t\t\t\tIncorrect value '" + a.value + "' for '" + left.value + "' array element"));
 
-							route.allowedMethods.emplace_back(a.value);
+							route.allowedMethods->emplace_back(a.value);
 						}
 					}
 				} // Target or allowed methods missing -> error
-				if (route.target.empty() || route.allowedMethods.empty())
+				if (route.target.empty() || !route.allowedMethods.has_value())
 					throw ParserException(ERROR_LOG("\t\t\tBad route configuration"));
 
 				DEBUG_LOG("\t\t" + uri + " -> " + route.target);
 				DEBUG_LOG("\t\tAllowed methods");
-				for (auto const &a : route.allowedMethods)
+				#if DEBUG_LOGGING
+				for (auto const &a : route.allowedMethods.value())
 					DEBUG_LOG("\t\t\t" + a);
+				#endif
 
 				config.routes[uri] = route;
 
@@ -368,17 +371,20 @@ Config Parser::convertToServerData(const Token& block) {
 			if (tok.type != TokenType::Array)
 				throw ParserException(ERROR_LOG("\tInvalid token type for '" + key + "'"));
 
+			config.allowedMethods = std::vector<std::string>();
 			for (auto const &a : tok.children) {
 				if (a.value != "GET" && a.value != "POST" && a.value != "DELETE")
 					throw ParserException(ERROR_LOG("\t\tIncorrect value '" + a.value + "' for allowed_methods array element"));
-				if (std::find(config.allowedMethods.begin(), config.allowedMethods.end(), a.value) != config.allowedMethods.end())
+				if (std::find(config.allowedMethods->begin(), config.allowedMethods->end(), a.value) != config.allowedMethods->end())
 					throw ParserException(ERROR_LOG("\t\tDuplicate '" + a.value + "' for allowed_methods array element"));
 
-				config.allowedMethods.emplace_back(a.value);
+				config.allowedMethods->emplace_back(a.value);
 			}
 			DEBUG_LOG("\tAllowed methods");
-			for (auto const &a : config.allowedMethods)
+			#if DEBUG_LOGGING
+			for (auto const &a : config.allowedMethods.value())
 				DEBUG_LOG("\t\t" + a);
+			#endif
 
 			continue;
 		} /* ---- Everything else ---- */

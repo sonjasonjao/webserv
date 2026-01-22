@@ -1,4 +1,5 @@
 #include "Response.hpp"
+#include "Request.hpp"
 #include "Utils.hpp"
 #include "Log.hpp"
 #include "Pages.hpp"
@@ -18,7 +19,6 @@ constexpr char const * const	CRLF = "\r\n";
 static Route				getRoute(std::string uri, Config const &conf);
 static std::string const	&getResponsePageContent(std::string const &key, Config const &conf);
 static std::string			getContentType(std::string sv);
-static std::string			getDirectoryList(std::string_view target, std::string_view route);
 static void					listify(std::vector<std::string> const &vec, size_t offset, std::stringstream &stream);
 
 /**
@@ -28,11 +28,10 @@ static void					listify(std::vector<std::string> const &vec, size_t offset, std:
  */
 Response::Response(Request const &req, Config const &conf) : _req(req), _conf(conf)
 {
-	static std::string	startDir = std::filesystem::current_path();
+	INFO_LOG("Forming target for " + _req.getMethodString() + " request targeting " + _req.getTarget());
+	/* Already flagged requests */
 
-	/* --------------------------------------------- Already flagged requests */
-
-	switch (req.getStatus()) {
+	switch (_req.getStatus()) {
 		case RequestStatus::ContentTooLarge:	_statusCode = ContentTooLarge;	break;
 		case RequestStatus::Invalid:			_statusCode = BadRequest;		break;
 		case RequestStatus::RecvTimeout:		_statusCode = RequestTimeout;	break;
@@ -41,7 +40,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	if (_statusCode != Unassigned) {
 		formResponse();
 
-		#ifdef DEBUG_LOG
+		#if DEBUG_LOGGING
 		std::cout << "\n---- Response content ----\n";
 		if (_contentType.find("image") == std::string::npos)
 			std::cout << _content;
@@ -53,62 +52,44 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		return;
 	}
 
-	std::string	reqTarget = req.getTarget();
+	/* Target URI validation */
 
-	/* ----------------------------------------- Target URI format validation */
+	_target = _req.getTarget();
 
-	if (!uriFormatOk(reqTarget) || uriTargetAboveRoot(reqTarget)) {
-		DEBUG_LOG("Bad target: " + reqTarget);
+	if (!uriFormatOk(_target) || uriTargetAboveRoot(_target)) {
+		DEBUG_LOG("Bad target: " + _req.getTarget());
 		_statusCode = BadRequest;
 		formResponse();
 
 		return;
 	}
 
-	/* ------------------------------------------------ Target URI sanitation */
+	/* Target URI sanitation */
 
 	// If the path has any ".." or "./" aka unnecessary parts, remove them
-	_target = std::filesystem::path(reqTarget).lexically_normal();
+	_target = std::filesystem::path(_req.getTarget()).lexically_normal();
 
-	// Save original request target before routing
-	reqTarget = _target;
-	if (reqTarget.size() > 1 && reqTarget[0] == '/')
-		reqTarget = reqTarget.substr(1);
+	// Save original sanitized request target before routing
+	_reqTargetSanitized = _target;
+	if (_reqTargetSanitized.size() > 1 && _reqTargetSanitized[0] == '/')
+		_reqTargetSanitized = _reqTargetSanitized.substr(1);
 
-	/* -------------------------------------------------------------- Routing */
+	routing();	// Routing possibly remaps the target path
 
-	// Look for a route, which is a redirection of a URI/part of a URI to a specific folder or file on the server
-	Route	route = getRoute(_target, _conf);
+	/* Forbidden methods */
 
-	// A non empty string signifies a matched route
-	if (!route.original.empty()) {
-		if (_target.length() > 1 && _target[0] == '/')
-			_target = _target.substr(1);
-		if (_target.back() == '/')
-			_target.pop_back();
-		if (route.original == "/") {
-			if (route.target.back() == '/')
-				route.target.pop_back();
-			_target = route.target + "/" + _target;
-		} else {
-			_target.replace(_target.find(route.original), route.original.length(), route.target);
-		}
-	}
-
-	/* ---------------------------------------------------- Forbidden methods */
-
-	auto const	*okMethods = &route.allowedMethods;
+	auto const	*okMethods = &_route.allowedMethods;
 
 	// If there  is no route level restrictions, look for server level restrictions
-	if (okMethods->size() == 0)
+	if (!okMethods->has_value())
 		okMethods = &_conf.allowedMethods;
 
-	if (okMethods->size() > 0) {
+	if (okMethods->has_value()) {
 		std::string	methodString = _req.getMethodString();
 
 		auto const	&m = *okMethods;
 
-		if (methodString.empty() || std::find(m.begin(), m.end(), methodString) == m.end()) {
+		if (methodString.empty() || std::find(m->begin(), m->end(), methodString) == m->end()) {
 			DEBUG_LOG("Method '" + methodString + "' not in list of allowed methods");
 			_statusCode = Forbidden;
 			formResponse();
@@ -117,74 +98,25 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		}
 	}
 
-	INFO_LOG("Routing " + reqTarget + " to " + _target);
+	if (!_route.original.empty())
+		INFO_LOG("Routing " + _reqTargetSanitized + " to " + _target);
 
-	/* ---------------------------------------------------- Directory targets */
+	/* Directory targets */
 
-	if (std::filesystem::is_directory(_target)) {
-		DEBUG_LOG("Target '" + _target + "' is a directory" );
-		if (!_conf.autoindex && !_conf.directoryListing) {
-			DEBUG_LOG("Autoindexing and directory listing is disabled");
-			_statusCode = Forbidden;
-			formResponse();
+	if (_req.getRequestMethod() == RequestMethod::Get && std::filesystem::is_directory(_target))
+		handleDirectoryTarget();
 
-			return;
-		}
+	if (_statusCode == Forbidden && _req.getRequestMethod() == RequestMethod::Get) {
+		formResponse();
 
-		if (_target.back() == '/')
-			_target.pop_back();
-
-		// Directory listing is prioritized over autoindexing
-		if (_conf.directoryListing) {
-			_body = getDirectoryList(reqTarget, _target);
-		} else if (_conf.autoindex) {
-			_target = _target + "/" + "index.html";
-		}
+		return;
 	}
 
-	/* ------------------------------------------------ Locating the resource */
-
-	std::string	searchDir = startDir;
-
-	// If the route contains a '/' at the beginning, define the search dir as root
-	if (_target[0] == '/')
-		searchDir = "/";
-
-	// Check if resource can be found and set status code
-	switch (req.getRequestMethod()) {
-		case RequestMethod::Get:
-			if (!Pages::isCached(getAbsPath(_target)) && !resourceExists(_target, searchDir)) {
-				INFO_LOG("Resource " + _target + " could not be found");
-				_statusCode = NotFound;
-				break;
-			}
-			if (Pages::isCached(getAbsPath(_target)))
-				DEBUG_LOG("Resource " + _target + " found in cache");
-			INFO_LOG("Resource " + _target + " found");
-			_statusCode = OK;
-		break;
-		case RequestMethod::Post:
-			INFO_LOG("Responding to POST request with target " + _target);
-			_statusCode = OK;
-		break;
-		case RequestMethod::Delete:
-			if (!resourceExists(_target, searchDir)) {
-				INFO_LOG("Response: Resource " + _target + " could not be found");
-				_statusCode = NotFound;
-				break;
-			}
-			INFO_LOG("Resource " + _target + " deleted (not really but in the future)");
-			_statusCode = NoContent;
-		break;
-		default:
-			INFO_LOG("Unknown request method, response status defaulting to bad request");
-			_statusCode = BadRequest;
-		break;
-	}
+	locateTargetAndSetStatusCode();
 
 	formResponse(); /* ---------- Forming the contents of the response buffer */
 
-	#ifdef DEBUG_LOG
+	#if DEBUG_LOGGING
 	std::cout << "\n---- Response content ----\n";
 	if (_contentType.find("image") == std::string::npos)
 		std::cout << _content;
@@ -193,6 +125,8 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	std::cout << "\n--------------------------\n\n";
 	#endif
 }
+
+/* --------------------------------------------------------- Public functions */
 
 /**
  * @return	Response content buffer string
@@ -211,16 +145,48 @@ int	Response::getStatusCode() const
 }
 
 /**
+ * Function to send response to client, keeps track of already sent bytes and
+ * can be called repeatedly.
+ */
+void	Response::sendToClient()
+{
+	size_t	bytesToSend = _content.length() - _bytesSent;
+
+	if (bytesToSend == 0)
+		return;
+
+	char const	*bufferPosition	= _content.c_str() + _bytesSent;
+
+	DEBUG_LOG("Calling send to fd " + std::to_string(_req.getFd()));
+	ssize_t		bytesSent		= send(_req.getFd(), bufferPosition, bytesToSend, MSG_DONTWAIT);
+
+	if (bytesSent < 0)
+		throw std::runtime_error(ERROR_LOG("send: " + std::string(strerror(errno))));
+
+	_bytesSent += bytesSent;
+}
+
+/**
+ * @return	true if all bytes in the response content buffer have been sent, false if not
+ */
+bool	Response::sendIsComplete() const
+{
+	return _bytesSent >= _content.length();
+}
+
+/* -------------------------------------------------------- Private functions */
+
+/**
  * Uses previously gathered context to form the response buffer string.
  */
 void	Response::formResponse()
 {
-	_headerSection =	std::string("Server: ") + _conf.serverName + CRLF;
-	_headerSection +=	"Date: " + getImfFixdate() + CRLF;
+	_headerSection  = std::string("Server: ") + _conf.serverName + CRLF;
+	_headerSection += "Date: " + getImfFixdate() + CRLF;
 
-	// If the body is non empty it means directory listing has been activated
-	if (!_body.empty()) {
+	if (_directoryListing) {
 		_startLine		 = _req.getHttpVersion() + " 200 OK";
+		_body			 = getDirectoryList(_reqTargetSanitized, _target);
 		_contentType	 = "text/html";
 		_headerSection	+= "Content-Type: " + _contentType + std::string(CRLF);
 		_headerSection	+= "Content-Length: " + std::to_string(_body.length()) + CRLF;
@@ -280,37 +246,145 @@ void	Response::formResponse()
 	_content = _startLine + CRLF + _headerSection + CRLF + _body;
 }
 
-/**
- * Function to send response to client, keeps track of already sent bytes and
- * can be called repeatedly.
- */
-void	Response::sendToClient()
+void	Response::routing()
 {
-	size_t	bytesToSend = _content.length() - _bytesSent;
+	// Look for a route, which is a redirection of a URI/part of a URI to a specific folder or file on the server
+	_route = getRoute(_target, _conf);
 
-	if (bytesToSend == 0)
+	// A non empty string signifies a matched route
+	if (!_route.original.empty()) {
+		if (_target.length() > 1 && _target[0] == '/')
+			_target = _target.substr(1);
+		if (_target.back() == '/')
+			_target.pop_back();
+		if (_route.original == "/") {
+			if (_route.target.back() == '/')
+				_route.target.pop_back();
+			_target = _route.target + "/" + _target;
+		} else {
+			_target.replace(_target.find(_route.original), _route.original.length(), _route.target);
+		}
+	}
+}
+
+void	Response::handleDirectoryTarget()
+{
+	DEBUG_LOG("Target '" + _target + "' is a directory");
+	if (!_conf.autoindex && !_conf.directoryListing) {
+		DEBUG_LOG("Autoindexing and directory listing is disabled");
+		_statusCode = Forbidden;
+
 		return;
+	}
 
-	char const	*bufferPosition	= _content.c_str() + _bytesSent;
+	if (_target.back() == '/')
+		_target.pop_back();
 
-	DEBUG_LOG("Calling send to fd " + std::to_string(_req.getFd()));
-	ssize_t		bytesSent		= send(_req.getFd(), bufferPosition, bytesToSend, MSG_DONTWAIT);
-
-	if (bytesSent < 0)
-		throw std::runtime_error(ERROR_LOG("send: " + std::string(strerror(errno))));
-
-	_bytesSent += bytesSent;
+	// Directory listing is prioritized over autoindexing
+	if (_conf.directoryListing) {
+		_directoryListing	= true;
+	} else if (_conf.autoindex) {
+		_target = _target + "/" + "index.html";
+	}
 }
 
 /**
- * @return	true if all bytes in the response content buffer have been sent, false if not
+ * @return	String containing the HTML page with links to the contents of the directory
  */
-bool	Response::sendIsComplete() const
+std::string	Response::getDirectoryList(std::string_view target, std::string_view route)
 {
-	return _bytesSent >= _content.length();
+	std::vector<std::string>	files;
+	std::vector<std::string>	directories;
+	std::stringstream			stream;
+
+	stream << "<!DOCTYPE html><html><head></head><body>\n";
+
+	stream << "<h1>" << target << "</h1>";
+
+	try {
+		for (const auto &e : std::filesystem::directory_iterator(route)) {
+
+			std::string	name = e.path().string();
+
+			if (e.is_regular_file()) {
+				auto	pos = std::upper_bound(files.begin(), files.end(), name);
+				files.insert(pos, name);
+			} else if (e.is_directory()) {
+				auto	pos = std::upper_bound(directories.begin(), directories.end(), name);
+				directories.insert(pos, name);
+			}
+		}
+	} catch (std::exception const &e) {
+		std::stringstream	errorMsg;
+
+		errorMsg << e.what();
+		if (errno != 0)
+			errorMsg << ", errno = " << std::to_string(errno) << ": " << std::string(strerror(errno));
+		ERROR_LOG(errorMsg.str());
+		_diagnosticMessage = "Error creating directory list";
+		_statusCode = InternalServerError;
+
+		return "";
+	}
+
+	if (!directories.empty()) {
+		stream << "<h2>Directories</h2>\n";
+		listify(directories, route.length() + 1, stream);
+	}
+
+	if (!files.empty()) {
+		stream << "\n<h2>Files</h2>\n";
+		listify(files, route.length() + 1, stream);
+	}
+
+	stream << "</body></html>\n";
+
+	return stream.str();
 }
 
-/* -------------------------------------------------------------------------- */
+void	Response::locateTargetAndSetStatusCode()
+{
+	static std::string const	startDir	= std::filesystem::current_path();
+	std::string					searchDir	= startDir;
+
+	// If the route contains a '/' at the beginning, define the search dir as root
+	if (_target[0] == '/')
+		searchDir = "/";
+
+	// Check if resource can be found and set status code
+	switch (_req.getRequestMethod()) {
+		case RequestMethod::Get:
+			if (!Pages::isCached(getAbsPath(_target)) && !resourceExists(_target, searchDir)) {
+				INFO_LOG("Resource " + _target + " could not be found");
+				_statusCode = NotFound;
+				break;
+			}
+			if (Pages::isCached(getAbsPath(_target)))
+				DEBUG_LOG("Resource " + _target + " found in cache");
+			INFO_LOG("Resource " + _target + " found");
+			_statusCode = OK;
+		break;
+		case RequestMethod::Post:
+			INFO_LOG("Responding to POST request with target " + _target);
+			_statusCode = OK;
+		break;
+		case RequestMethod::Delete:
+			if (!resourceExists(_target, searchDir)) {
+				INFO_LOG("Response: Resource " + _target + " could not be found");
+				_statusCode = NotFound;
+				break;
+			}
+			INFO_LOG("Resource " + _target + " deleted (not really but in the future)");
+			_statusCode = NoContent;
+		break;
+		default:
+			INFO_LOG("Unknown request method, response status defaulting to bad request");
+			_statusCode = BadRequest;
+		break;
+	}
+}
+
+/* --------------------------------------------------------- Static functions */
 
 /**
  * @return	Route struct containing the information of the matched route,
@@ -399,56 +473,6 @@ static std::string const	&getResponsePageContent(std::string const &key, Config 
 
 	// Retrieve default
 	return Pages::getPageContent("default" + key);
-}
-
-/**
- * @return	String containing the HTML page with links to the contents of the directory
- */
-static std::string	getDirectoryList(std::string_view target, std::string_view route)
-{
-	std::vector<std::string>	files;
-	std::vector<std::string>	directories;
-	std::stringstream			stream;
-
-	stream << "<!DOCTYPE html><html><head></head><body>\n";
-
-	stream << "<h1>" << target << "</h1>";
-
-	try {
-		for (const auto &e : std::filesystem::directory_iterator(route)) {
-
-			std::string	name = e.path().string();
-
-			if (e.is_regular_file()) {
-				auto	pos = std::upper_bound(files.begin(), files.end(), name);
-				files.insert(pos, name);
-			} else if (e.is_directory()) {
-				auto	pos = std::upper_bound(directories.begin(), directories.end(), name);
-				directories.insert(pos, name);
-			}
-		}
-	} catch (std::exception const &e) {
-		std::stringstream	errorMsg;
-
-		errorMsg << e.what();
-		if (errno != 0)
-			errorMsg << ", errno = " << std::to_string(errno) << ": " << std::string(strerror(errno));
-		ERROR_LOG(errorMsg.str());
-	}
-
-	if (!directories.empty()) {
-		stream << "<h2>Directories</h2>\n";
-		listify(directories, route.length() + 1, stream);
-	}
-
-	if (!files.empty()) {
-		stream << "\n<h2>Files</h2>\n";
-		listify(files, route.length() + 1, stream);
-	}
-
-	stream << "</body></html>\n";
-
-	return stream.str();
 }
 
 /**

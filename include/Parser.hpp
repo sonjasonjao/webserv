@@ -3,6 +3,7 @@
 #include <fstream>
 #include <cstdint>
 #include <cctype>
+#include <optional>
 #include <string>
 #include <vector>
 #include <map>
@@ -17,9 +18,9 @@
 #define EXTENSION "json"
 
 struct Route {
-	std::string					original;
-	std::string					target;
-	std::vector<std::string>	allowedMethods;
+	std::string								original;
+	std::string								target;
+	std::optional<std::vector<std::string>>	allowedMethods;
 };
 
 struct Config {
@@ -32,7 +33,7 @@ struct Config {
 	std::map<std::string, std::string>	statusPages;	// Mapping from HTTP status code to custom page path.
 	std::map<std::string, Route>		routes;			// Set of routes (URI -> path definitions) for this server.
 
-	std::vector<std::string>	allowedMethods;
+	std::optional<std::vector<std::string>>	allowedMethods;
 
 	size_t	requestMaxBodySize	= 0;	// in bytes
 
