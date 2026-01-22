@@ -36,6 +36,18 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		case RequestStatus::ContentTooLarge:
 			_statusCode = ContentTooLarge;
 		break;
+		case RequestStatus::InternalServerError:
+			_statusCode = InternalServerError;
+		break;
+		case RequestStatus::Conflict:
+			_statusCode = Conflict;
+		break;
+		case RequestStatus::Created:
+			_statusCode = Created;
+		break;
+		case RequestStatus::UnprocessableContent:
+			_statusCode = UnprocessableContent;
+		break;
 		default: break;
 	}
 	if (_statusCode != Unassigned) {
@@ -188,6 +200,10 @@ void	Response::formResponse()
 			_startLine	= _req.getHttpVersion() + " 204 No Content";
 			_body		= getResponsePageContent("204", _conf);
 		break;
+		case 207:
+			_startLine	= _req.getHttpVersion() + " 207 Created";
+			_body		= getResponsePageContent("207", _conf);
+		break;
 		case 400:
 			_startLine	= _req.getHttpVersion() + " 400 Bad Request";
 			_body		= getResponsePageContent("400", _conf);
@@ -204,9 +220,16 @@ void	Response::formResponse()
 			_startLine	= _req.getHttpVersion() + " 408 Request Timeout";
 			_body		= getResponsePageContent("408", _conf);
 		break;
+		case 409:
+			_startLine	= _req.getHttpVersion() + " 409 Conflict";
+			_body		= getResponsePageContent("409", _conf);
+		break;
 		case 413:
 			_startLine	= _req.getHttpVersion() + " 413 Content Too Large";
 			_body		= getResponsePageContent("413", _conf);
+		case 422:
+			_startLine	= _req.getHttpVersion() + " 422 Unprocessable content";
+			_body		= getResponsePageContent("422", _conf);
 		break;
 		default:
 			_startLine	= _req.getHttpVersion() + " 500 Internal Server Error";
