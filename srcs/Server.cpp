@@ -256,14 +256,23 @@ void	Server::handleClientData(size_t& i)
 
 	Config const	&conf = matchConfig(*it);
 
-	it->setUploadDir(conf.upload_dir);
+	// if user has set a upload directory use that or pass an empty string 
+	it->setUploadDir(conf.upload_dir.has_value() ? conf.upload_dir.value() : "");
 	it->handleRequest();
 
 	if (it->isHeadersCompleted()) {
-		if (conf.client_max_body_size > 0 && it->getContentLength() > conf.client_max_body_size) {
-			it->setStatus(RequestStatus::ContentTooLarge);
-			ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit "
-			+ std::to_string(conf.client_max_body_size));
+		if(conf.client_max_body_size.has_value()) {
+			// if there is user defined value for client_max_body_size check against the value
+			if (it->getContentLength() > conf.client_max_body_size) {
+				it->setStatus(RequestStatus::ContentTooLarge);
+				ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit " + std::to_string(conf.client_max_body_size.value()));
+			}
+		} else {
+			// check against teh dafault client_max_body_size value
+			if (it->getContentLength() > CLIENT_MAX_BODY_SIZE) {
+				it->setStatus(RequestStatus::ContentTooLarge);
+				ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit " + std::to_string(CLIENT_MAX_BODY_SIZE));
+			}
 		}
 	}
 
