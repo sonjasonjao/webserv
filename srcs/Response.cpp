@@ -77,12 +77,13 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 
 	/* DELETE */
 	if (req.getRequestMethod() == RequestMethod::Delete) {
-		if (_conf.uploadDir.empty()) {
+		/*If uploadDir is not given in config, file deletion is disabled*/
+		if (!_conf.uploadDir.has_value()) {
 			_statusCode = Forbidden;
 			formResponse();
 			return;
 		}
-		std::string	uploadDir = _conf.uploadDir;
+		std::string	uploadDir = _conf.uploadDir.value();
 		if (_target.length() > 1 && _target[0] == '/')
 			_target = _target.substr(1);
 		if (uploadDir.back() == '/')
@@ -95,7 +96,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		}
 		else {
 			if (std::filesystem::remove(_target) == false) {
-				DEBUG_LOG("INTERNAL SERVER ERROR");
+				DEBUG_LOG("INTERNAL SERVER ERROR"); // _statusCode set to 500 and handled
 			}
 			INFO_LOG("Resource " + _target + " deleted");
 			_statusCode = NoContent;
