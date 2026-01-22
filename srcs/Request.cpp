@@ -153,7 +153,7 @@ void	Request::parseRequest(void) {
 	}
 	else if (!_buffer.empty() && (_contentLen.has_value() && _body.size() < _contentLen.value())) {
 		size_t	missingLen = _contentLen.value() - _body.size();
-		if (missingLen != _buffer.size()) {
+		if (missingLen < _buffer.size()) {
 			setStatusAndKeepAlive(RequestStatus::Invalid, true);
 			return;
 		}
