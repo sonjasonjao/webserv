@@ -1,10 +1,12 @@
 #include "Request.hpp"
 #include "Log.hpp"
+#include "Response.hpp"
 #include "Utils.hpp"
 #include <regex>
 #include <iostream>
 #include <unordered_set>
 #include <chrono>
+#include <filesystem>
 
 constexpr char const * const	CRLF = "\r\n";
 
@@ -741,6 +743,11 @@ RequestMethod	Request::getRequestMethod() const
 	return _request.method;
 }
 
+ResponseCode	Request::getResponseCodeBypass() const
+{
+	return _responseCodeBypass;
+}
+
 std::string const	&Request::getHttpVersion() const
 {
 	return _request.httpVersion;
@@ -800,7 +807,7 @@ void	Request::handleFileUpload(void)
 			if (_buffer.size() >= 2 && _buffer.compare(0, 2, "\r\n") == 0) {
 				_buffer = _buffer.erase(0, 2);
 			}
-			_status = RequestStatus::Created;
+			_responseCodeBypass = Created;
 			break;
 		}
 
@@ -850,7 +857,7 @@ void	Request::saveToDisk(const MultipartPart& part)
 {
 	if (!_uploadFD) {
 		ERROR_LOG("Can not created the file, fileFD not valid");
-		_status = RequestStatus::InternalServerError;
+		_responseCodeBypass = InternalServerError;
 		return;
 	}
 
@@ -858,12 +865,12 @@ void	Request::saveToDisk(const MultipartPart& part)
 
 	if (!_uploadFD->good()) {
 		ERROR_LOG("Writing data to the file failed");
-		_status = RequestStatus::InternalServerError;
+		_responseCodeBypass = InternalServerError;
 		return;
 	}
 
 	DEBUG_LOG("File " + part.filename + " saved successfully!");
-	_status = RequestStatus::Created;
+	_responseCodeBypass = Created;
 }
 
 void	Request::initialSaveToDisk(const MultipartPart& part) {
@@ -871,7 +878,7 @@ void	Request::initialSaveToDisk(const MultipartPart& part) {
 	// if the upload directory has not set in the config file upload operation can not process
 	if(!_uploadDir.has_value()) {
 		ERROR_LOG("Upload directory has not set in the config file");
-		_status = RequestStatus::UnprocessableContent;
+		_responseCodeBypass = UnprocessableContent;
 		return;
 	}
 
@@ -882,7 +889,7 @@ void	Request::initialSaveToDisk(const MultipartPart& part) {
 
 	} catch (const std::filesystem::filesystem_error& e) {
 		ERROR_LOG("Failed to create upload directory: " + std::string(e.what()));
-		_status = RequestStatus::InternalServerError;
+		_responseCodeBypass = InternalServerError;
 		return;
 	}
 
@@ -892,7 +899,7 @@ void	Request::initialSaveToDisk(const MultipartPart& part) {
 	// if filename conflicts will treat as an error
 	if (std::filesystem::exists(target_path)) {
 		ERROR_LOG("A file already exists in the directory with the same file name");
-		_status = RequestStatus::Conflict;
+		_responseCodeBypass = Conflict;
 		return;
 	}
 
@@ -903,16 +910,16 @@ void	Request::initialSaveToDisk(const MultipartPart& part) {
 		_uploadFD->write(part.data.c_str(), part.data.size());
 		if (_uploadFD->good()) {
 			DEBUG_LOG("File " + part.filename + " initial write successful!");
-			_status = RequestStatus::Created;
+			_responseCodeBypass = Conflict;
 		} else {
 			ERROR_LOG("File " + part.filename + " initial write failed!");
 			_uploadFD->close();
-			_status = RequestStatus::InternalServerError;
+			_responseCodeBypass = InternalServerError;
 			return;
 		}
 	} else {
 		ERROR_LOG("File " + part.filename + " save process failed!");
-		_status = RequestStatus::InternalServerError;
+		_responseCodeBypass = InternalServerError;
 		return;
 	}
 }

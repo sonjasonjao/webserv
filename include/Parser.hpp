@@ -1,16 +1,12 @@
 #pragma once
 
-#include <fstream>
-#include <cstdint>
-#include <cctype>
-#include <string>
-#include <vector>
-#include <stack>
-#include <map>
-
 #include "CustomException.hpp"
 #include "JSON.hpp"
-#include "Request.hpp"
+#include <fstream>
+#include <string>
+#include <vector>
+#include <map>
+#include <optional>
 
 /**
  * Default file_name extension for the configuration file, with out correct extension

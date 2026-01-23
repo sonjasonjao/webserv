@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Response.hpp"
 #include <unordered_map>
 #include <vector>
 #include <string>
@@ -7,13 +8,14 @@
 #include <chrono>
 #include <memory>
 #include <fstream>
-#include <filesystem>
 
 #define IDLE_TIMEOUT			10000 // timeout values to be decided, and should they be in Server.hpp?
 #define RECV_TIMEOUT			5000
 #define SEND_TIMEOUT			5000
 #define HEADERS_MAX_SIZE		8000
 #define CLIENT_MAX_BODY_SIZE	1000000
+
+enum ResponseCode : int;
 
 /**
  * Mandatory methods required in the subject, do we want to add more? -> Will affect
@@ -43,10 +45,6 @@ enum class RequestStatus
 	ContentTooLarge,
 	Invalid,
 	Error,
-	InternalServerError,
-	Created,
-	Conflict,
-	UnprocessableContent
 };
 
 struct RequestLine
@@ -85,6 +83,7 @@ class Request
 		int								_fd;
 		int								_serverFd;
 		RequestStatus					_status;
+		ResponseCode					_responseCodeBypass;
 		bool							_keepAlive;
 		bool							_chunked;
 		bool							_completeHeaders;
@@ -145,6 +144,7 @@ class Request
 		std::vector<std::string> const	*getHeader(std::string const &key) const;
 		RequestMethod					getRequestMethod(void) const;
 		RequestStatus					getStatus(void) const;
+		ResponseCode					getResponseCodeBypass(void) const;
 		std::string const				&getHttpVersion(void) const;
 		std::string const				&getBody(void) const;
 		std::string const				&getTarget(void) const;

@@ -1,16 +1,12 @@
 #pragma once
 
 #include "Parser.hpp"
-#include "Request.hpp"
 #include "Response.hpp"
 #include <vector>
 #include <list>
 #include <deque>
 #include <unordered_map>
 #include <poll.h>
-#include <csignal>
-
-class Request;
 
 #define MAX_PENDING		20 // all of these to be decided
 #define RECV_BUF_SIZE	4096

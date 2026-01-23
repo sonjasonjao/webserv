@@ -4,6 +4,8 @@
 #include "Request.hpp"
 #include "Parser.hpp"
 
+class Request;
+
 enum ResponseCode : int {
 	Unassigned				= -1,
 	OK						= 200,

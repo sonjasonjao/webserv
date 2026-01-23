@@ -25,28 +25,21 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 {
 	static std::string	startDir = std::filesystem::current_path();
 
-	// If request has already been flagged as bad don't continue
-	switch (req.getStatus()) {
+	ResponseCode	bypass = _req.getResponseCodeBypass();
+
+	if (bypass != Unassigned) {
+		_statusCode = bypass;
+		formResponse();
+
+		return;
+	}
+
+	switch (_req.getStatus()) {
 		case RequestStatus::Invalid:
 			_statusCode = BadRequest;
 		break;
 		case RequestStatus::RecvTimeout:
 			_statusCode = RequestTimeout;
-		break;
-		case RequestStatus::ContentTooLarge:
-			_statusCode = ContentTooLarge;
-		break;
-		case RequestStatus::InternalServerError:
-			_statusCode = InternalServerError;
-		break;
-		case RequestStatus::Conflict:
-			_statusCode = Conflict;
-		break;
-		case RequestStatus::Created:
-			_statusCode = Created;
-		break;
-		case RequestStatus::UnprocessableContent:
-			_statusCode = UnprocessableContent;
 		break;
 		default: break;
 	}
@@ -62,7 +55,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		return;
 	}
 
-	std::string	reqTarget = req.getTarget();
+	std::string	reqTarget = _req.getTarget();
 
 	// Be prepared for shenanigans, validate URI format for target early
 	if (!uriFormatOk(reqTarget) || uriTargetAboveRoot(reqTarget)) {
@@ -117,7 +110,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 
 	// Check if resource can be found and set status code
 	// NOTE: Match allowed methods from route
-	switch (req.getRequestMethod()) {
+	switch (_req.getRequestMethod()) {
 		case RequestMethod::Get:
 			if (!Pages::isCached(getAbsPath(_target)) && !resourceExists(_target, searchDir)) {
 				INFO_LOG("Resource " + _target + " could not be found");
@@ -309,8 +302,8 @@ static std::string	route(std::string target, Config const &conf)
 
 static std::string	getContentType(std::string target)
 {
-	std::string	contentType			= "text/html";
-	auto		pos					= target.find_last_of(".");
+	std::string	contentType	= "text/html";
+	auto		pos			= target.find_last_of(".");
 
 	if (pos == std::string::npos)
 		return contentType;

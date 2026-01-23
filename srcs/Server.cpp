@@ -10,6 +10,7 @@
 #include <poll.h>
 #include <fcntl.h>
 #include <cstring>
+#include <signal.h>
 
 volatile sig_atomic_t	endSignal = false;
 

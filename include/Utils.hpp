@@ -3,9 +3,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include <fstream>
-#include <memory>
-#include "Request.hpp"
 
 std::vector<std::string>	splitStringView(std::string_view sv, std::string_view delim = " ");
 std::vector<std::string>	splitUri(std::string_view uri);
@@ -24,5 +21,5 @@ bool	isValidImfFixdate(std::string_view sv);
 bool	isUnsignedIntLiteral(std::string_view sv);
 bool	isPositiveDoubleLiteral(std::string_view sv);
 
-std::string						extractValue(const std::string& source, const std::string& key);
-std::string						extractQuotedValue(const std::string& source, const std::string& key);
+std::string	extractValue(const std::string& source, const std::string& key);
+std::string	extractQuotedValue(const std::string& source, const std::string& key);
