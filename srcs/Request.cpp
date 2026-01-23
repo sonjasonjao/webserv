@@ -786,7 +786,6 @@ void	Request::setUploadDir(std::string path)
 
 void	Request::handleFileUpload(void)
 {
-
 	std::string	partDelimiter	= "--" + _boundary.value();
 	std::string	endDelimiter	= partDelimiter + "--";
 	size_t		currPos			= _currUploadPos;
@@ -811,13 +810,13 @@ void	Request::handleFileUpload(void)
 			break;
 		}
 
-		size_t headerStart = partStart + partDelimiter.length();
+		size_t	headerStart = partStart + partDelimiter.length();
 
 		if (_buffer.substr(headerStart, 2) == "\r\n") {
 			headerStart += 2;
 		}
 
-		size_t partEnd = _buffer.find(partDelimiter, headerStart);
+		size_t	partEnd = _buffer.find(partDelimiter, headerStart);
 
 		if (partEnd == std::string::npos) {
 			_status = RequestStatus::WaitingData;
@@ -830,7 +829,7 @@ void	Request::handleFileUpload(void)
 			return;
 		}
 
-		std::string raw_part = _buffer.substr(headerStart, partEnd - (headerStart + 2));
+		std::string	raw_part = _buffer.substr(headerStart, partEnd - (headerStart + 2));
 
 		MultipartPart mp;
 		size_t header_end = raw_part.find("\r\n\r\n");
@@ -875,10 +874,10 @@ void	Request::saveToDisk(const MultipartPart& part)
 
 void	Request::initialSaveToDisk(const MultipartPart& part) {
 
-	// if the upload directory has not set in the config file upload operation can not process
+	// if the upload directory has not set in the config file upload operation is forbidden
 	if(!_uploadDir.has_value()) {
 		ERROR_LOG("Upload directory has not set in the config file");
-		_responseCodeBypass = UnprocessableContent;
+		_responseCodeBypass = Forbidden;
 		return;
 	}
 
@@ -894,7 +893,7 @@ void	Request::initialSaveToDisk(const MultipartPart& part) {
 	}
 
 	// constructing the file path
-	std::filesystem::path target_path = std::filesystem::path(_uploadDir.value()) / std::filesystem::path(part.filename).filename();
+	std::filesystem::path	target_path = std::filesystem::path(_uploadDir.value()) / std::filesystem::path(part.filename).filename();
 
 	// if filename conflicts will treat as an error
 	if (std::filesystem::exists(target_path)) {
@@ -904,7 +903,7 @@ void	Request::initialSaveToDisk(const MultipartPart& part) {
 	}
 
 	// file handler to write data
-	std::unique_ptr<std::ofstream> _uploadFD = std::make_unique<std::ofstream>(target_path, std::ios::binary);
+	std::unique_ptr<std::ofstream>	_uploadFD = std::make_unique<std::ofstream>(target_path, std::ios::binary);
 
 	if (_uploadFD && _uploadFD->is_open()) {
 		_uploadFD->write(part.data.c_str(), part.data.size());
