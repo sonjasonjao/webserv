@@ -1,5 +1,6 @@
 #include "Server.hpp"
 #include "Log.hpp"
+#include "Request.hpp"
 #include "Response.hpp"
 #include <iostream>
 #include <string>
@@ -268,7 +269,7 @@ void	Server::handleClientData(size_t& i)
 		} else {
 			DEBUG_LOG("File uploading is forbidden");
 			it->setResponseCodeBypass(Forbidden);
-			it->setStatus(RequestStatus::Invalid);
+			it->setStatus(ClientStatus::Invalid);
 		}
 	}
 	if (it->isHeadersCompleted()) {

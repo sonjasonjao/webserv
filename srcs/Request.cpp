@@ -802,7 +802,6 @@ void	Request::handleFileUpload()
 			// Remove only the processed multipart data including end delimiter
 			_buffer.erase(0, partStart + endDelimiter.length());
 			// Skip trailing CRLF if present
-
 			if (_buffer.size() >= 2 && _buffer.compare(0, 2, "\r\n") == 0) {
 				_buffer = _buffer.erase(0, 2);
 			}
@@ -876,8 +875,8 @@ void	Request::saveToDisk(const MultipartPart& part)
 	_status = ClientStatus::CompleteReq;
 }
 
-void	Request::initialSaveToDisk(const MultipartPart& part) {
-
+void	Request::initialSaveToDisk(const MultipartPart& part)
+{
 	// if the upload directory has not set in the config file upload operation is forbidden
 	if(!_uploadDir.has_value()) {
 		ERROR_LOG("Upload directory has not set in the config file");
