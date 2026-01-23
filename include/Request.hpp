@@ -100,8 +100,8 @@ class Request
 		std::optional<std::string>		_boundary;
 		std::optional<std::string>		_uploadDir;
 
-		void	initialSaveToDisk(const MultipartPart& part);
-		void	saveToDisk(const MultipartPart& part);
+		bool	initialSaveToDisk(const MultipartPart& part);
+		bool	saveToDisk(const MultipartPart& part);
 
 	public:
 		Request() = delete;

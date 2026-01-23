@@ -803,8 +803,14 @@ void	Request::handleFileUpload()
 			_buffer.erase(0, partStart + endDelimiter.length());
 			// Skip trailing CRLF if present
 
-			if (_buffer.size() >= 2 && _buffer.compare(0, 2, "\r\n") == 0) {
-				_buffer = _buffer.erase(0, 2);
+			/*NOTE! This if condition is not working as intended now. In a valid
+			case, this gets triggered with some trailing newline.*/
+			if (!_buffer.empty()) {
+				_responseCodeBypass = BadRequest;
+				DEBUG_LOG("BUFFER NOT EMPTY, CONTENTS NOW: " + _buffer);
+				_status = ClientStatus::Invalid;
+				_keepAlive = false;
+				break;
 			}
 			_responseCodeBypass = Created;
 			_status = ClientStatus::CompleteReq;
@@ -843,47 +849,42 @@ void	Request::handleFileUpload()
 			mp.contentType = extractValue(mp.headers, "Content-Type: ");
 		}
 
-		if (_uploadFD)
-			saveToDisk(mp);
-		else
-			initialSaveToDisk(mp);
+		if (_uploadFD) {
+			if (!saveToDisk(mp))
+				break;
+		} else {
+			if (!initialSaveToDisk(mp))
+				break;
+		}
 
 		_currUploadPos = partEnd;
 		currPos = partEnd;
 	}
 }
 
-void	Request::saveToDisk(const MultipartPart& part)
+bool	Request::saveToDisk(const MultipartPart& part)
 {
-	if (!_uploadFD) {
-		ERROR_LOG("Can not created the file, fileFD not valid");
-		_responseCodeBypass = InternalServerError;
-		_status = ClientStatus::Invalid;
-		return;
-	}
-
 	_uploadFD->write(part.data.c_str(), part.data.size());
 
 	if (!_uploadFD->good()) {
 		ERROR_LOG("Writing data to the file failed");
 		_responseCodeBypass = InternalServerError;
 		_status = ClientStatus::Invalid;
-		return;
+		return false;
 	}
 
 	DEBUG_LOG("File " + part.filename + " saved successfully!");
-	_responseCodeBypass = Created;
-	_status = ClientStatus::CompleteReq;
+	return true;
 }
 
-void	Request::initialSaveToDisk(const MultipartPart& part) {
+bool	Request::initialSaveToDisk(const MultipartPart& part) {
 
 	// if the upload directory has not set in the config file upload operation is forbidden
 	if(!_uploadDir.has_value()) {
 		ERROR_LOG("Upload directory has not set in the config file");
 		_responseCodeBypass = Forbidden;
 		_status = ClientStatus::Invalid;
-		return;
+		return false;
 	}
 
 	try {
@@ -895,7 +896,7 @@ void	Request::initialSaveToDisk(const MultipartPart& part) {
 		ERROR_LOG("Failed to create upload directory: " + std::string(e.what()));
 		_responseCodeBypass = InternalServerError;
 		_status = ClientStatus::Invalid;
-		return;
+		return false;
 	}
 
 	// constructing the file path
@@ -906,7 +907,7 @@ void	Request::initialSaveToDisk(const MultipartPart& part) {
 		ERROR_LOG("A file already exists in the directory with the same file name");
 		_responseCodeBypass = Conflict;
 		_status = ClientStatus::Invalid;
-		return;
+		return false;
 	}
 
 	// file handler to write data
@@ -916,17 +917,18 @@ void	Request::initialSaveToDisk(const MultipartPart& part) {
 		_uploadFD->write(part.data.c_str(), part.data.size());
 		if (_uploadFD->good()) {
 			DEBUG_LOG("File " + part.filename + " initial write successful!");
-			_responseCodeBypass = Conflict;
-			_status = ClientStatus::Invalid;
+			return true;
 		} else {
 			ERROR_LOG("File " + part.filename + " initial write failed!");
 			_uploadFD->close();
 			_responseCodeBypass = InternalServerError;
 			_status = ClientStatus::Invalid;
+			return false;
 		}
 	} else {
 		ERROR_LOG("File " + part.filename + " save process failed!");
 		_responseCodeBypass = InternalServerError;
 		_status = ClientStatus::Invalid;
+		return false;
 	}
 }
