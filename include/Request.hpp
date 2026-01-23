@@ -34,7 +34,7 @@ enum class RequestMethod
  * formed and ready to be sent from server. Error indicates there is a critical error in the HTTP
  * request, and thus client must be immediately disconnected.
  */
-enum class RequestStatus
+enum class ClientStatus
 {
 	WaitingData,
 	CompleteReq,
@@ -81,7 +81,7 @@ class Request
 	private:
 		int								_fd;
 		int								_serverFd;
-		RequestStatus					_status;
+		ClientStatus					_status;
 		ResponseCode					_responseCodeBypass;
 		bool							_keepAlive;
 		bool							_chunked;
@@ -132,7 +132,7 @@ class Request
 		void	setIdleStart();
 		void	setRecvStart();
 		void	setSendStart();
-		void	setStatus(RequestStatus status);
+		void	setStatus(ClientStatus status);
 		void	setResponseCodeBypass(ResponseCode code);
 
 		void	resetSendStart();
@@ -143,7 +143,7 @@ class Request
 
 		std::vector<std::string> const	*getHeader(std::string const &key) const;
 		RequestMethod					getRequestMethod() const;
-		RequestStatus					getStatus() const;
+		ClientStatus					getStatus() const;
 		ResponseCode					getResponseCodeBypass() const;
 		std::string const				&getHttpVersion() const;
 		std::string const				&getBody() const;

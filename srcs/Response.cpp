@@ -35,10 +35,10 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	}
 
 	switch (_req.getStatus()) {
-		case RequestStatus::Invalid:
+		case ClientStatus::Invalid:
 			_statusCode = BadRequest;
 		break;
-		case RequestStatus::RecvTimeout:
+		case ClientStatus::RecvTimeout:
 			_statusCode = RequestTimeout;
 		break;
 		default: break;
