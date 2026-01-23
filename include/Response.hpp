@@ -30,7 +30,7 @@ public:
 	~Response() = default;
 
 	std::string const				&getContent() const;
-	void							sendToClient();
+	bool							sendToClient();
 	bool							sendIsComplete();
 
 private:
