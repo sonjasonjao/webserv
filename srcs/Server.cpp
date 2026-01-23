@@ -254,14 +254,15 @@ void	Server::handleClientData(size_t& i)
 
 	it->setIdleStart();
 	it->setRecvStart();
-	it->saveRequest(std::string(buf, numBytes));
+	it->processRequest(buf);
 
 	Config const	&conf = matchConfig(*it);
 
-	// if user has set a upload directory use that or pass an empty string
-	it->setUploadDir(conf.upload_dir.has_value() ? conf.upload_dir.value() : "");
-	it->handleRequest();
-
+	if (it->getRequestMethod() == RequestMethod::Post && it->boundaryHasValue()) {
+		// if user has set a upload directory use that or pass an empty string
+		it->setUploadDir(conf.upload_dir.has_value() ? conf.upload_dir.value() : "");
+		it->handleFileUpload();
+	}
 	if (it->isHeadersCompleted()) {
 		if(conf.client_max_body_size.has_value()) {
 			// if there is user defined value for client_max_body_size check against the value

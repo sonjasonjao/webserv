@@ -36,20 +36,12 @@ Request::Request(int fd, int serverFd)
 
 /**
  * Saves the current buffer filled by recv into the combined buffer of this client.
+ * Checks whether the buffer so far includes "\r\n\r\n". If not, and the headers section hasn't
+ * been received completely (ending with "\r\n\r\n"), we assume the request is partial.
  */
-void	Request::saveRequest(std::string const& buf)
+void	Request::processRequest(std::string const& buf)
 {
 	_buffer += buf;
-}
-
-/**
- * Checks whether the buffer so far includes "\r\n\r\n". If not, and the headers section hasn't
- * been received completely (ending with "\r\n\r\n"), we assume the request is partial. In that
- * case, Host header is filled, so if the completing part of request never arrives, Host is
- * available for error page response forming.
- */
-void	Request::handleRequest()
-{
 	if (_buffer.find("\r\n\r\n") == std::string::npos && !_completeHeaders) {
 		_status = RequestStatus::WaitingData;
 	}
@@ -172,7 +164,7 @@ void	Request::parseRequest()
 	if (!_contentLen.has_value() && !_chunked)
 		_status = RequestStatus::CompleteReq;
 	else if (_request.method == RequestMethod::Post && _boundary.has_value()) {
-		handleFileUpload();
+		return;
 	}
 	else if (!_buffer.empty() && (_contentLen.has_value() && _body.size() < _contentLen.value())) {
 		size_t	missingLen = _contentLen.value() - _body.size();

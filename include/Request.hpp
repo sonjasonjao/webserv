@@ -108,9 +108,8 @@ class Request
 		Request(int fd, int serverFd);
 		~Request() = default;
 
-		void	saveRequest(std::string const &buf);
-		void	handleRequest();
-		void	parseRequest();
+		void	processRequest(std::string const &buf);
+		void	parseRequest(void);
 		void	parseRequestLine(std::string &req);
 		void	parseHeaders(std::string &str);
 
