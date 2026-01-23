@@ -220,6 +220,7 @@ void	Response::formResponse()
 		case 413:
 			_startLine	= _req.getHttpVersion() + " 413 Content Too Large";
 			_body		= getResponsePageContent("413", _conf);
+		break;
 		case 422:
 			_startLine	= _req.getHttpVersion() + " 422 Unprocessable content";
 			_body		= getResponsePageContent("422", _conf);
