@@ -1,5 +1,6 @@
 #include "Server.hpp"
 #include "Log.hpp"
+#include "Request.hpp"
 #include "Response.hpp"
 #include <iostream>
 #include <string>

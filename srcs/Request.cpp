@@ -877,8 +877,8 @@ bool	Request::saveToDisk(const MultipartPart& part)
 	return true;
 }
 
-bool	Request::initialSaveToDisk(const MultipartPart& part) {
-
+bool	Request::initialSaveToDisk(const MultipartPart& part)
+{
 	// if the upload directory has not set in the config file upload operation is forbidden
 	if(!_uploadDir.has_value()) {
 		ERROR_LOG("Upload directory has not set in the config file");
