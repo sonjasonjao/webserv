@@ -257,7 +257,7 @@ void	Server::handleClientData(size_t& i)
 
 	Config const	&conf = matchConfig(*it);
 
-	// if user has set a upload directory use that or pass an empty string 
+	// if user has set a upload directory use that or pass an empty string
 	it->setUploadDir(conf.upload_dir.has_value() ? conf.upload_dir.value() : "");
 	it->handleRequest();
 
@@ -265,13 +265,15 @@ void	Server::handleClientData(size_t& i)
 		if(conf.client_max_body_size.has_value()) {
 			// if there is user defined value for client_max_body_size check against the value
 			if (it->getContentLength() > conf.client_max_body_size) {
-				it->setStatus(RequestStatus::ContentTooLarge);
+				it->setResponseCodeBypass(ContentTooLarge);
+				it->setStatus(RequestStatus::Invalid);
 				ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit " + std::to_string(conf.client_max_body_size.value()));
 			}
 		} else {
 			// check against the default client_max_body_size value
 			if (it->getContentLength() > CLIENT_MAX_BODY_SIZE) {
-				it->setStatus(RequestStatus::ContentTooLarge);
+				it->setResponseCodeBypass(ContentTooLarge);
+				it->setStatus(RequestStatus::Invalid);
 				ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit " + std::to_string(CLIENT_MAX_BODY_SIZE));
 			}
 		}
@@ -387,7 +389,18 @@ void	Server::sendResponse(size_t& i)
 	INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
 	it->setIdleStart();
 	it->setSendStart();
-	res.sendToClient();
+	// If send() fails, we remove the response and disconnect the client
+	if (!res.sendToClient()) {
+		DEBUG_LOG("Removing front element of _responses container for fd " + std::to_string(_pfds[i].fd));
+		_responses.at(_pfds[i].fd).pop_front();
+
+		removeClientFromPollFds(i);
+
+		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
+		_clients.erase(it);
+
+		return;
+	}
 	if (!res.sendIsComplete())
 	{
 		INFO_LOG("Response partially sent, waiting for server to complete response sending");
@@ -402,8 +415,7 @@ void	Server::sendResponse(size_t& i)
 	_pfds[i].events &= ~POLLOUT;
 
 	DEBUG_LOG("Keep alive status: " + std::to_string(it->getKeepAlive()));
-	if (it->getStatus() == RequestStatus::Invalid || it->getStatus() == RequestStatus::ContentTooLarge
-		|| !it->getKeepAlive())
+	if (it->getStatus() == RequestStatus::Invalid || !it->getKeepAlive())
 	{
 		removeClientFromPollFds(i);
 

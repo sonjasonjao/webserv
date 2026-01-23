@@ -42,7 +42,6 @@ enum class RequestStatus
 	IdleTimeout,
 	RecvTimeout,
 	SendTimeout,
-	ContentTooLarge,
 	Invalid,
 	Error,
 };
@@ -134,6 +133,7 @@ class Request
 		void	setRecvStart(void);
 		void	setSendStart(void);
 		void	setStatus(RequestStatus status);
+		void	setResponseCodeBypass(ResponseCode code);
 
 		void	resetSendStart(void);
 		void	resetBuffer(void);

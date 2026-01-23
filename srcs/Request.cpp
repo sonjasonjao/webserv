@@ -27,6 +27,7 @@ Request::Request(int fd, int serverFd)
 {
 	_request.method = RequestMethod::Unknown;
 	_status = RequestStatus::WaitingData;
+	_responseCodeBypass = Unassigned;
 	_idleStart = std::chrono::high_resolution_clock::now();
 	_recvStart = {};
 	_sendStart = {};
@@ -185,8 +186,7 @@ void	Request::parseRequest(void)
 			_buffer.clear();
 		}
 		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
-			_status = RequestStatus::ContentTooLarge;
-			_keepAlive = false;
+			_responseCodeBypass = ContentTooLarge;
 			_buffer.clear();
 			return;
 		}
@@ -388,8 +388,7 @@ void	Request::parseChunked(void)
 			_status = RequestStatus::CompleteReq;
 		}
 		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
-			_status = RequestStatus::ContentTooLarge;
-			_keepAlive = false;
+			_responseCodeBypass = ContentTooLarge;
 			_buffer.clear();
 			return;
 		}
@@ -597,9 +596,6 @@ static void	printStatus(RequestStatus status)
 		case RequestStatus::CompleteReq:
 			std::cout << "Complete and valid request received\n";
 			break;
-		case RequestStatus::ContentTooLarge:
-			std::cout << "Content too large\n";
-			break;
 		case RequestStatus::Error:
 			std::cout << "Critical error found, client to be disconnected\n";
 			break;
@@ -731,6 +727,11 @@ RequestStatus	Request::getStatus(void) const
 void	Request::setStatus(RequestStatus status)
 {
 	_status = status;
+}
+
+void	Request::setResponseCodeBypass(ResponseCode code)
+{
+	_responseCodeBypass = code;
 }
 
 std::string const	&Request::getBuffer(void) const

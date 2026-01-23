@@ -234,22 +234,26 @@ void	Response::formResponse()
 	_content = _startLine + CRLF + _headerSection + CRLF + _body;
 }
 
-void	Response::sendToClient()
+bool	Response::sendToClient()
 {
 	size_t	bytesToSend = _content.length() - _bytesSent;
 
 	if (bytesToSend == 0)
-		return;
+		return true;
 
 	char const	*bufferPosition	= _content.c_str() + _bytesSent;
 
 	DEBUG_LOG("Calling send to fd " + std::to_string(_req.getFd()));
 	ssize_t		bytesSent		= send(_req.getFd(), bufferPosition, bytesToSend, MSG_DONTWAIT);
 
-	if (bytesSent < 0)
-		throw std::runtime_error(ERROR_LOG("send: " + std::string(strerror(errno))));
+	if (bytesSent < 0) {
+		ERROR_LOG("send: " + std::string(strerror(errno)));
+		return false;
+	}
 
 	_bytesSent += bytesSent;
+
+	return true;
 }
 
 bool	Response::sendIsComplete()
