@@ -26,7 +26,7 @@ Request::Request(int fd, int serverFd)
 		_currUploadPos(0)
 {
 	_request.method = RequestMethod::Unknown;
-	_status = RequestStatus::WaitingData;
+	_status = ClientStatus::WaitingData;
 	_responseCodeBypass = Unassigned;
 	_idleStart = std::chrono::high_resolution_clock::now();
 	_recvStart = {};
@@ -43,7 +43,7 @@ void	Request::processRequest(std::string const& buf)
 {
 	_buffer += buf;
 	if (_buffer.find("\r\n\r\n") == std::string::npos && !_completeHeaders) {
-		_status = RequestStatus::WaitingData;
+		_status = ClientStatus::WaitingData;
 	}
 	else
 		parseRequest();
@@ -96,7 +96,7 @@ void	Request::checkReqTimeouts()
 	auto		durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	timePoint	init = {};
 	if (durMs.count() > IDLE_TIMEOUT) {
-		_status = RequestStatus::IdleTimeout;
+		_status = ClientStatus::IdleTimeout;
 		DEBUG_LOG("Idle timeout with client fd " + std::to_string(_fd));
 		_keepAlive = false;
 		return;
@@ -104,7 +104,7 @@ void	Request::checkReqTimeouts()
 	diff = now - _recvStart;
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	if (_recvStart != init && durMs.count() > RECV_TIMEOUT) {
-		_status = RequestStatus::RecvTimeout;
+		_status = ClientStatus::RecvTimeout;
 		DEBUG_LOG("Recv timeout with client fd " + std::to_string(_fd));
 		_keepAlive = false;
 		return;
@@ -112,7 +112,7 @@ void	Request::checkReqTimeouts()
 	diff = now - _sendStart;
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	if (_sendStart != init && durMs.count() > SEND_TIMEOUT) {
-		_status = RequestStatus::SendTimeout;
+		_status = ClientStatus::SendTimeout;
 		DEBUG_LOG("Send timeout with client fd " + std::to_string(_fd));
 		_keepAlive = false;
 	}
@@ -149,20 +149,20 @@ void	Request::parseRequest()
 		std::string	reqLine = extractFromLine(_buffer, CRLF);
 
 		parseRequestLine(reqLine);
-		if (_status == RequestStatus::Invalid) {
+		if (_status == ClientStatus::Invalid) {
 			_buffer.clear();
 			return;
 		}
 	}
 	if (!_completeHeaders)
 		parseHeaders(_buffer);
-	if (_status == RequestStatus::Invalid || _status == RequestStatus::Error) {
+	if (_status == ClientStatus::Invalid || _status == ClientStatus::Error) {
 		_buffer.clear();
 		return;
 	}
 
 	if (!_contentLen.has_value() && !_chunked)
-		_status = RequestStatus::CompleteReq;
+		_status = ClientStatus::CompleteReq;
 	else if (_request.method == RequestMethod::Post && _boundary.has_value()) {
 		return;
 	}
@@ -179,13 +179,14 @@ void	Request::parseRequest()
 		}
 		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
 			_responseCodeBypass = ContentTooLarge;
+			_status = ClientStatus::Invalid;
 			_buffer.clear();
 			return;
 		}
 		if (_body.size() < _contentLen.value())
-			_status = RequestStatus::WaitingData;
+			_status = ClientStatus::WaitingData;
 		else if (_body.size() == _contentLen.value())
-			_status = RequestStatus::CompleteReq;
+			_status = ClientStatus::CompleteReq;
 	}
 	else if (_chunked)
 		parseChunked();
@@ -204,7 +205,7 @@ void	Request::parseRequestLine(std::string &req)
 	target = extractFromLine(req, " ");
 	httpVersion = req;
 	if (method.empty() || target.empty() || httpVersion.empty()) {
-		_status = RequestStatus::Invalid;
+		_status = ClientStatus::Invalid;
 		return;
 	}
 	size_t	i = 0;
@@ -225,12 +226,12 @@ void	Request::parseRequestLine(std::string &req)
 			_request.method = RequestMethod::Delete;
 			break;
 		default:
-			_status = RequestStatus::Invalid;
+			_status = ClientStatus::Invalid;
 			return;
 	}
 	if (!validateAndAssignTarget(target) || !validateAndAssignHttp(httpVersion))
 	{
-		_status = RequestStatus::Invalid;
+		_status = ClientStatus::Invalid;
 		return;
 	}
 }
@@ -251,7 +252,7 @@ void	Request::parseHeaders(std::string& str)
 		headEnd = str.size();
 	_headerSize = headEnd;
 	if (_headerSize > HEADERS_MAX_SIZE) {
-		_status = RequestStatus::Invalid;
+		_status = ClientStatus::Invalid;
 		_keepAlive = false;
 		return;
 	}
@@ -264,7 +265,7 @@ void	Request::parseHeaders(std::string& str)
 		line = extractFromLine(str, CRLF);
 		const size_t point = line.find(":");
 		if (point == std::string::npos) {
-			_status = RequestStatus::Error;
+			_status = ClientStatus::Error;
 			_keepAlive = false;
 			return;
 		}
@@ -277,7 +278,7 @@ void	Request::parseHeaders(std::string& str)
 				value[i] = std::tolower(static_cast<unsigned char>(value[i]));
 		}
 		if (_headers.find(key) != _headers.end() && isUniqueHeader(key)) {
-			_status = RequestStatus::Invalid;
+			_status = ClientStatus::Invalid;
 			_keepAlive = false;
 			return;
 		}
@@ -307,9 +308,9 @@ void	Request::parseHeaders(std::string& str)
 		}
 	}
 	if (!_completeHeaders)
-		_status = RequestStatus::WaitingData;
+		_status = ClientStatus::WaitingData;
 	if (_headers.empty() || !validateHeaders()) {
-		_status = RequestStatus::Invalid;
+		_status = ClientStatus::Invalid;
 		_keepAlive = false;
 		return;
 	}
@@ -333,7 +334,7 @@ void	Request::parseChunked()
 				}
 				catch (const std::exception& e)
 				{
-					_status = RequestStatus::Invalid;
+					_status = ClientStatus::Invalid;
 					_keepAlive = false;
 					_buffer.clear();
 					return;
@@ -341,7 +342,7 @@ void	Request::parseChunked()
 				_buffer = _buffer.substr(pos + 2);
 				std::string	tmp = extractFromLine(_buffer, CRLF);
 				if (tmp.size() != len) {
-					_status = RequestStatus::Invalid;
+					_status = ClientStatus::Invalid;
 					_keepAlive = false;
 					_buffer.clear();
 					return;
@@ -349,7 +350,7 @@ void	Request::parseChunked()
 				_body += tmp;
 				pos = _buffer.find(CRLF);
 			}
-			_status = RequestStatus::WaitingData;
+			_status = ClientStatus::WaitingData;
 		}
 		else if (finder != std::string::npos) {
 			while (pos > 0 && _buffer.substr(pos - 1, 5) != "0\r\n\r\n") {
@@ -360,7 +361,7 @@ void	Request::parseChunked()
 				}
 				catch (const std::exception& e)
 				{
-					_status = RequestStatus::Invalid;
+					_status = ClientStatus::Invalid;
 					_keepAlive = false;
 					_buffer.clear();
 					return;
@@ -368,7 +369,7 @@ void	Request::parseChunked()
 				_buffer = _buffer.substr(pos + 2);
 				std::string	tmp = extractFromLine(_buffer, CRLF);
 				if (tmp.size() != len) {
-					_status = RequestStatus::Invalid;
+					_status = ClientStatus::Invalid;
 					_keepAlive = false;
 					_buffer.clear();
 					return;
@@ -377,10 +378,11 @@ void	Request::parseChunked()
 				pos = _buffer.find(CRLF);
 			}
 			_body += extractFromLine(_buffer, "0\r\n\r\n");
-			_status = RequestStatus::CompleteReq;
+			_status = ClientStatus::CompleteReq;
 		}
 		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
 			_responseCodeBypass = ContentTooLarge;
+			_status = ClientStatus::Invalid;
 			_buffer.clear();
 			return;
 		}
@@ -581,25 +583,25 @@ bool	Request::validateAndAssignHttp(std::string& httpVersion)
 }
 
 /**
- * Helper function to print RequestStatus value.
+ * Helper function to print ClientStatus value.
  */
-static void	printStatus(RequestStatus status)
+static void	printStatus(ClientStatus status)
 {
 	switch (status)
 	{
-		case RequestStatus::WaitingData:
+		case ClientStatus::WaitingData:
 			std::cout << "Waiting for more data\n";
 			break;
-		case RequestStatus::CompleteReq:
+		case ClientStatus::CompleteReq:
 			std::cout << "Complete and valid request received\n";
 			break;
-		case RequestStatus::Error:
+		case ClientStatus::Error:
 			std::cout << "Critical error found, client to be disconnected\n";
 			break;
-		case RequestStatus::Invalid:
+		case ClientStatus::Invalid:
 			std::cout << "Invalid HTTP request\n";
 			break;
-		case RequestStatus::ReadyForResponse:
+		case ClientStatus::ReadyForResponse:
 			std::cout << "Ready to receive response\n";
 			break;
 		default:
@@ -716,12 +718,12 @@ bool	Request::isHeadersCompleted() const
 	return _completeHeaders;
 }
 
-RequestStatus	Request::getStatus() const
+ClientStatus	Request::getStatus() const
 {
 	return _status;
 }
 
-void	Request::setStatus(RequestStatus status)
+void	Request::setStatus(ClientStatus status)
 {
 	_status = status;
 }
@@ -792,7 +794,7 @@ void	Request::handleFileUpload()
 		size_t partStart = _buffer.find(partDelimiter, currPos);
 
 		if (partStart == std::string::npos) {
-			_status = RequestStatus::WaitingData;
+			_status = ClientStatus::WaitingData;
 			break;
 		}
 
@@ -805,6 +807,7 @@ void	Request::handleFileUpload()
 				_buffer = _buffer.erase(0, 2);
 			}
 			_responseCodeBypass = Created;
+			_status = ClientStatus::CompleteReq;
 			break;
 		}
 
@@ -817,12 +820,12 @@ void	Request::handleFileUpload()
 		size_t	partEnd = _buffer.find(partDelimiter, headerStart);
 
 		if (partEnd == std::string::npos) {
-			_status = RequestStatus::WaitingData;
+			_status = ClientStatus::WaitingData;
 			break;
 		}
 
 		if ((partEnd - headerStart) < 2) {
-			_status = RequestStatus::Error;
+			_status = ClientStatus::Error;
 			_keepAlive = false;
 			return;
 		}
@@ -855,6 +858,7 @@ void	Request::saveToDisk(const MultipartPart& part)
 	if (!_uploadFD) {
 		ERROR_LOG("Can not created the file, fileFD not valid");
 		_responseCodeBypass = InternalServerError;
+		_status = ClientStatus::Invalid;
 		return;
 	}
 
@@ -863,11 +867,13 @@ void	Request::saveToDisk(const MultipartPart& part)
 	if (!_uploadFD->good()) {
 		ERROR_LOG("Writing data to the file failed");
 		_responseCodeBypass = InternalServerError;
+		_status = ClientStatus::Invalid;
 		return;
 	}
 
 	DEBUG_LOG("File " + part.filename + " saved successfully!");
 	_responseCodeBypass = Created;
+	_status = ClientStatus::CompleteReq;
 }
 
 void	Request::initialSaveToDisk(const MultipartPart& part) {
@@ -876,6 +882,7 @@ void	Request::initialSaveToDisk(const MultipartPart& part) {
 	if(!_uploadDir.has_value()) {
 		ERROR_LOG("Upload directory has not set in the config file");
 		_responseCodeBypass = Forbidden;
+		_status = ClientStatus::Invalid;
 		return;
 	}
 
@@ -887,6 +894,7 @@ void	Request::initialSaveToDisk(const MultipartPart& part) {
 	} catch (const std::filesystem::filesystem_error& e) {
 		ERROR_LOG("Failed to create upload directory: " + std::string(e.what()));
 		_responseCodeBypass = InternalServerError;
+		_status = ClientStatus::Invalid;
 		return;
 	}
 
@@ -897,6 +905,7 @@ void	Request::initialSaveToDisk(const MultipartPart& part) {
 	if (std::filesystem::exists(target_path)) {
 		ERROR_LOG("A file already exists in the directory with the same file name");
 		_responseCodeBypass = Conflict;
+		_status = ClientStatus::Invalid;
 		return;
 	}
 
@@ -908,15 +917,16 @@ void	Request::initialSaveToDisk(const MultipartPart& part) {
 		if (_uploadFD->good()) {
 			DEBUG_LOG("File " + part.filename + " initial write successful!");
 			_responseCodeBypass = Conflict;
+			_status = ClientStatus::Invalid;
 		} else {
 			ERROR_LOG("File " + part.filename + " initial write failed!");
 			_uploadFD->close();
 			_responseCodeBypass = InternalServerError;
-			return;
+			_status = ClientStatus::Invalid;
 		}
 	} else {
 		ERROR_LOG("File " + part.filename + " save process failed!");
 		_responseCodeBypass = InternalServerError;
-		return;
+		_status = ClientStatus::Invalid;
 	}
 }

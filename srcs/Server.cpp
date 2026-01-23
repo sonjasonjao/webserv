@@ -226,7 +226,7 @@ void	Server::handleClientData(size_t& i)
 		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 			+ std::to_string(_pfds[i].fd)));
 
-	if (it->getStatus() != RequestStatus::WaitingData)
+	if (it->getStatus() != ClientStatus::WaitingData)
 		return;
 
 	char	buf[RECV_BUF_SIZE + 1];
@@ -268,20 +268,20 @@ void	Server::handleClientData(size_t& i)
 			// if there is user defined value for clientMaxBodySize check against the value
 			if (it->getContentLength() > conf.clientMaxBodySize) {
 				it->setResponseCodeBypass(ContentTooLarge);
-				it->setStatus(RequestStatus::Invalid);
+				it->setStatus(ClientStatus::Invalid);
 				ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit " + std::to_string(conf.clientMaxBodySize.value()));
 			}
 		} else {
 			// check against the default clientMaxBodySize value
 			if (it->getContentLength() > CLIENT_MAX_BODY_SIZE) {
 				it->setResponseCodeBypass(ContentTooLarge);
-				it->setStatus(RequestStatus::Invalid);
+				it->setStatus(ClientStatus::Invalid);
 				ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit " + std::to_string(CLIENT_MAX_BODY_SIZE));
 			}
 		}
 	}
 
-	if (it->getStatus() == RequestStatus::Error) {
+	if (it->getStatus() == ClientStatus::Error) {
 		ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
 			+ " connection dropped: suspicious request");
 
@@ -293,7 +293,7 @@ void	Server::handleClientData(size_t& i)
 		return;
 	}
 
-	if (it->getStatus() == RequestStatus::WaitingData) {
+	if (it->getStatus() == ClientStatus::WaitingData) {
 		INFO_LOG("Waiting for more data to complete partial request");
 		return;
 	}
@@ -302,7 +302,7 @@ void	Server::handleClientData(size_t& i)
 	DEBUG_LOG("Matched config: " + conf.host + " " + conf.serverName + " " + std::to_string(conf.port));
 	_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
 	it->reset();
-	it->setStatus(RequestStatus::ReadyForResponse);
+	it->setStatus(ClientStatus::ReadyForResponse);
 	_pfds[i].events |= POLLOUT;
 	it->resetBuffer();
 }
@@ -377,8 +377,8 @@ void	Server::sendResponse(size_t& i)
 		ERROR_LOG("Could not find a response to send to this client");
 		return;
 	}
-	if (it->getStatus() != RequestStatus::ReadyForResponse
-		&& it->getStatus() != RequestStatus::RecvTimeout)
+	if (it->getStatus() != ClientStatus::ReadyForResponse
+		&& it->getStatus() != ClientStatus::RecvTimeout)
 		return;
 
 	auto	&res = _responses.at(_pfds[i].fd).front();
@@ -411,7 +411,7 @@ void	Server::sendResponse(size_t& i)
 	_pfds[i].events &= ~POLLOUT;
 
 	DEBUG_LOG("Keep alive status: " + std::to_string(it->getKeepAlive()));
-	if (it->getStatus() == RequestStatus::Invalid || !it->getKeepAlive()) {
+	if (it->getStatus() == ClientStatus::Invalid || !it->getKeepAlive()) {
 		removeClientFromPollFds(i);
 
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
@@ -420,7 +420,7 @@ void	Server::sendResponse(size_t& i)
 		return;
 	}
 	it->resetKeepAlive();
-	it->setStatus(RequestStatus::WaitingData);
+	it->setStatus(ClientStatus::WaitingData);
 }
 
 /**
@@ -451,15 +451,15 @@ void	Server::checkTimeouts()
 				throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 					+ std::to_string(_pfds[i].fd)));
 			it->checkReqTimeouts();
-			if (it->getStatus() == RequestStatus::RecvTimeout) {
+			if (it->getStatus() == ClientStatus::RecvTimeout) {
 				Config	 const &conf = matchConfig(*it);
 
 				DEBUG_LOG("Matched config: " + conf.host + " " + conf.serverName + " " + std::to_string(conf.port));
 				_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
 				sendResponse(i);
 			}
-			if (it->getStatus() == RequestStatus::IdleTimeout
-				|| it->getStatus() == RequestStatus::SendTimeout) {
+			if (it->getStatus() == ClientStatus::IdleTimeout
+				|| it->getStatus() == ClientStatus::SendTimeout) {
 				removeClientFromPollFds(i);
 				INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 				_clients.erase(it);
