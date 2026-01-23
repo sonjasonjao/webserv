@@ -66,7 +66,7 @@ Parser::~Parser()
  * @param void - class method will have access to all the class attributes
  * @return void - all the tokens will be saved to an internal container
  */
-void Parser::tokenizeFile(void)
+void Parser::tokenizeFile()
 {
 	std::string	line;
 	std::string	output;
@@ -163,7 +163,7 @@ const Config	&Parser::getServerConfig(size_t index)
 /**
  * will return the whole configs vector for server construction.
  */
-const std::vector<Config>	&Parser::getServerConfigs(void) const
+const std::vector<Config>	&Parser::getServerConfigs() const
 {
 	return _server_configs;
 }
@@ -172,7 +172,7 @@ const std::vector<Config>	&Parser::getServerConfigs(void) const
  * will return the size of the internal container, useful info when required
  * to loop through the entire vector
  */
-size_t	Parser::getNumberOfServerConfigs(void)
+size_t	Parser::getNumberOfServerConfigs()
 {
 	return _server_configs.size();
 }

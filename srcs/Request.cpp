@@ -48,7 +48,7 @@ void	Request::saveRequest(std::string const& buf)
  * case, Host header is filled, so if the completing part of request never arrives, Host is
  * available for error page response forming.
  */
-void	Request::handleRequest(void)
+void	Request::handleRequest()
 {
 	if (_buffer.find("\r\n\r\n") == std::string::npos && !_completeHeaders) {
 		_status = RequestStatus::WaitingData;
@@ -61,7 +61,7 @@ void	Request::handleRequest(void)
  * After receiving and parsing a complete request, and handling it (= building a response and
  * sending it), these properties of the current client are reset for a possible following request.
  */
-void	Request::reset(void)
+void	Request::reset()
 {
 	_request.target.clear();
 	_request.method = RequestMethod::Unknown;
@@ -86,7 +86,7 @@ void	Request::reset(void)
  * Resets the keepAlive status separately from other resets, only after keepAlive status of the
  * latest request has been checked.
  */
-void	Request::resetKeepAlive(void)
+void	Request::resetKeepAlive()
 {
 	_keepAlive = false;
 }
@@ -97,7 +97,7 @@ void	Request::resetKeepAlive(void)
  * variable init is used to check whether _recvStart or _sendStart has ever been updated
  * after the initialization to zero.
  */
-void	Request::checkReqTimeouts(void)
+void	Request::checkReqTimeouts()
 {
 	auto		now = std::chrono::high_resolution_clock::now();
 	auto		diff = now - _idleStart;
@@ -151,7 +151,7 @@ std::string	extractFromLine(std::string& orig, std::string delim)
  * header line, if there is remaining data, and content-length is found in headers, that length
  * of data is stored in _body - if chunked is found in headers, the rest is handled as chunks.
  */
-void	Request::parseRequest(void)
+void	Request::parseRequest()
 {
 	if (_request.method == RequestMethod::Unknown) {
 		std::string	reqLine = extractFromLine(_buffer, CRLF);
@@ -327,7 +327,7 @@ void	Request::parseHeaders(std::string& str)
  * In the case of a chunked request, attempts to check the size of each chunk and split the
  * string accordingly to store that chunk into body.
  */
-void	Request::parseChunked(void)
+void	Request::parseChunked()
 {
 	while (!_buffer.empty()) {
 		auto	pos = _buffer.find(CRLF);
@@ -400,7 +400,7 @@ void	Request::parseChunked(void)
  * _keepAlive will be set accordingly. If it has neither of those,
  * by default 1.1 request will keep connection alive, and 1.0 request won't.
  */
-bool	Request::fillKeepAlive(void)
+bool	Request::fillKeepAlive()
 {
 	auto	it = _headers.find("connection");
 	bool	hasClose = false;
@@ -431,13 +431,18 @@ bool	Request::fillKeepAlive(void)
 	return true;
 }
 
+bool	Request::boundaryHasValue()
+{
+	return _boundary.has_value();
+}
+
 /**
  * Checks if the headers include "host" (considered mandatory for 1.1), and if unique
  * headers only have one value each. Checks also for connection, to set keep-alive
  * flag if needed, and content-length, to set the length, and transfer-encoding for
  * chunked flag.
  */
-bool	Request::validateHeaders(void)
+bool	Request::validateHeaders()
 {
 	auto	it = _headers.find("host");
 	if (_request.httpVersion == "HTTP/1.1" && (it == _headers.end() || it->second.empty()))
@@ -613,7 +618,7 @@ static void	printStatus(RequestStatus status)
 /**
  * Prints parsed data for debugging.
  */
-void	Request::printData(void) const
+void	Request::printData() const
 {
 	std::cout << "\n---- Request line ----\nMethod: ";
 	switch(_request.method) {
@@ -657,30 +662,30 @@ void	Request::printData(void) const
 	std::cout << "\n";
 }
 
-void	Request::setIdleStart(void)
+void	Request::setIdleStart()
 {
 	_idleStart = std::chrono::high_resolution_clock::now();
 	DEBUG_LOG("Fd " + std::to_string(_fd) + " _idleStart set to " + std::to_string(_idleStart.time_since_epoch().count()));
 }
 
-void	Request::setRecvStart(void)
+void	Request::setRecvStart()
 {
 	_recvStart = std::chrono::high_resolution_clock::now();
 	DEBUG_LOG("Fd " + std::to_string(_fd) + " _recvStart set to " + std::to_string(_recvStart.time_since_epoch().count()));
 }
 
-void	Request::setSendStart(void)
+void	Request::setSendStart()
 {
 	_sendStart = std::chrono::high_resolution_clock::now();
 	DEBUG_LOG("Fd " + std::to_string(_fd) + " _sendStart set to " + std::to_string(_sendStart.time_since_epoch().count()));
 }
 
-void	Request::resetSendStart(void)
+void	Request::resetSendStart()
 {
 	_sendStart = {};
 }
 
-void	Request::resetBuffer(void)
+void	Request::resetBuffer()
 {
 	if (!_buffer.empty()) {
 		INFO_LOG("The remaining request data in buffer following one complete request will be discarded");
@@ -688,7 +693,7 @@ void	Request::resetBuffer(void)
 	}
 }
 
-std::string	Request::getHost(void) const
+std::string	Request::getHost() const
 {
 	std::string	host;
 
@@ -699,27 +704,27 @@ std::string	Request::getHost(void) const
 	return host;
 }
 
-int	Request::getFd(void) const
+int	Request::getFd() const
 {
 	return _fd;
 }
 
-int	Request::getServerFd(void) const
+int	Request::getServerFd() const
 {
 	return _serverFd;
 }
 
-bool	Request::getKeepAlive(void) const
+bool	Request::getKeepAlive() const
 {
 	return _keepAlive;
 }
 
-bool	Request::isHeadersCompleted(void) const
+bool	Request::isHeadersCompleted() const
 {
 	return _completeHeaders;
 }
 
-RequestStatus	Request::getStatus(void) const
+RequestStatus	Request::getStatus() const
 {
 	return _status;
 }
@@ -734,7 +739,7 @@ void	Request::setResponseCodeBypass(ResponseCode code)
 	_responseCodeBypass = code;
 }
 
-std::string const	&Request::getBuffer(void) const
+std::string const	&Request::getBuffer() const
 {
 	return _buffer;
 }
@@ -773,7 +778,7 @@ std::vector<std::string> const	*Request::getHeader(std::string const &key) const
 	}
 }
 
-size_t	Request::getContentLength(void) const
+size_t	Request::getContentLength() const
 {
 	if (_contentLen.has_value())
 		return _contentLen.value();
@@ -785,7 +790,7 @@ void	Request::setUploadDir(std::string path)
 	_uploadDir = path;
 }
 
-void	Request::handleFileUpload(void)
+void	Request::handleFileUpload()
 {
 	std::string	partDelimiter	= "--" + _boundary.value();
 	std::string	endDelimiter	= partDelimiter + "--";

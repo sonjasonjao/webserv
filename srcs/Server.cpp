@@ -59,7 +59,7 @@ bool	Server::isGroupMember(Config& conf)
  * Each serverGroup will then have one server (listener) socket. The first config added in a
  * server group will be the default config of the group.
  */
-void	Server::groupConfigs(void)
+void	Server::groupConfigs()
 {
 	for (auto it = _configs.begin(); it != _configs.end(); it++)
 	{
@@ -140,7 +140,7 @@ int	Server::createSingleServerSocket(Config conf)
  * Loops through serverGroups and creates listener socket for each, stores
  * them into _pfds and stores the fd of the created socket into that serverGroup.
  */
-void	Server::createServerSockets(void)
+void	Server::createServerSockets()
 {
 	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++)
 	{
@@ -155,7 +155,7 @@ void	Server::createServerSockets(void)
  * detected, it gets caught with poll returning -1 with errno set to EINTR --> continues
  * to next loop round, on which endSignal won't be false, and loop will finish.
  */
-void	Server::run(void)
+void	Server::run()
 {
 	createServerSockets();
 	while (endSignal == false)
@@ -440,7 +440,7 @@ ReqIter	Server::getRequestByFd(int fd)
  * form an error page response, and sendResponse to send it and to disconnect client. In
  * case of idle or send timeout, client is disconnected without sending a response.
  */
-void	Server::checkTimeouts(void)
+void	Server::checkTimeouts()
 {
 	for (size_t i = 0; i < _pfds.size(); i++) {
 		if (!isServerFd(_pfds[i].fd)) {
@@ -491,7 +491,7 @@ bool	Server::isServerFd(int fd)
  * sent data. Thirdly tracks POLLOUT to recognize when server has a response ready to be sent to
  * that client. Fourthly, goes to check all client fds for timeouts.
  */
-void	Server::handleConnections(void)
+void	Server::handleConnections()
 {
 	for (size_t i = 0; i < _pfds.size(); i++)
 	{

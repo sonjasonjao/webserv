@@ -1,6 +1,6 @@
 #include "CustomException.hpp"
 
-CustomException::CustomException(void) noexcept:
+CustomException::CustomException() noexcept:
 	_error_message("unknown") {}
 
 CustomException::CustomException(const std::string& msg) noexcept:

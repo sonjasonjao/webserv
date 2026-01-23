@@ -70,7 +70,7 @@ public:
 	 * @param void
 	 * @return void
 	 */
-	void tokenizeFile(void);
+	void tokenizeFile();
 
 	/**
 	 * First version of getter method to get a final server configuration information. As the first
@@ -78,9 +78,9 @@ public:
 	 */
 	const Config&	getServerConfig(size_t index);
 
-	const std::vector<Config>	&getServerConfigs(void) const;
+	const std::vector<Config>	&getServerConfigs() const;
 
-	size_t	getNumberOfServerConfigs(void);
+	size_t	getNumberOfServerConfigs();
 
 	Config	convertToServerData(const Token& server);
 

@@ -41,16 +41,16 @@ class Server
 
 		std::vector<Config> const	&getConfigs() const;
 
-		void			createServerSockets(void);
+		void			createServerSockets();
 		int				createSingleServerSocket(Config conf);
-		void			run(void);
+		void			run();
 		void			handleNewClient(int listener);
 		void			handleClientData(size_t &i);
 		void			removeClientFromPollFds(size_t &i);
 		void			sendResponse(size_t &i);
-		void			checkTimeouts(void);
-		void			handleConnections(void);
-		void			groupConfigs(void);
+		void			checkTimeouts();
+		void			handleConnections();
+		void			groupConfigs();
 		bool			isGroupMember(Config &conf);
 		bool			isServerFd(int fd);
 		Config const	&matchConfig(Request const &req);
