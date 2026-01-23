@@ -1,6 +1,8 @@
 #include "Server.hpp"
 #include "Log.hpp"
+#include "Response.hpp"
 #include <iostream>
+#include <string>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -259,9 +261,15 @@ void	Server::handleClientData(size_t& i)
 	Config const	&conf = matchConfig(*it);
 
 	if (it->getRequestMethod() == RequestMethod::Post && it->boundaryHasValue()) {
-		// if user has set a upload directory use that or pass an empty string
-		it->setUploadDir(conf.uploadDir.has_value() ? conf.uploadDir.value() : "");
-		it->handleFileUpload();
+		if(conf.uploadDir.has_value()) {
+			DEBUG_LOG("Handling file upload for client fd " + std::to_string(_pfds[i].fd));
+			it->setUploadDir(conf.uploadDir.value());
+			it->handleFileUpload();
+		} else {
+			DEBUG_LOG("File uploading is forbidden");
+			it->setResponseCodeBypass(Forbidden);
+			it->setStatus(RequestStatus::Invalid);
+		}
 	}
 	if (it->isHeadersCompleted()) {
 		if(conf.clientMaxBodySize.has_value()) {
