@@ -47,6 +47,7 @@ bool	Server::isGroupMember(Config& conf)
 		if (it->defaultConf->host == conf.host
 			&& it->defaultConf->port == conf.port) {
 			it->configs.emplace_back(conf);
+
 			return true;
 		}
 	}
@@ -192,11 +193,11 @@ void	Server::handleNewClient(int listener)
 	if (_clients.size() >= MAX_CLIENTS) {
 		DEBUG_LOG("Connected clients limit reached, unable to accept new client");
 		close(clientFd);
+
 		return;
 	}
 
-	if (fcntl(clientFd, F_SETFL, O_NONBLOCK) < 0)
-	{
+	if (fcntl(clientFd, F_SETFL, O_NONBLOCK) < 0) {
 		close(clientFd);
 		throw std::runtime_error(ERROR_LOG("fcntl: " + std::string(strerror(errno))));
 	}
@@ -217,9 +218,9 @@ void	Server::handleClientData(size_t& i)
 {
 	if (_clients.empty())
 		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
-			+ std::to_string(_pfds[i].fd)));
+			+ std::to_string(_pfds[i].fd) + ", clients list empty"));
 
-	auto it = getRequestByFd(_pfds[i].fd);
+	auto	it = getRequestByFd(_pfds[i].fd);
 
 	if (it == _clients.end())
 		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
@@ -230,7 +231,7 @@ void	Server::handleClientData(size_t& i)
 
 	char	buf[RECV_BUF_SIZE + 1];
 
-	int		numBytes = recv(_pfds[i].fd, buf, RECV_BUF_SIZE, 0);
+	ssize_t	numBytes = recv(_pfds[i].fd, buf, RECV_BUF_SIZE, 0);
 
 	if (numBytes <= 0)
 	{
@@ -279,8 +280,7 @@ void	Server::handleClientData(size_t& i)
 		}
 	}
 
-	if (it->getStatus() == RequestStatus::Error)
-	{
+	if (it->getStatus() == RequestStatus::Error) {
 		ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
 			+ " connection dropped: suspicious request");
 
@@ -288,12 +288,11 @@ void	Server::handleClientData(size_t& i)
 
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 		_clients.erase(it);
+
 		return;
 	}
 
-	if (it->getStatus() == RequestStatus::WaitingData)
-	{
-
+	if (it->getStatus() == RequestStatus::WaitingData) {
 		INFO_LOG("Waiting for more data to complete partial request");
 		return;
 	}
@@ -318,8 +317,7 @@ Config const	&Server::matchConfig(Request const &req)
 	int			fd		= req.getServerFd();
 	ServerGroup	*tmp	= nullptr;
 
-	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++)
-	{
+	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++) {
 		if (it->fd == fd) {
 			tmp = &(*it);
 			break;
@@ -327,8 +325,7 @@ Config const	&Server::matchConfig(Request const &req)
 	}
 	if (tmp == nullptr)
 		throw std::runtime_error(ERROR_LOG("Unexpected error in matching request with server config"));
-	for (auto it = tmp->configs.begin(); it != tmp->configs.end(); it++)
-	{
+	for (auto it = tmp->configs.begin(); it != tmp->configs.end(); it++) {
 		if (it->serverName == req.getHost()) {
 			DEBUG_LOG("Matched configuration: " + it->serverName);
 			return *it;
@@ -348,8 +345,7 @@ void	Server::removeClientFromPollFds(size_t& i)
 	INFO_LOG("Closing fd " + std::to_string(_pfds[i].fd));
 	close(_pfds[i].fd);
 
-	if (_pfds.size() > (i + 1))
-	{
+	if (_pfds.size() > (i + 1)) {
 		DEBUG_LOG("Overwriting fd " + std::to_string(_pfds[i].fd) + " with fd "
 			+ std::to_string(_pfds[_pfds.size() - 1].fd));
 		INFO_LOG("Removing client fd " + std::to_string(_pfds[i].fd) + " from poll list");
@@ -401,8 +397,7 @@ void	Server::sendResponse(size_t& i)
 
 		return;
 	}
-	if (!res.sendIsComplete())
-	{
+	if (!res.sendIsComplete()) {
 		INFO_LOG("Response partially sent, waiting for server to complete response sending");
 		return;
 	}
@@ -415,8 +410,7 @@ void	Server::sendResponse(size_t& i)
 	_pfds[i].events &= ~POLLOUT;
 
 	DEBUG_LOG("Keep alive status: " + std::to_string(it->getKeepAlive()));
-	if (it->getStatus() == RequestStatus::Invalid || !it->getKeepAlive())
-	{
+	if (it->getStatus() == RequestStatus::Invalid || !it->getKeepAlive()) {
 		removeClientFromPollFds(i);
 
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
@@ -433,8 +427,7 @@ void	Server::sendResponse(size_t& i)
  */
 ReqIter	Server::getRequestByFd(int fd)
 {
-	for (auto it = _clients.begin(); it != _clients.end(); it++)
-	{
+	for (auto it = _clients.begin(); it != _clients.end(); it++) {
 		if (it->getFd() == fd)
 			return it;
 	}
@@ -481,8 +474,7 @@ bool	Server::isServerFd(int fd)
 {
 	auto	it = _serverGroups.begin();
 
-	while (it != _serverGroups.end())
-	{
+	while (it != _serverGroups.end()) {
 		if (it->fd == fd)
 			break;
 		it++;
@@ -503,15 +495,11 @@ void	Server::handleConnections(void)
 {
 	for (size_t i = 0; i < _pfds.size(); i++)
 	{
-		if (_pfds[i].revents & (POLLIN | POLLHUP))
-		{
-			if (isServerFd(_pfds[i].fd))
-			{
+		if (_pfds[i].revents & (POLLIN | POLLHUP)) {
+			if (isServerFd(_pfds[i].fd)) {
 				INFO_LOG("Handling new client connecting on fd " + std::to_string(_pfds[i].fd));
 				handleNewClient(_pfds[i].fd);
-			}
-			else
-			{
+			} else {
 				INFO_LOG("Handling client data from fd " + std::to_string(_pfds[i].fd));
 				handleClientData(i);
 			}
