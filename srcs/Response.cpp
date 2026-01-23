@@ -338,9 +338,9 @@ static std::string const	&getResponsePageContent(std::string const &key, Config 
 {
 	// Check status pages if the key is a three digit number
 	if (key.length() == 3 && std::all_of(key.begin(), key.end(), isdigit)) {
-		auto	it = conf.status_pages.find(key);
+		auto	it = conf.statusPages.find(key);
 
-		if (it != conf.status_pages.end() && resourceExists(it->second))
+		if (it != conf.statusPages.end() && resourceExists(it->second))
 			return Pages::getPageContent(getAbsPath(it->second));
 	} else {	// Othewise check normal routes
 		auto	it = conf.routes.find(key);

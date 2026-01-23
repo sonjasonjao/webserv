@@ -260,19 +260,19 @@ void	Server::handleClientData(size_t& i)
 
 	if (it->getRequestMethod() == RequestMethod::Post && it->boundaryHasValue()) {
 		// if user has set a upload directory use that or pass an empty string
-		it->setUploadDir(conf.upload_dir.has_value() ? conf.upload_dir.value() : "");
+		it->setUploadDir(conf.uploadDir.has_value() ? conf.uploadDir.value() : "");
 		it->handleFileUpload();
 	}
 	if (it->isHeadersCompleted()) {
-		if(conf.client_max_body_size.has_value()) {
-			// if there is user defined value for client_max_body_size check against the value
-			if (it->getContentLength() > conf.client_max_body_size) {
+		if(conf.clientMaxBodySize.has_value()) {
+			// if there is user defined value for clientMaxBodySize check against the value
+			if (it->getContentLength() > conf.clientMaxBodySize) {
 				it->setResponseCodeBypass(ContentTooLarge);
 				it->setStatus(RequestStatus::Invalid);
-				ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit " + std::to_string(conf.client_max_body_size.value()));
+				ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit " + std::to_string(conf.clientMaxBodySize.value()));
 			}
 		} else {
-			// check against the default client_max_body_size value
+			// check against the default clientMaxBodySize value
 			if (it->getContentLength() > CLIENT_MAX_BODY_SIZE) {
 				it->setResponseCodeBypass(ContentTooLarge);
 				it->setStatus(RequestStatus::Invalid);

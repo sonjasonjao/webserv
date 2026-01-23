@@ -20,11 +20,11 @@ struct Config {
 
 	uint16_t	port = 0;	// Port on which this server listens
 
-	std::map<std::string, std::string>	status_pages;	// Mapping from HTTP status code to custom page path.
+	std::map<std::string, std::string>	statusPages;	// Mapping from HTTP status code to custom page path.
 	std::map<std::string, std::string>	routes;			// Set of routes (URI -> path definitions) for this server.
 
-	std::optional<size_t> client_max_body_size;			// Default maximum allowed size (in bytes) of the request body for this server
-	std::optional<std::string> upload_dir;				// Default upload directory
+	std::optional<size_t>		clientMaxBodySize;	// Default maximum allowed size (in bytes) of the request body for this server
+	std::optional<std::string>	uploadDir;			// Default upload directory
 
 	bool	directoryListing	= false;
 	bool	autoindex			= false;
@@ -32,7 +32,7 @@ struct Config {
 
 class Parser {
 private:
-	std::string const	_file_name;			// File name of the configuration file
+	std::string const	_fileName;			// File name of the configuration file
 	std::ifstream		_file;				// ifstream instance to read the configuration file
 	std::vector<Config>	_server_configs;	// List of fully parsed server configurations built from the token list.
 
@@ -43,16 +43,10 @@ public:
 	 * @return void - content of the file will be tokenize and save to a internal
 	 * container, type std::vector
 	 */
-	Parser(const std::string& file_name);
-	/**
-	 * The only way of creating a Parser instance should be via the argument constructor.
-	 */
+	Parser(const std::string& fileName);	// The only way of creating a Parser instance should be via the argument constructor.
 	Parser() = delete;
 	Parser(const Parser& other) = delete;
 	Parser& operator=(const Parser& other) = delete;
-	/**
-	 * destructor will take care of releasing resources
-	 */
 	~Parser();
 
 	/**
@@ -67,26 +61,16 @@ public:
 	/**
 	 * Correct configuration file will be read line by line, every line will be tokenize
 	 * and saved to the _tokens
-	 * @param void
-	 * @return void
 	 */
 	void tokenizeFile();
 
-	/**
-	 * First version of getter method to get a final server configuration information. As the first
-	 * version only return some dummy values to start implementing Main loop for Sonja
-	 */
-	const Config&	getServerConfig(size_t index);
-
+	const Config&				getServerConfig(size_t index);
 	const std::vector<Config>	&getServerConfigs() const;
-
-	size_t	getNumberOfServerConfigs();
+	std::vector<std::string>	getCollectionBykey(const Token& root, const std::string& key);
+	size_t						getNumberOfServerConfigs();
 
 	Config	convertToServerData(const Token& server);
 
-	std::vector<std::string>	getCollectionBykey(const Token& root, const std::string& key);
-
 	bool	isValidJSONString(std::string_view sv);
-
 	bool	isPrimitiveValue(std::string_view sv);
 };

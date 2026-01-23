@@ -6,42 +6,42 @@
 #include <filesystem>
 #include <stack>
 
-Parser::Parser(const std::string& file_name)
-	:	_file_name(file_name), _file()
+Parser::Parser(const std::string& fileName)
+	:	_fileName(fileName), _file()
 {
 	std::error_code ec;
 	/**
 	 * Try to locate the file in the current file system, will throw an error
 	 * if file does not exist
 	 */
-	if (!std::filesystem::exists(_file_name, ec) || ec) {
-		throw ParserException(ERROR_LOG("File does not exist: " + file_name));
+	if (!std::filesystem::exists(_fileName, ec) || ec) {
+		throw ParserException(ERROR_LOG("File does not exist: " + _fileName));
 	}
 	/**
 	 * Will compare the file extension with the standard one and will throw
 	 * an error in case of mismatch. Subsequent characters in the file_name after
 	 * the last occurrence of '.'
 	 */
-	size_t pos = _file_name.rfind('.');
-	std::string ext = _file_name.substr(pos + 1);
+	size_t pos = _fileName.rfind('.');
+	std::string ext = _fileName.substr(pos + 1);
 	if (ext != EXTENSION) {
-		throw ParserException(ERROR_LOG("Wrong extension : " + _file_name));
+		throw ParserException(ERROR_LOG("Wrong extension : " + _fileName));
 	}
 
-	_file.open(_file_name);
+	_file.open(_fileName);
 
 	/**
 	 * if the file pointed by the file_name can not open, will throw an error
 	 */
 	if (_file.fail()) {
-		throw ParserException(ERROR_LOG("Couldn't open file : " + _file_name + ": " + std::string(strerror(errno))));
+		throw ParserException(ERROR_LOG("Couldn't open file : " + _fileName + ": " + std::string(strerror(errno))));
 	}
 
 	/**
 	 * If the file pointed by the file_name is empty, will throw an error
 	 */
-	if (std::filesystem::file_size(_file_name) == 0) {
-		throw ParserException(ERROR_LOG("Empty file : " + _file_name));
+	if (std::filesystem::file_size(_fileName) == 0) {
+		throw ParserException(ERROR_LOG("Empty file : " + _fileName));
 	}
 	/**
 	 * Successfully opening the file and tokenizing the content
@@ -216,7 +216,7 @@ Config Parser::convertToServerData(const Token& block)
 
 		if (key == "upload_dir") {
 			DEBUG_LOG("\t\tAdding uploading directory " + item.children.at(1).value);
-			config.upload_dir = item.children.at(1).value;
+			config.uploadDir = item.children.at(1).value;
 		}
 
 		if (key == "directory_listing") {
@@ -247,7 +247,7 @@ Config Parser::convertToServerData(const Token& block)
 			if (!isUnsignedIntLiteral(val)) {
 				throw ParserException(ERROR_LOG("Invalid client_max_body_size value"));
 			}
-			config.client_max_body_size = std::stoull(val);
+			config.clientMaxBodySize = std::stoull(val);
 		}
 
 		if (key == "status_pages") {
@@ -257,7 +257,7 @@ Config Parser::convertToServerData(const Token& block)
 				DEBUG_LOG("\t\tMapping status page "
 					+ std::to_string(std::stoi(e.children.at(0).value))
 					+ " to " + e.children.at(1).value);
-				config.status_pages[e.children.at(0).value] = e.children.at(1).value;
+				config.statusPages[e.children.at(0).value] = e.children.at(1).value;
 			}
 		}
 
