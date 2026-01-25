@@ -913,7 +913,7 @@ bool	Request::initialSaveToDisk(const MultipartPart& part)
 	}
 
 	// file handler to write data
-	std::unique_ptr<std::ofstream>	_uploadFD = std::make_unique<std::ofstream>(target_path, std::ios::binary);
+	_uploadFD = std::make_unique<std::ofstream>(target_path, std::ios::binary);
 
 	if (_uploadFD && _uploadFD->is_open()) {
 		_uploadFD->write(part.data.c_str(), part.data.size());
