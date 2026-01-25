@@ -468,19 +468,19 @@ std::string	extractQuotedValue(const std::string& source, const std::string& key
 
 	pos += key.length();
 
-	size_t	quote_start = source.find('"', pos);
+	size_t	quoteStart = source.find('"', pos);
 
-	if (quote_start == std::string::npos) {
+	if (quoteStart == std::string::npos) {
 		return "";
 	}
 
-	size_t	quote_end = source.find('"', quote_start + 1);
+	size_t	quoteEnd = source.find('"', quoteStart + 1);
 
-	if (quote_end == std::string::npos) {
+	if (quoteEnd == std::string::npos) {
 		return "";
 	}
 
-	return source.substr(quote_start + 1, quote_end - quote_start - 1);
+	return source.substr(quoteStart + 1, quoteEnd - quoteStart - 1);
 }
 
 //#define TEST

@@ -838,14 +838,14 @@ void	Request::handleFileUpload()
 			return;
 		}
 
-		std::string	raw_part = _buffer.substr(headerStart, partEnd - (headerStart + 2));
+		std::string	rawPart = _buffer.substr(headerStart, partEnd - (headerStart + 2));
 
 		MultipartPart mp;
-		size_t header_end = raw_part.find("\r\n\r\n");
+		size_t header_end = rawPart.find("\r\n\r\n");
 
 		if (header_end != std::string::npos) {
-			mp.headers = raw_part.substr(0, header_end);
-			mp.data = raw_part.substr(header_end + 4);
+			mp.headers = rawPart.substr(0, header_end);
+			mp.data = rawPart.substr(header_end + 4);
 			mp.name = extractQuotedValue(mp.headers, "name=");
 			mp.filename = extractQuotedValue(mp.headers, "filename=");
 			mp.contentType = extractValue(mp.headers, "Content-Type: ");
@@ -902,18 +902,18 @@ bool	Request::initialSaveToDisk(const MultipartPart& part)
 	}
 
 	// constructing the file path
-	std::filesystem::path	target_path = std::filesystem::path(_uploadDir.value()) / std::filesystem::path(part.filename).filename();
+	std::filesystem::path	targetPath = std::filesystem::path(_uploadDir.value()) / std::filesystem::path(part.filename).filename();
 
 	// if filename conflicts will treat as an error
-	if (std::filesystem::exists(target_path)) {
-		ERROR_LOG("File '" + std::string(target_path) + "' already exists");
+	if (std::filesystem::exists(targetPath)) {
+		ERROR_LOG("File '" + std::string(targetPath) + "' already exists");
 		_responseCodeBypass = Conflict;
 		_status = ClientStatus::Invalid;
 		return false;
 	}
 
 	// file handler to write data
-	_uploadFD = std::make_unique<std::ofstream>(target_path, std::ios::binary);
+	_uploadFD = std::make_unique<std::ofstream>(targetPath, std::ios::binary);
 
 	if (_uploadFD && _uploadFD->is_open()) {
 		_uploadFD->write(part.data.c_str(), part.data.size());
