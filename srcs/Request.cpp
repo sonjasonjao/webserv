@@ -682,7 +682,7 @@ void	Request::resetSendStart()
 void	Request::resetBuffer()
 {
 	if (!_buffer.empty()) {
-		INFO_LOG("The remaining request data in buffer following one complete request will be discarded");
+		DEBUG_LOG("Discarding remaining data in buffer:\n'" + _buffer + "'");
 		_buffer.clear();
 	}
 }
@@ -802,12 +802,14 @@ void	Request::handleFileUpload()
 			// Remove only the processed multipart data including end delimiter
 			_buffer.erase(0, partStart + endDelimiter.length());
 			// Skip trailing CRLF if present
+			if (_buffer.length() >= 2 && _buffer.find(CRLF) == 0)
+				_buffer.erase(0, 2);
 
 			/*NOTE! This if condition is not working as intended now. In a valid
 			case, this gets triggered with some trailing newline.*/
 			if (!_buffer.empty()) {
+				DEBUG_LOG("Expected empty buffer after removing end delimiter, remainder: " + _buffer);
 				_responseCodeBypass = BadRequest;
-				DEBUG_LOG("BUFFER NOT EMPTY, CONTENTS NOW: " + _buffer);
 				_status = ClientStatus::Invalid;
 				_keepAlive = false;
 				break;
@@ -904,7 +906,7 @@ bool	Request::initialSaveToDisk(const MultipartPart& part)
 
 	// if filename conflicts will treat as an error
 	if (std::filesystem::exists(target_path)) {
-		ERROR_LOG("A file already exists in the directory with the same file name");
+		ERROR_LOG("File '" + std::string(target_path) + "' already exists");
 		_responseCodeBypass = Conflict;
 		_status = ClientStatus::Invalid;
 		return false;
