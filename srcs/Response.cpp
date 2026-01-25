@@ -237,16 +237,17 @@ void	Response::formResponse()
 
 bool	Response::sendToClient()
 {
-	size_t	bytesToSend = _content.length() - _bytesSent;
+	size_t const	bytesToSend		= _content.length() - _bytesSent;
+	char const		*bufferPosition	= _content.c_str() + _bytesSent;
 
-	if (bytesToSend == 0)
+	if (bytesToSend == 0) {
+		DEBUG_LOG("Complete response already sent");
 		return true;
-
-	char const	*bufferPosition	= _content.c_str() + _bytesSent;
+	}
 
 	DEBUG_LOG("Calling send to fd " + std::to_string(_req.getFd()));
-	ssize_t		bytesSent		= send(_req.getFd(), bufferPosition, bytesToSend, MSG_DONTWAIT);
 
+	ssize_t const	bytesSent = send(_req.getFd(), bufferPosition, bytesToSend, MSG_DONTWAIT);
 	if (bytesSent < 0) {
 		ERROR_LOG("send: " + std::string(strerror(errno)));
 		return false;
@@ -281,7 +282,7 @@ static std::string	route(std::string target, Config const &conf)
 		if (key == "/")
 			continue;
 
-		auto	pos = target.find(key);
+		auto const	pos = target.find(key);
 
 		if (pos != std::string::npos) {
 			target.replace(pos, key.length(), val);
@@ -313,7 +314,7 @@ static std::string	getContentType(std::string target)
 	if (pos == std::string::npos)
 		return contentType;
 
-	auto		filenameExtension	= target.substr(pos);
+	std::string	filenameExtension	= target.substr(pos);
 
 	for (auto &c : filenameExtension)
 		c = std::tolower(c);
