@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <chrono>
 #include <filesystem>
+#include <string_view>
 
 constexpr char const * const	CRLF = "\r\n";
 
@@ -22,8 +23,7 @@ Request::Request(int fd, int serverFd)
 		_chunked(false),
 		_completeHeaders(false),
 		_uploadFD(nullptr),
-		_headerSize(0),
-		_currUploadPos(0)
+		_headerSize(0)
 {
 	_request.method = RequestMethod::Unknown;
 	_status = ClientStatus::WaitingData;
@@ -66,7 +66,6 @@ void	Request::reset()
 	_chunked = false;
 	_completeHeaders = false;
 	_recvStart = {};
-	_currUploadPos = 0;
 	if (_uploadFD) {
 		_uploadFD->close();
 		_uploadFD.reset();
@@ -786,69 +785,61 @@ void	Request::setUploadDir(std::string path)
 
 void	Request::handleFileUpload()
 {
-	std::string	partDelimiter	= "--" + _boundary.value();
-	std::string	endDelimiter	= partDelimiter + "--";
-	size_t		currPos			= _currUploadPos;
+	std::string const	partDelimiter	= "--" + _boundary.value();
+	std::string const	endDelimiter	= partDelimiter + "--";
 
 	while (true) {
-		size_t partStart = _buffer.find(partDelimiter, currPos);
+		size_t const	partStart = _buffer.find(partDelimiter); // Look for delimiter in the buffer
 
 		if (partStart == std::string::npos) {
 			_status = ClientStatus::WaitingData;
 			break;
 		}
-
-		if (_buffer.compare(partStart, endDelimiter.length(), endDelimiter) == 0) {
-			// Remove only the processed multipart data including end delimiter
+		if (_buffer.compare(partStart, endDelimiter.length(), endDelimiter) == 0) { // End delimiter of form data found
 			_buffer.erase(0, partStart + endDelimiter.length());
-			// Skip trailing CRLF if present
-			if (_buffer.length() >= 2 && _buffer.find(CRLF) == 0)
-				_buffer.erase(0, 2);
-
-			/*NOTE! This if condition is not working as intended now. In a valid
-			case, this gets triggered with some trailing newline.*/
-			if (!_buffer.empty()) {
-				DEBUG_LOG("Expected empty buffer after removing end delimiter, remainder: " + _buffer);
-				_responseCodeBypass = BadRequest;
-				_status = ClientStatus::Invalid;
-				_keepAlive = false;
-				break;
-			}
 			_responseCodeBypass = Created;
 			_status = ClientStatus::CompleteReq;
 			break;
 		}
 
-		size_t	headerStart = partStart + partDelimiter.length();
+		size_t	headersStart = partStart + partDelimiter.length();
 
-		if (_buffer.substr(headerStart, 2) == "\r\n") {
-			headerStart += 2;
-		}
+		if (_buffer.compare(headersStart, 2, "\r\n") == 0) // NOTE: Are we sure about that this is optional?
+			headersStart += 2;
 
-		size_t	partEnd = _buffer.find(partDelimiter, headerStart);
+		size_t const	partEnd = _buffer.find(partDelimiter, headersStart);
 
-		if (partEnd == std::string::npos) {
+		/**
+		 * NOTE:	This part is quite inefficient at the moment, the file only gets processed and duplicates
+		 *			validated after the whole file content has been received and it has to fit in memory.
+		 */
+		if (partEnd == std::string::npos) { // Need to find a second delimiter for data processing
 			_status = ClientStatus::WaitingData;
 			break;
 		}
 
-		if ((partEnd - headerStart) < 2) {
+		if ((partEnd - headersStart) < 2) { // No data -> error, there might be a lone \r\n
+			ERROR_LOG("No data in multipart/form-data");
 			_status = ClientStatus::Error;
 			_keepAlive = false;
 			return;
 		}
 
-		std::string	rawPart = _buffer.substr(headerStart, partEnd - (headerStart + 2));
+		std::string_view	chunk		= std::string_view(_buffer).substr(headersStart, (partEnd - 2) - headersStart); // Remove extra \r\n by subtracting 2 from part end
+		size_t				headersEnd	= chunk.find("\r\n\r\n");
+		MultipartPart		mp;
 
-		MultipartPart mp;
-		size_t header_end = rawPart.find("\r\n\r\n");
-
-		if (header_end != std::string::npos) {
-			mp.headers = rawPart.substr(0, header_end);
-			mp.data = rawPart.substr(header_end + 4);
+		if (headersEnd != std::string::npos) {
+			mp.headers = chunk.substr(0, headersEnd);
+			mp.data = chunk.substr(headersEnd + 4); // Skip found \r\n\r\n
 			mp.name = extractQuotedValue(mp.headers, "name=");
 			mp.filename = extractQuotedValue(mp.headers, "filename=");
 			mp.contentType = extractValue(mp.headers, "Content-Type: ");
+		} else { // No headers -> error
+			ERROR_LOG("No headers in multipart/form-data");
+			_status = ClientStatus::Error;
+			_keepAlive = false;
+			return;
 		}
 
 		if (_uploadFD) {
@@ -859,8 +850,7 @@ void	Request::handleFileUpload()
 				break;
 		}
 
-		_currUploadPos = partEnd;
-		currPos = partEnd;
+		_buffer = _buffer.substr(partEnd); // remove already saved part of buffer, no need to hold it in memory
 	}
 }
 

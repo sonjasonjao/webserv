@@ -91,7 +91,6 @@ class Request
 		timePoint						_recvStart;
 		timePoint						_sendStart;
 		size_t							_headerSize;
-		size_t							_currUploadPos;
 		std::optional<size_t>			_contentLen;
 		stringMap						_headers;
 		struct RequestLine				_request;
