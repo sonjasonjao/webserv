@@ -35,7 +35,7 @@ class Parser {
 private:
 	std::string const	_fileName;			// File name of the configuration file
 	std::ifstream		_file;				// ifstream instance to read the configuration file
-	std::vector<Config>	_server_configs;	// List of fully parsed server configurations built from the token list.
+	std::vector<Config>	_serverConfigs;		// List of fully parsed server configurations built from the token list.
 
 public:
 	/**

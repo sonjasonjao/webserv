@@ -123,11 +123,11 @@ void Parser::tokenizeFile()
 
 						for (auto& item : collection) {
 							if (!isValidPort(item)) {
-								_server_configs.clear();
+								_serverConfigs.clear();
 								throw ParserException(ERROR_LOG("Invalid port value: " + item));
 							} else {
 								config.port = static_cast<uint16_t>(std::stoi(item));
-								_server_configs.emplace_back(config);
+								_serverConfigs.emplace_back(config);
 							}
 						}
 
@@ -157,7 +157,7 @@ void Parser::tokenizeFile()
  */
 const Config	&Parser::getServerConfig(size_t index)
 {
-	return _server_configs.at(index);
+	return _serverConfigs.at(index);
 }
 
 /**
@@ -165,7 +165,7 @@ const Config	&Parser::getServerConfig(size_t index)
  */
 const std::vector<Config>	&Parser::getServerConfigs() const
 {
-	return _server_configs;
+	return _serverConfigs;
 }
 
 /**
@@ -174,7 +174,7 @@ const std::vector<Config>	&Parser::getServerConfigs() const
  */
 size_t	Parser::getNumberOfServerConfigs()
 {
-	return _server_configs.size();
+	return _serverConfigs.size();
 }
 
 /**
