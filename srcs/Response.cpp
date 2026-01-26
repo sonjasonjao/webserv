@@ -235,14 +235,14 @@ void	Response::formResponse()
 	_content = _startLine + CRLF + _headerSection + CRLF + _body;
 }
 
-bool	Response::sendToClient()
+void	Response::sendToClient()
 {
 	size_t const	bytesToSend		= _content.length() - _bytesSent;
 	char const		*bufferPosition	= _content.c_str() + _bytesSent;
 
 	if (bytesToSend == 0) {
 		DEBUG_LOG("Complete response already sent");
-		return true;
+		return;
 	}
 
 	DEBUG_LOG("Calling send to fd " + std::to_string(_req.getFd()));
@@ -250,12 +250,10 @@ bool	Response::sendToClient()
 	ssize_t const	bytesSent = send(_req.getFd(), bufferPosition, bytesToSend, MSG_DONTWAIT);
 	if (bytesSent < 0) {
 		ERROR_LOG("send: " + std::string(strerror(errno)));
-		return false;
+		return;
 	}
 
 	_bytesSent += bytesSent;
-
-	return true;
 }
 
 bool	Response::sendIsComplete()

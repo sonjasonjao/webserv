@@ -314,6 +314,8 @@ void	Server::handleClientData(size_t& i)
 	it->setStatus(ClientStatus::ReadyForResponse);
 	_pfds[i].events |= POLLOUT;
 	it->resetBuffer();
+	it->setIdleStart();
+	it->setSendStart();
 }
 
 /**
@@ -393,20 +395,7 @@ void	Server::sendResponse(size_t& i)
 	auto	&res = _responses.at(_pfds[i].fd).front();
 
 	INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
-	it->setIdleStart();
-	it->setSendStart();
-	// If send() fails, we remove the response and disconnect the client
-	if (!res.sendToClient()) {
-		DEBUG_LOG("Removing front element of _responses container for fd " + std::to_string(_pfds[i].fd));
-		_responses.at(_pfds[i].fd).pop_front();
-
-		removeClientFromPollFds(i);
-
-		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
-		_clients.erase(it);
-
-		return;
-	}
+	res.sendToClient();
 	if (!res.sendIsComplete()) {
 		INFO_LOG("Response partially sent, waiting for server to complete response sending");
 		return;
@@ -416,7 +405,6 @@ void	Server::sendResponse(size_t& i)
 	_responses.at(_pfds[i].fd).pop_front();
 
 	it->resetSendStart();
-
 	_pfds[i].events &= ~POLLOUT;
 
 	DEBUG_LOG("Keep alive status: " + std::to_string(it->getKeepAlive()));
