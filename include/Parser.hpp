@@ -7,6 +7,7 @@
 #include <vector>
 #include <map>
 #include <optional>
+#include <cstdint>
 
 /**
  * Default file_name extension for the configuration file, with out correct extension
