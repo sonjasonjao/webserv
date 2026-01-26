@@ -257,7 +257,7 @@ void	Server::handleClientData(size_t& i)
 
 	it->setIdleStart();
 	it->setRecvStart();
-	it->processRequest(buf);
+	it->processRequest(std::string(buf, numBytes));
 
 	Config const	&conf = matchConfig(*it);
 
