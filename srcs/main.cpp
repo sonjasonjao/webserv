@@ -56,16 +56,16 @@ int	main(int argc, char **argv)
 	} catch (const Parser::ParserException& e) {
 		std::cerr << "Exiting\n";
 
-		return (EXIT_FAILURE);
+		return EXIT_FAILURE;
 	} catch (const std::exception& e) {
 		std::cerr << "Exiting\n";
 
-		return (EXIT_FAILURE);
+		return EXIT_FAILURE;
 	} catch (...) {
 		std::cerr << "Exiting\n";
 
-		return (EXIT_FAILURE);
+		return EXIT_FAILURE;
 	}
 
-	return (EXIT_SUCCESS);
+	return EXIT_SUCCESS;
 }
