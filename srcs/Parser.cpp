@@ -6,41 +6,42 @@
 #include <filesystem>
 #include <stack>
 
-Parser::Parser(const std::string& file_name)
-	:_file_name(file_name), _file() {
+Parser::Parser(const std::string& fileName)
+	:	_fileName(fileName), _file()
+{
 	std::error_code ec;
 	/**
 	 * Try to locate the file in the current file system, will throw an error
 	 * if file does not exist
 	 */
-	if (!std::filesystem::exists(_file_name, ec) || ec) {
-		throw ParserException(ERROR_LOG("File does not exist: " + file_name));
+	if (!std::filesystem::exists(_fileName, ec) || ec) {
+		throw ParserException(ERROR_LOG("File does not exist: " + _fileName));
 	}
 	/**
 	 * Will compare the file extension with the standard one and will throw
 	 * an error in case of mismatch. Subsequent characters in the file_name after
 	 * the last occurrence of '.'
 	 */
-	size_t pos = _file_name.rfind('.');
-	std::string ext = _file_name.substr(pos + 1);
+	size_t pos = _fileName.rfind('.');
+	std::string ext = _fileName.substr(pos + 1);
 	if (ext != EXTENSION) {
-		throw ParserException(ERROR_LOG("Wrong extension : " + _file_name));
+		throw ParserException(ERROR_LOG("Wrong extension : " + _fileName));
 	}
 
-	_file.open(_file_name);
+	_file.open(_fileName);
 
 	/**
 	 * if the file pointed by the file_name can not open, will throw an error
 	 */
 	if (_file.fail()) {
-		throw ParserException(ERROR_LOG("Couldn't open file : " + _file_name + ": " + std::string(strerror(errno))));
+		throw ParserException(ERROR_LOG("Couldn't open file : " + _fileName + ": " + std::string(strerror(errno))));
 	}
 
 	/**
 	 * If the file pointed by the file_name is empty, will throw an error
 	 */
-	if (std::filesystem::file_size(_file_name) == 0) {
-		throw ParserException(ERROR_LOG("Empty file : " + _file_name));
+	if (std::filesystem::file_size(_fileName) == 0) {
+		throw ParserException(ERROR_LOG("Empty file : " + _fileName));
 	}
 	/**
 	 * Successfully opening the file and tokenizing the content
@@ -49,7 +50,8 @@ Parser::Parser(const std::string& file_name)
 	tokenizeFile();
 }
 
-Parser::~Parser() {
+Parser::~Parser()
+{
 	/**
 	 * At the end if the file descriptor is still open, it will be closed gracefully
 	 */
@@ -64,7 +66,8 @@ Parser::~Parser() {
  * @param void - class method will have access to all the class attributes
  * @return void - all the tokens will be saved to an internal container
  */
-void Parser::tokenizeFile(void) {
+void Parser::tokenizeFile()
+{
 	std::string	line;
 	std::string	output;
 
@@ -120,11 +123,11 @@ void Parser::tokenizeFile(void) {
 
 						for (auto& item : collection) {
 							if (!isValidPort(item)) {
-								_server_configs.clear();
+								_serverConfigs.clear();
 								throw ParserException(ERROR_LOG("Invalid port value: " + item));
 							} else {
 								config.port = static_cast<uint16_t>(std::stoi(item));
-								_server_configs.emplace_back(config);
+								_serverConfigs.emplace_back(config);
 							}
 						}
 
@@ -152,23 +155,26 @@ void Parser::tokenizeFile(void) {
  * config struct data
  * @return const reference to the requested data structure
  */
-const Config& Parser::getServerConfig(size_t index) {
-	return (_server_configs.at(index));
+const Config	&Parser::getServerConfig(size_t index)
+{
+	return _serverConfigs.at(index);
 }
 
 /**
  * will return the whole configs vector for server construction.
  */
-const std::vector<Config>	&Parser::getServerConfigs(void) const {
-	return _server_configs;
+const std::vector<Config>	&Parser::getServerConfigs() const
+{
+	return _serverConfigs;
 }
 
 /**
  * will return the size of the internal container, useful info when required
  * to loop through the entire vector
  */
-size_t Parser::getNumberOfServerConfigs(void) {
-	return (_server_configs.size());
+size_t	Parser::getNumberOfServerConfigs()
+{
+	return _serverConfigs.size();
 }
 
 /**
@@ -179,8 +185,8 @@ size_t Parser::getNumberOfServerConfigs(void) {
  * @return	value of the config created on the fly, will recreate the similar
  *			data in the respective vector, temporary data so no reference
  */
-Config Parser::convertToServerData(const Token& block) {
-
+Config Parser::convertToServerData(const Token& block)
+{
 	Config config;
 
 	DEBUG_LOG("Converting server config tokens to server data");
@@ -257,11 +263,11 @@ Config Parser::convertToServerData(const Token& block) {
 			}
 
 			if (key == "client_max_body_size") {
-				if (!std::all_of(tok.value.begin(), tok.value.end(), isdigit))
-					throw ParserException(ERROR_LOG("\tInvalid value for 'client_max_body_size': " + tok.value));
+				if (!std::all_of(tok.value.begin(), tok.value.end(), isdigit) || !isUnsignedIntLiteral(tok.value))
+					throw ParserException(ERROR_LOG("\tInvalid value for '" + key + "': " + tok.value));
 
 				try {
-					config.requestMaxBodySize = std::stoul(tok.value);
+					config.clientMaxBodySize = std::stoul(tok.value);
 					DEBUG_LOG("\t" + key + " = " + tok.value);
 
 					continue;
@@ -393,7 +399,7 @@ Config Parser::convertToServerData(const Token& block) {
 				throw ParserException(ERROR_LOG("\tUnknown option: " + key));
 		}
 	}
-	return (config);
+	return config;
 }
 
 /**
@@ -401,7 +407,8 @@ Config Parser::convertToServerData(const Token& block) {
  * @param root, key block of data in the AST need to convert
  * @return vector of strings
  */
-std::vector<std::string> Parser::getCollectionBykey(const Token& root, const std::string& key) {
+std::vector<std::string>	Parser::getCollectionBykey(const Token& root, const std::string& key)
+{
 	std::vector<std::string> collection;
 	for (auto item : root.children) {
 		std::string itemKey = getKey(item);
@@ -413,14 +420,15 @@ std::vector<std::string> Parser::getCollectionBykey(const Token& root, const std
 			}
 		}
 	}
-	return (collection);
+	return collection;
 }
 
 /**
  * this function will check and return if a string is a valid JSON string in respect of
  * brackets, quotes, separators and primitive values
  */
-bool Parser::isValidJSONString(std::string_view sv) {
+bool Parser::isValidJSONString(std::string_view sv)
+{
 	std::stack<char> brackets;
 	std::string buffer;
 
@@ -483,26 +491,26 @@ bool Parser::isValidJSONString(std::string_view sv) {
 				break;
 			case '}':
 				if (brackets.empty() || brackets.top() != '{') {
-					return (false);
+					return false;
 				} else {
 					brackets.pop();
 				}
 				break;
 			case ']':
 				if (brackets.empty() || brackets.top() != '[') {
-					return (false);
+					return false;
 				} else {
 					brackets.pop();
 				}
 				break;
 			case ':': // allowing to have contiguous ':' for IPv6 validation
 				if (prevChar == ',') {
-					return (false);
+					return false;
 				}
 				break;
 			case ',':
 				if (prevChar == ':' || prevChar == ',') {
-					return (false);
+					return false;
 				}
 				break;
 			default:
@@ -514,26 +522,27 @@ bool Parser::isValidJSONString(std::string_view sv) {
 
 	if (inQuotes) {
 		std::cerr << "Un-closed double quotations !\n";
-		return (false);
+		return false;
 	}
 
 	if (!brackets.empty()) {
 		std::cerr << "Un-closed brackets " << brackets.top() << "!\n";
-		return (false);
+		return false;
 	}
-	return (true);
+	return true;
 }
 
 /**
  * this function will check if a given string is a valid primitive value
  * an integer, a fractional value, IPv4, true or false
  */
-bool Parser::isPrimitiveValue(std::string_view sv) {
+bool Parser::isPrimitiveValue(std::string_view sv)
+{
 	if (sv.empty())
-		return (false);
+		return false;
 
 	if (sv == "true" || sv == "false")
-		return (true);
+		return true;
 
 	if (isValidIPv4(sv) || isValidPort(sv) || isUnsignedIntLiteral(sv) || isPositiveDoubleLiteral(sv))
 		return true;

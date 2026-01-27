@@ -9,15 +9,15 @@
             "directory_listing"     : true,
             "autoindex"             : false,
 
-            "client_max_body_size"  : 5,
-
-            "upload_dir"            : "www/uploads",
-
             "status_pages" : {
                 "200" : "www/status_pages/200.html",
                 "400" : "www/status_pages/400.html",
                 "404" : "www/status_pages/404.html"
             },
+
+            "upload_dir"            : "www/uploads/something_else",
+
+            "client_max_body_size"  : 11048576,
 
             "routes" : {
                 "/"         : "www/pages",
