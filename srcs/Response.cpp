@@ -29,6 +29,7 @@ static void					listify(std::vector<std::string> const &vec, size_t offset, std:
 Response::Response(Request const &req, Config const &conf) : _req(req), _conf(conf)
 {
 	INFO_LOG("Forming target for " + _req.getMethodString() + " request targeting " + _req.getTarget());
+
 	/* Already flagged requests */
 
 	ResponseCode	bypass = _req.getResponseCodeBypass();
@@ -158,18 +159,22 @@ int	Response::getStatusCode() const
  */
 void	Response::sendToClient()
 {
-	size_t	bytesToSend = _content.length() - _bytesSent;
+	size_t const	bytesToSend		= _content.length() - _bytesSent;
+	char const		*bufferPosition	= _content.c_str() + _bytesSent;
 
-	if (bytesToSend == 0)
+	if (bytesToSend == 0) {
+		DEBUG_LOG("Complete response already sent");
 		return;
-
-	char const	*bufferPosition	= _content.c_str() + _bytesSent;
+	}
 
 	DEBUG_LOG("Calling send to fd " + std::to_string(_req.getFd()));
-	ssize_t		bytesSent		= send(_req.getFd(), bufferPosition, bytesToSend, MSG_DONTWAIT);
 
-	if (bytesSent < 0)
-		throw std::runtime_error(ERROR_LOG("send: " + std::string(strerror(errno))));
+	ssize_t const	bytesSent = send(_req.getFd(), bufferPosition, bytesToSend, MSG_DONTWAIT);
+
+	if (bytesSent < 0) {
+		ERROR_LOG("send: " + std::string(strerror(errno)));
+		return;
+	}
 
 	_bytesSent += bytesSent;
 }
@@ -193,14 +198,17 @@ void	Response::formResponse()
 	_headerSection += "Date: " + getImfFixdate() + CRLF;
 
 	if (_directoryListing) {
-		_startLine		 = _req.getHttpVersion() + " 200 OK";
-		_body			 = getDirectoryList(_reqTargetSanitized, _target);
-		_contentType	 = "text/html";
-		_headerSection	+= "Content-Type: " + _contentType + std::string(CRLF);
-		_headerSection	+= "Content-Length: " + std::to_string(_body.length()) + CRLF;
-		_content		 = _startLine + CRLF + _headerSection + CRLF + _body;
+		_body = getDirectoryList(_reqTargetSanitized, _target);
 
-		return;
+		if (_statusCode != InternalServerError) {
+			_startLine		 = _req.getHttpVersion() + " 200 OK";
+			_contentType	 = "text/html";
+			_headerSection	+= "Content-Type: " + _contentType + std::string(CRLF);
+			_headerSection	+= "Content-Length: " + std::to_string(_body.length()) + CRLF;
+			_content		 = _startLine + CRLF + _headerSection + CRLF + _body;
+
+			return;
+		}
 	}
 
 	if (_statusCode == 200)
@@ -259,6 +267,14 @@ void	Response::formResponse()
 		default:
 			_startLine	= _req.getHttpVersion() + " 500 Internal Server Error";
 			_body		= getResponsePageContent("500", _conf);
+
+			if (!_diagnosticMessage.empty()) {
+				auto	pos = _body.find("</body>");
+
+				if (pos != std::string::npos)
+					_body.insert(pos, "<p>" + _diagnosticMessage + "</p>");
+			}
+		break;
 	}
 
 	_headerSection += "Content-Length: " + std::to_string(_body.length()) + CRLF;
@@ -446,8 +462,8 @@ static Route	getRoute(std::string uri, Config const &conf)
  */
 static std::string	getContentType(std::string target)
 {
-	std::string	contentType			= "text/html";
-	auto		pos					= target.find_last_of(".");
+	std::string	contentType	= "text/html";
+	auto		pos			= target.find_last_of(".");
 
 	if (pos == std::string::npos)
 		return contentType;
@@ -496,7 +512,7 @@ static std::string const	&getResponsePageContent(std::string const &key, Config 
 }
 
 /**
- * Helper funtion for forming directory lists, creates HTML unordered list out of a vector.
+ * Helper function for forming directory lists, creates HTML unordered list out of a vector.
  */
 static void	listify(std::vector<std::string> const &vec, size_t offset, std::stringstream &stream)
 {

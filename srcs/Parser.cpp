@@ -250,7 +250,7 @@ Config Parser::convertToServerData(const Token& block)
 
 			if (key == "directory_listing" || key == "autoindex") {
 				if (tok.value != "true" && tok.value != "false")
-					throw ParserException(ERROR_LOG("\tInvalid token type for '" + key + "'"));
+					throw ParserException(ERROR_LOG("\tInvalid value for '" + key + "': " + tok.value));
 
 				DEBUG_LOG("\t" + key + " = " + tok.value);
 

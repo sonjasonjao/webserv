@@ -172,7 +172,7 @@ bool	resourceExists(std::string_view uri, std::string searchDir)
  * Validation is still very minimal, empty URIs and empty fields in URIs
  * currently invalidate the format, no invalid characters yet.
  *
- * #param uri	String view of URI whose formatting is being evaluated
+ * @param uri	String view of URI whose formatting is being evaluated
  *
  * @return	true if the URI is valid, false if not
  */
