@@ -189,85 +189,214 @@ Config Parser::convertToServerData(const Token& block)
 {
 	Config config;
 
-	DEBUG_LOG("\tConverting server config tokens to server data");
+	DEBUG_LOG("Converting server config tokens to server data");
 
-	for (auto item : block.children) {
-		if (item.children.size() < 2)
+	for (auto const &item : block.children) {
+		if (item.children.size() != 2)
+			throw ParserException(ERROR_LOG("\tbad key value pair"));
+
+		std::string	key = getKey(item);
+		Token		tok = item.children.at(1);
+
+		if (key.empty())
+			throw ParserException(ERROR_LOG("\tEmpty key"));
+
+		std::vector<std::string> const	pureStringFields {
+			"server_name",
+			"upload_dir"
+		};
+
+		std::vector<std::string> const	stringOrPrimitiveFields {
+			"host",
+			"directory_listing",
+			"autoindex",
+			"client_max_body_size"
+		};
+
+		/* ---- String fields ---- */
+		if (std::find(pureStringFields.begin(), pureStringFields.end(), key) != pureStringFields.end()) {
+
+			if (tok.type != TokenType::Value)
+				throw ParserException(ERROR_LOG("\tInvalid token type for '" + key + "'"));
+			if (tok.value.empty())
+				throw ParserException(ERROR_LOG("\tEmpty token value for '" + key + "'"));
+
+			DEBUG_LOG("\t" + key + " = " + tok.value);
+
+			if (key == "server_name")
+				config.serverName = tok.value;
+			else if (key == "upload_dir")
+				config.uploadDir = tok.value;
+
 			continue;
+		} /* ---- String or primitive fields ---- */
+		else if (std::find(stringOrPrimitiveFields.begin(), stringOrPrimitiveFields.end(), key) != stringOrPrimitiveFields.end()) {
 
-		// extract the value of the key from the AST
-		std::string key = getKey(item);
+			if (tok.type != TokenType::Value && tok.type != TokenType::Primitive)
+				throw ParserException(ERROR_LOG("\tInvalid token type for '" + key + "'"));
+			if (tok.value.empty())
+				throw ParserException(ERROR_LOG("\tEmpty token value for '" + key + "'"));
 
-		// set host or the IP address value
-		if (key == "host") {
-			std::string str = item.children.at(1).value;
-			DEBUG_LOG("\t\tAdding host " + str);
-			if (str != "localhost" && !isValidIPv4(str)) {
-				throw ParserException(ERROR_LOG("Invalid IPv4 address value: " + str));
+			// set host or the IP address value
+			if (key == "host") {
+				if (tok.value != "localhost" && !isValidIPv4(tok.value))
+					throw ParserException(ERROR_LOG("\tInvalid IPv4 address value: " + tok.value));
+
+				DEBUG_LOG("\thost = " + tok.value);
+				config.host = tok.value;
+
+				continue;
 			}
-			config.host = str;
-		}
 
-		// set server name value
-		if (key == "server_name") {
-			DEBUG_LOG("\t\tAdding serverName " + item.children.at(1).value);
-			config.serverName = item.children.at(1).value;
-		}
+			if (key == "directory_listing" || key == "autoindex") {
+				if (tok.value != "true" && tok.value != "false")
+					throw ParserException(ERROR_LOG("\tInvalid token type for '" + key + "'"));
 
-		if (key == "upload_dir") {
-			DEBUG_LOG("\t\tAdding uploading directory " + item.children.at(1).value);
-			config.uploadDir = item.children.at(1).value;
-		}
+				DEBUG_LOG("\t" + key + " = " + tok.value);
 
-		if (key == "directory_listing") {
-			std::string	val = item.children.at(1).value;
+				if (key == "directory_listing")
+					config.directoryListing = (tok.value == "true");
+				else
+					config.autoindex = (tok.value == "true");
 
-			if (val != "true" && val != "false") {
-				ERROR_LOG("Unrecognized value for directory listing, retaining default value false");
-			} else {
-				config.directoryListing = (item.children.at(1).value == "true");
-				DEBUG_LOG(std::string("\t\tSet directory listing to ") + (config.directoryListing ? "true" : "false"));
+				continue;
 			}
-		}
 
-		if (key == "autoindex") {
-			std::string	val = item.children.at(1).value;
+			if (key == "client_max_body_size") {
+				if (!std::all_of(tok.value.begin(), tok.value.end(), isdigit) || !isUnsignedIntLiteral(tok.value))
+					throw ParserException(ERROR_LOG("\tInvalid value for '" + key + "': " + tok.value));
 
-			if (val != "true" && val != "false") {
-				ERROR_LOG("Unrecognized value for autoindexing, retaining default value false");
-			} else {
-				config.autoindex = (item.children.at(1).value == "true");
-				DEBUG_LOG(std::string("\t\tSet autoindexing to ") + (config.autoindex ? "true" : "false"));
+				try {
+					config.clientMaxBodySize = std::stoul(tok.value);
+					DEBUG_LOG("\t" + key + " = " + tok.value);
+
+					continue;
+				} catch (std::exception const &e) {
+					throw ParserException(ERROR_LOG(std::string("\tError setting '" + key + "': ") + e.what()));
+				}
 			}
-		}
+		} /* ---- Status pages ---- */
+		else if (key == "status_pages") {
+			DEBUG_LOG("\tSetting status pages");
+			if (tok.type != TokenType::Object)
+				throw ParserException(ERROR_LOG("\tInvalid token type for '" + key + "'"));
 
-		if (key == "client_max_body_size") {
-			std::string val = item.children.at(1).value;
-			DEBUG_LOG("\t\t Set client_max_body_size to " + val);
-			if (!isUnsignedIntLiteral(val)) {
-				throw ParserException(ERROR_LOG("Invalid client_max_body_size value"));
-			}
-			config.clientMaxBodySize = std::stoull(val);
-		}
+			for (auto const &e : tok.children) {
+				if (e.children.size() != 2)
+					throw ParserException(ERROR_LOG("\t\t'" + key + "': bad key value pair"));
 
-		if (key == "status_pages") {
-			for (auto e : item.children.at(1).children) {
 				if (e.children.at(1).type != TokenType::Value)
-					continue;
-				DEBUG_LOG("\t\tMapping status page "
-					+ std::to_string(std::stoi(e.children.at(0).value))
-					+ " to " + e.children.at(1).value);
-				config.statusPages[e.children.at(0).value] = e.children.at(1).value;
-			}
-		}
+					throw ParserException(ERROR_LOG("\t\tInvalid token type for '" + key + "' target"));
 
-		if (key == "routes") {
-			for (auto r : item.children.at(1).children) {
-				if (r.children.at(1).type != TokenType::Value)
-					continue;
-				DEBUG_LOG("\t\tAdding route " + r.children.at(0).value + " -> " + r.children.at(1).value);
-				config.routes[r.children.at(0).value] = r.children.at(1).value;
+				std::string	pageNumber	= e.children.at(0).value;
+				std::string	route		= e.children.at(1).value;
+
+				if (pageNumber.length() != 3 || !std::all_of(pageNumber.begin(), pageNumber.end(), isdigit))
+					throw ParserException(ERROR_LOG("\t\tInvalid key '" + pageNumber + "' for '" + key + "'"));
+
+				DEBUG_LOG("\t\t" + pageNumber + " -> " + route);
+				config.statusPages[pageNumber] = route;
+
+				continue;
 			}
+		} /* ---- Routes ---- */
+		else if (key == "routes") {
+			DEBUG_LOG("\tSetting routes");
+			if (tok.type != TokenType::Object)
+				throw ParserException(ERROR_LOG("\tInvalid token type for '" + key + "'"));
+
+			for (auto const &r : tok.children) {
+				if (r.children.size() != 2) {
+					ERROR_LOG("\t\t" + key + ": bad key value pair");
+					continue;
+				}
+
+				Token	const &leftToken	= r.children.at(0);
+				Token	const &rightToken	= r.children.at(1);
+
+				if (rightToken.type != TokenType::Object && rightToken.type != TokenType::Value)
+					throw ParserException(ERROR_LOG("\t\tInvalid token type for '" + key + "' target"));
+
+				std::string	uri		= leftToken.value;
+				Route		route;
+
+				// Simplest case, simple key value, allowed methods unspecified
+				if (rightToken.type == TokenType::Value) {
+					DEBUG_LOG("\t\t" + uri + " -> " + rightToken.value);
+					route.original		= uri;
+					route.target		= rightToken.value;
+					config.routes[uri]	= route;
+
+					continue;
+				}
+
+				// Object case
+				if (rightToken.children.size() != 2)
+					throw ParserException(ERROR_LOG("\t\t" + key + ": wrong number of key value pairs"));
+
+				for (auto const &e : rightToken.children) {
+					if (e.children.size() != 2)
+						throw ParserException(ERROR_LOG("\t\t\t" + key + ": wrong number of key value pairs"));
+
+					Token const	&left	= e.children.at(0);
+					Token const	&right	= e.children.at(1);
+
+					// Order of target and allowed methods is free to choose
+					if (left.value == "target" && right.type == TokenType::Value) {
+						route.original = uri;
+						route.target = right.value;
+					} else if (left.value == "allowed_methods") {
+						if (right.type != TokenType::Array)
+							throw ParserException(ERROR_LOG("\t\t\tIncorrect token type for '" + left.value + "' target"));
+
+						route.allowedMethods = std::vector<std::string>();
+						for (auto const &a : right.children) {
+							if (a.value != "GET" && a.value != "POST" && a.value != "DELETE")
+								throw ParserException(ERROR_LOG("\t\t\t\tIncorrect value '" + a.value + "' for '" + left.value + "' array element"));
+
+							route.allowedMethods->emplace_back(a.value);
+						}
+					}
+				} // Target or allowed methods missing -> error
+				if (route.target.empty() || !route.allowedMethods.has_value())
+					throw ParserException(ERROR_LOG("\t\t\tBad route configuration"));
+
+				DEBUG_LOG("\t\t" + uri + " -> " + route.target);
+				DEBUG_LOG("\t\tAllowed methods");
+				#if DEBUG_LOGGING
+				for (auto const &a : route.allowedMethods.value())
+					DEBUG_LOG("\t\t\t" + a);
+				#endif
+
+				config.routes[uri] = route;
+
+				continue;
+			}
+		} /* ---- Allowed methods server level ---- */
+		else if (key == "allowed_methods") {
+			if (tok.type != TokenType::Array)
+				throw ParserException(ERROR_LOG("\tInvalid token type for '" + key + "'"));
+
+			config.allowedMethods = std::vector<std::string>();
+			for (auto const &a : tok.children) {
+				if (a.value != "GET" && a.value != "POST" && a.value != "DELETE")
+					throw ParserException(ERROR_LOG("\t\tIncorrect value '" + a.value + "' for allowed_methods array element"));
+				if (std::find(config.allowedMethods->begin(), config.allowedMethods->end(), a.value) != config.allowedMethods->end())
+					throw ParserException(ERROR_LOG("\t\tDuplicate '" + a.value + "' for allowed_methods array element"));
+
+				config.allowedMethods->emplace_back(a.value);
+			}
+			DEBUG_LOG("\tAllowed methods");
+			#if DEBUG_LOGGING
+			for (auto const &a : config.allowedMethods.value())
+				DEBUG_LOG("\t\t" + a);
+			#endif
+
+			continue;
+		} /* ---- Everything else ---- */
+		else {
+			if (key != "listen")
+				throw ParserException(ERROR_LOG("\tUnknown option: " + key));
 		}
 	}
 	return config;
