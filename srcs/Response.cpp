@@ -193,14 +193,17 @@ void	Response::formResponse()
 	_headerSection += "Date: " + getImfFixdate() + CRLF;
 
 	if (_directoryListing) {
-		_startLine		 = _req.getHttpVersion() + " 200 OK";
-		_body			 = getDirectoryList(_reqTargetSanitized, _target);
-		_contentType	 = "text/html";
-		_headerSection	+= "Content-Type: " + _contentType + std::string(CRLF);
-		_headerSection	+= "Content-Length: " + std::to_string(_body.length()) + CRLF;
-		_content		 = _startLine + CRLF + _headerSection + CRLF + _body;
+		_body = getDirectoryList(_reqTargetSanitized, _target);
 
-		return;
+		if (_statusCode != InternalServerError) {
+			_startLine		 = _req.getHttpVersion() + " 200 OK";
+			_contentType	 = "text/html";
+			_headerSection	+= "Content-Type: " + _contentType + std::string(CRLF);
+			_headerSection	+= "Content-Length: " + std::to_string(_body.length()) + CRLF;
+			_content		 = _startLine + CRLF + _headerSection + CRLF + _body;
+
+			return;
+		}
 	}
 
 	if (_statusCode == 200)
@@ -259,6 +262,14 @@ void	Response::formResponse()
 		default:
 			_startLine	= _req.getHttpVersion() + " 500 Internal Server Error";
 			_body		= getResponsePageContent("500", _conf);
+
+			if (!_diagnosticMessage.empty()) {
+				auto	pos = _body.find("</body>");
+
+				if (pos != std::string::npos)
+					_body.insert(pos, "<p>" + _diagnosticMessage + "</p>");
+			}
+		break;
 	}
 
 	_headerSection += "Content-Length: " + std::to_string(_body.length()) + CRLF;
