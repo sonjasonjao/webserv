@@ -171,15 +171,18 @@ void	Request::parseRequest()
 		return;
 	}
 	if (!_contentLen.has_value() && !_chunked) {
+		// this request should not have body, so buffer should be empty by now
 		if (_buffer.empty())
 			_status = ClientStatus::CompleteReq;
 		else
 			setStatusAndKeepAlive(ClientStatus::Invalid, true);
 	} else if (_request.method == RequestMethod::Post && _boundary.has_value()) {
-			return;
+		// handled from handleClientData in Server
+		return;
 	} else if (!_buffer.empty() && (_contentLen.has_value() && _body.size() < _contentLen.value())) {
 		size_t	missingLen = _contentLen.value() - _body.size();
 		if (missingLen < _buffer.size()) {
+			// if the remaining buffer is larger than what's missing from contentLen, it's invalid
 			setStatusAndKeepAlive(ClientStatus::Invalid, true);
 			return;
 		} else {
