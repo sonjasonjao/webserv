@@ -4,16 +4,21 @@
 #include "Request.hpp"
 #include "Parser.hpp"
 
+class Request;
+
 enum ResponseCode : int {
-	Unassigned			= -1,
-	OK					= 200,
-	NoContent			= 204,
-	BadRequest			= 400,
-	Forbidden			= 403,
-	NotFound			= 404,
-	RequestTimeout		= 408,
-	ContentTooLarge		= 413,
-	InternalServerError	= 500,
+	Unassigned				= -1,
+	OK						= 200,
+	NoContent				= 204,
+	Created					= 207,
+	BadRequest				= 400,
+	Forbidden				= 403,
+	NotFound				= 404,
+	RequestTimeout			= 408,
+	Conflict				= 409,
+	ContentTooLarge			= 413,
+	UnprocessableContent	= 422,
+	InternalServerError 	= 500
 };
 
 class Response {

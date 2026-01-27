@@ -1,16 +1,12 @@
 #pragma once
 
 #include "Parser.hpp"
-#include "Request.hpp"
 #include "Response.hpp"
 #include <vector>
 #include <list>
 #include <deque>
 #include <unordered_map>
 #include <poll.h>
-#include <csignal>
-
-class Request;
 
 #define MAX_PENDING		20 // all of these to be decided
 #define RECV_BUF_SIZE	4096
@@ -45,15 +41,15 @@ class Server
 
 		void			createServerSockets(void);
 		int				createSingleServerSocket(Config conf);
-		void			run(void);
+		void			run();
 		void			handleNewClient(int listener);
 		void			handleClientData(size_t &i);
 		void			prepareResponse(Request &req);
 		void			removeClientFromPollFds(size_t &i);
 		void			sendResponse(size_t &i);
-		void			checkTimeouts(void);
-		void			handleConnections(void);
-		void			groupConfigs(void);
+		void			checkTimeouts();
+		void			handleConnections();
+		void			groupConfigs();
 		bool			isGroupMember(Config &conf);
 		bool			isServerFd(int fd);
 		Config const	&matchConfig(Request const &req);

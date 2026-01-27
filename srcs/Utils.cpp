@@ -218,7 +218,7 @@ bool	uriTargetAboveRoot(std::string_view uri)
 		}
 	}
 
-	return (up > down);
+	return up > down;
 }
 
 /**
@@ -402,8 +402,12 @@ bool	isUnsignedIntLiteral(std::string_view sv)
 
 bool	isPositiveDoubleLiteral(std::string_view sv)
 {
-	bool	hasWholelPart		= false;
+	bool	hasWholePart		= false;
 	bool	hasFractionalPart	= false;
+
+	if (sv.empty()) {
+		return false;
+	}
 
 	auto	i = sv.begin();
 
@@ -411,7 +415,7 @@ bool	isPositiveDoubleLiteral(std::string_view sv)
 		++i;
 
 	if (std::isdigit(*i))
-		hasWholelPart = true;
+		hasWholePart = true;
 	while (i != sv.end() && isdigit(*i))
 		++i;
 	if (i == sv.end() || *i != '.')
@@ -423,7 +427,7 @@ bool	isPositiveDoubleLiteral(std::string_view sv)
 	while (i != sv.end() && isdigit(*i))
 		++i;
 
-	if (i != sv.end() || (!hasWholelPart && !hasFractionalPart))
+	if (i != sv.end() || (!hasWholePart && !hasFractionalPart))
 		return false;
 
 	try {
@@ -433,6 +437,51 @@ bool	isPositiveDoubleLiteral(std::string_view sv)
 	}
 
 	return true;
+}
+
+/**
+ * helper function to extract a value from a string based on a prefix
+*/
+std::string	extractValue(const std::string& source, const std::string& key)
+{
+	size_t	pos = source.find(key);
+
+	if (pos == std::string::npos) {
+		return "";
+	}
+	pos += key.length();
+
+	size_t	end = source.find_first_of("\r\n,;", pos);
+
+	return source.substr(pos, end - pos);
+}
+
+/**
+ * helper function to extract a quoted value from a string based on a prefix
+*/
+std::string	extractQuotedValue(const std::string& source, const std::string& key)
+{
+	size_t	pos = source.find(key);
+
+	if (pos == std::string::npos) {
+		return "";
+	}
+
+	pos += key.length();
+
+	size_t	quoteStart = source.find('"', pos);
+
+	if (quoteStart == std::string::npos) {
+		return "";
+	}
+
+	size_t	quoteEnd = source.find('"', quoteStart + 1);
+
+	if (quoteEnd == std::string::npos) {
+		return "";
+	}
+
+	return source.substr(quoteStart + 1, quoteEnd - quoteStart - 1);
 }
 
 //#define TEST
