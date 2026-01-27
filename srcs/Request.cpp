@@ -82,7 +82,7 @@ void	Request::resetKeepAlive()
 	_keepAlive = false;
 }
 
-void	Request::setStatusAndKeepAlive(RequestStatus status, bool clearBuffer) {
+void	Request::setStatusAndKeepAlive(ClientStatus status, bool clearBuffer) {
 	_status = status;
 	_keepAlive = false;
 	if (clearBuffer)
@@ -104,7 +104,7 @@ void	Request::checkReqTimeouts()
 	if (durMs.count() > IDLE_TIMEOUT) {
 		_status = ClientStatus::IdleTimeout;
 		DEBUG_LOG("Idle timeout with client fd " + std::to_string(_fd));
-		setStatusAndKeepAlive(RequestStatus::IdleTimeout, false);
+		setStatusAndKeepAlive(ClientStatus::IdleTimeout, false);
 		return;
 	}
 	diff = now - _recvStart;
@@ -112,7 +112,7 @@ void	Request::checkReqTimeouts()
 	if (_recvStart != init && durMs.count() > RECV_TIMEOUT) {
 		_status = ClientStatus::RecvTimeout;
 		DEBUG_LOG("Recv timeout with client fd " + std::to_string(_fd));
-		setStatusAndKeepAlive(RequestStatus::RecvTimeout, false);
+		setStatusAndKeepAlive(ClientStatus::RecvTimeout, false);
 		return;
 	}
 	diff = now - _sendStart;
@@ -120,7 +120,7 @@ void	Request::checkReqTimeouts()
 	if (_sendStart != init && durMs.count() > SEND_TIMEOUT) {
 		_status = ClientStatus::SendTimeout;
 		DEBUG_LOG("Send timeout with client fd " + std::to_string(_fd));
-		setStatusAndKeepAlive(RequestStatus::SendTimeout, false);
+		setStatusAndKeepAlive(ClientStatus::SendTimeout, false);
 	}
 }
 
@@ -175,7 +175,7 @@ void	Request::parseRequest()
 	else if (!_buffer.empty() && (_contentLen.has_value() && _body.size() < _contentLen.value())) {
 		size_t	missingLen = _contentLen.value() - _body.size();
 		if (missingLen != _buffer.size()) {
-			setStatusAndKeepAlive(RequestStatus::Invalid, true);
+			setStatusAndKeepAlive(ClientStatus::Invalid, true);
 			return;
 		}
 		else {
@@ -281,7 +281,7 @@ void	Request::parseHeaders(std::string& str)
 		for (size_t i = 0; i < key.size(); i++)
 			key[i] = std::tolower(static_cast<unsigned char>(key[i]));
 		if (line.length() <= point + 1) {
-			setStatusAndKeepAlive(RequestStatus::Invalid, false);
+			setStatusAndKeepAlive(ClientStatus::Invalid, false);
 			return;
 		}
 		std::string value = line.substr(point + 1, line.size() - (point + 1));
@@ -402,11 +402,12 @@ void	Request::parseChunked()
 			return;
 		}
 		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
-			setStatusAndKeepAlive(RequestStatus::ContentTooLarge, false);
+			_keepAlive = false;
+			_responseCodeBypass = ContentTooLarge;
 			return;
 		}
 		if (!_buffer.empty())
-			setStatusAndKeepAlive(RequestStatus::Invalid, true);
+			setStatusAndKeepAlive(ClientStatus::Invalid, true);
 	}
 }
 

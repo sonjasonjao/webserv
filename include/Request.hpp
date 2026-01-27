@@ -133,6 +133,7 @@ class Request
 		void	setRecvStart();
 		void	setSendStart();
 		void	setStatus(ClientStatus status);
+		void	setStatusAndKeepAlive(ClientStatus status, bool clearBuffer);
 		void	setResponseCodeBypass(ResponseCode code);
 
 		void	resetSendStart();
