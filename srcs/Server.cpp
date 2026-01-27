@@ -1,6 +1,9 @@
 #include "Server.hpp"
 #include "Log.hpp"
+#include "Request.hpp"
+#include "Response.hpp"
 #include <iostream>
+#include <string>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -10,6 +13,7 @@
 #include <poll.h>
 #include <fcntl.h>
 #include <cstring>
+#include <signal.h>
 
 volatile sig_atomic_t	endSignal = false;
 
@@ -46,6 +50,7 @@ bool	Server::isGroupMember(Config& conf)
 		if (it->defaultConf->host == conf.host
 			&& it->defaultConf->port == conf.port) {
 			it->configs.emplace_back(conf);
+
 			return true;
 		}
 	}
@@ -57,7 +62,7 @@ bool	Server::isGroupMember(Config& conf)
  * Each serverGroup will then have one server (listener) socket. The first config added in a
  * server group will be the default config of the group.
  */
-void	Server::groupConfigs(void)
+void	Server::groupConfigs()
 {
 	for (auto it = _configs.begin(); it != _configs.end(); it++)
 	{
@@ -138,7 +143,7 @@ int	Server::createSingleServerSocket(Config conf)
  * Loops through serverGroups and creates listener socket for each, stores
  * them into _pfds and stores the fd of the created socket into that serverGroup.
  */
-void	Server::createServerSockets(void)
+void	Server::createServerSockets()
 {
 	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++)
 	{
@@ -153,7 +158,7 @@ void	Server::createServerSockets(void)
  * detected, it gets caught with poll returning -1 with errno set to EINTR --> continues
  * to next loop round, on which endSignal won't be false, and loop will finish.
  */
-void	Server::run(void)
+void	Server::run()
 {
 	createServerSockets();
 	while (endSignal == false)
@@ -191,11 +196,11 @@ void	Server::handleNewClient(int listener)
 	if (_clients.size() >= MAX_CLIENTS) {
 		DEBUG_LOG("Connected clients limit reached, unable to accept new client");
 		close(clientFd);
+
 		return;
 	}
 
-	if (fcntl(clientFd, F_SETFL, O_NONBLOCK) < 0)
-	{
+	if (fcntl(clientFd, F_SETFL, O_NONBLOCK) < 0) {
 		close(clientFd);
 		throw std::runtime_error(ERROR_LOG("fcntl: " + std::string(strerror(errno))));
 	}
@@ -216,20 +221,20 @@ void	Server::handleClientData(size_t& i)
 {
 	if (_clients.empty())
 		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
-			+ std::to_string(_pfds[i].fd)));
+			+ std::to_string(_pfds[i].fd) + ", clients list empty"));
 
-	auto it = getRequestByFd(_pfds[i].fd);
+	auto	it = getRequestByFd(_pfds[i].fd);
 
 	if (it == _clients.end())
 		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 			+ std::to_string(_pfds[i].fd)));
 
-	if (it->getStatus() != RequestStatus::WaitingData)
+	if (it->getStatus() != ClientStatus::WaitingData)
 		return;
 
 	char	buf[RECV_BUF_SIZE + 1];
 
-	int		numBytes = recv(_pfds[i].fd, buf, RECV_BUF_SIZE, 0);
+	ssize_t	numBytes = recv(_pfds[i].fd, buf, RECV_BUF_SIZE, 0);
 
 	if (numBytes <= 0)
 	{
@@ -252,12 +257,40 @@ void	Server::handleClientData(size_t& i)
 
 	it->setIdleStart();
 	it->setRecvStart();
-	it->saveRequest(std::string(buf));
+	it->processRequest(std::string(buf, numBytes));
 
-	it->handleRequest();
+	Config const	&conf = matchConfig(*it);
 
-	if (it->getStatus() == RequestStatus::Error)
-	{
+	if (it->getRequestMethod() == RequestMethod::Post && it->boundaryHasValue()) {
+		if(conf.uploadDir.has_value()) {
+			DEBUG_LOG("Handling file upload for client fd " + std::to_string(_pfds[i].fd));
+			it->setUploadDir(conf.uploadDir.value());
+			it->handleFileUpload();
+		} else {
+			DEBUG_LOG("File uploading is forbidden");
+			it->setResponseCodeBypass(Forbidden);
+			it->setStatus(ClientStatus::Invalid);
+		}
+	}
+	if (it->isHeadersCompleted()) {
+		if(conf.clientMaxBodySize.has_value()) {
+			// if there is user defined value for clientMaxBodySize check against the value
+			if (it->getContentLength() > conf.clientMaxBodySize.value()) {
+				it->setResponseCodeBypass(ContentTooLarge);
+				it->setStatus(ClientStatus::Invalid);
+				ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit " + std::to_string(conf.clientMaxBodySize.value()));
+			}
+		} else {
+			// check against the default clientMaxBodySize value
+			if (it->getContentLength() > CLIENT_MAX_BODY_SIZE) {
+				it->setResponseCodeBypass(ContentTooLarge);
+				it->setStatus(ClientStatus::Invalid);
+				ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit " + std::to_string(CLIENT_MAX_BODY_SIZE));
+			}
+		}
+	}
+
+	if (it->getStatus() == ClientStatus::Error) {
 		ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
 			+ " connection dropped: suspicious request");
 
@@ -269,24 +302,20 @@ void	Server::handleClientData(size_t& i)
 		return;
 	}
 
-	if (it->getStatus() == RequestStatus::WaitingData)
-	{
+	if (it->getStatus() == ClientStatus::WaitingData) {
 		INFO_LOG("Waiting for more data to complete partial request");
-
 		return;
 	}
 
 	INFO_LOG("Building response to client fd " + std::to_string(_pfds[i].fd));
-
-	Config const	&conf = matchConfig(*it);
-
 	DEBUG_LOG("Matched config: " + conf.host + " " + conf.serverName + " " + std::to_string(conf.port));
 	_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
 	it->reset();
-	it->setStatus(RequestStatus::ReadyForResponse);
+	it->setStatus(ClientStatus::ReadyForResponse);
 	_pfds[i].events |= POLLOUT;
-
 	it->resetBuffer();
+	it->setIdleStart();
+	it->setSendStart();
 }
 
 /**
@@ -297,10 +326,10 @@ void	Server::handleClientData(size_t& i)
  */
 Config const	&Server::matchConfig(Request const &req)
 {
-	int fd = req.getServerFd();
-	ServerGroup	*tmp = nullptr;
-	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++)
-	{
+	int			fd		= req.getServerFd();
+	ServerGroup	*tmp	= nullptr;
+
+	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++) {
 		if (it->fd == fd) {
 			tmp = &(*it);
 			break;
@@ -308,11 +337,13 @@ Config const	&Server::matchConfig(Request const &req)
 	}
 	if (tmp == nullptr)
 		throw std::runtime_error(ERROR_LOG("Unexpected error in matching request with server config"));
-	for (auto it = tmp->configs.begin(); it != tmp->configs.end(); it++)
-	{
-		if (it->serverName == req.getHost())
+	for (auto it = tmp->configs.begin(); it != tmp->configs.end(); it++) {
+		if (it->serverName == req.getHost()) {
+			DEBUG_LOG("Matched configuration: " + it->serverName);
 			return *it;
+		}
 	}
+	DEBUG_LOG("No matching config, using default: " + tmp->defaultConf->serverName);
 	return *(tmp->defaultConf);
 }
 
@@ -326,8 +357,7 @@ void	Server::removeClientFromPollFds(size_t& i)
 	INFO_LOG("Closing fd " + std::to_string(_pfds[i].fd));
 	close(_pfds[i].fd);
 
-	if (_pfds.size() > (i + 1))
-	{
+	if (_pfds.size() > (i + 1)) {
 		DEBUG_LOG("Overwriting fd " + std::to_string(_pfds[i].fd) + " with fd "
 			+ std::to_string(_pfds[_pfds.size() - 1].fd));
 		INFO_LOG("Removing client fd " + std::to_string(_pfds[i].fd) + " from poll list");
@@ -352,23 +382,21 @@ void	Server::removeClientFromPollFds(size_t& i)
  */
 void	Server::sendResponse(size_t& i)
 {
-	auto it = getRequestByFd(_pfds[i].fd);
+	auto	it = getRequestByFd(_pfds[i].fd);
+
 	if (it == _clients.end()) {
 		ERROR_LOG("Could not find a response to send to this client");
 		return;
 	}
-	if (it->getStatus() != RequestStatus::ReadyForResponse
-		&& it->getStatus() != RequestStatus::RecvTimeout)
+	if (it->getStatus() != ClientStatus::ReadyForResponse
+		&& it->getStatus() != ClientStatus::RecvTimeout)
 		return;
 
 	auto	&res = _responses.at(_pfds[i].fd).front();
 
 	INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
-	it->setIdleStart();
-	it->setSendStart();
 	res.sendToClient();
-	if (!res.sendIsComplete())
-	{
+	if (!res.sendIsComplete()) {
 		INFO_LOG("Response partially sent, waiting for server to complete response sending");
 		return;
 	}
@@ -377,13 +405,10 @@ void	Server::sendResponse(size_t& i)
 	_responses.at(_pfds[i].fd).pop_front();
 
 	it->resetSendStart();
-
 	_pfds[i].events &= ~POLLOUT;
 
 	DEBUG_LOG("Keep alive status: " + std::to_string(it->getKeepAlive()));
-	if (it->getStatus() == RequestStatus::Invalid || it->getStatus() == RequestStatus::ContentTooLarge
-		|| !it->getKeepAlive())
-	{
+	if (it->getStatus() == ClientStatus::Invalid || !it->getKeepAlive()) {
 		removeClientFromPollFds(i);
 
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
@@ -392,7 +417,7 @@ void	Server::sendResponse(size_t& i)
 		return;
 	}
 	it->resetKeepAlive();
-	it->setStatus(RequestStatus::WaitingData);
+	it->setStatus(ClientStatus::WaitingData);
 }
 
 /**
@@ -400,8 +425,7 @@ void	Server::sendResponse(size_t& i)
  */
 ReqIter	Server::getRequestByFd(int fd)
 {
-	for (auto it = _clients.begin(); it != _clients.end(); it++)
-	{
+	for (auto it = _clients.begin(); it != _clients.end(); it++) {
 		if (it->getFd() == fd)
 			return it;
 	}
@@ -414,24 +438,25 @@ ReqIter	Server::getRequestByFd(int fd)
  * form an error page response, and sendResponse to send it and to disconnect client. In
  * case of idle or send timeout, client is disconnected without sending a response.
  */
-void	Server::checkTimeouts(void)
+void	Server::checkTimeouts()
 {
 	for (size_t i = 0; i < _pfds.size(); i++) {
 		if (!isServerFd(_pfds[i].fd)) {
-			auto it = getRequestByFd(_pfds[i].fd);
+			auto	it = getRequestByFd(_pfds[i].fd);
+
 			if (it == _clients.end())
 				throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 					+ std::to_string(_pfds[i].fd)));
 			it->checkReqTimeouts();
-			if (it->getStatus() == RequestStatus::RecvTimeout) {
+			if (it->getStatus() == ClientStatus::RecvTimeout) {
 				Config	 const &conf = matchConfig(*it);
 
 				DEBUG_LOG("Matched config: " + conf.host + " " + conf.serverName + " " + std::to_string(conf.port));
 				_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
 				sendResponse(i);
 			}
-			if (it->getStatus() == RequestStatus::IdleTimeout
-				|| it->getStatus() == RequestStatus::SendTimeout) {
+			if (it->getStatus() == ClientStatus::IdleTimeout
+				|| it->getStatus() == ClientStatus::SendTimeout) {
 				removeClientFromPollFds(i);
 				INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 				_clients.erase(it);
@@ -445,9 +470,9 @@ void	Server::checkTimeouts(void)
  */
 bool	Server::isServerFd(int fd)
 {
-	auto it = _serverGroups.begin();
-	while (it != _serverGroups.end())
-	{
+	auto	it = _serverGroups.begin();
+
+	while (it != _serverGroups.end()) {
 		if (it->fd == fd)
 			break;
 		it++;
@@ -464,19 +489,15 @@ bool	Server::isServerFd(int fd)
  * sent data. Thirdly tracks POLLOUT to recognize when server has a response ready to be sent to
  * that client. Fourthly, goes to check all client fds for timeouts.
  */
-void	Server::handleConnections(void)
+void	Server::handleConnections()
 {
 	for (size_t i = 0; i < _pfds.size(); i++)
 	{
-		if (_pfds[i].revents & (POLLIN | POLLHUP))
-		{
-			if (isServerFd(_pfds[i].fd))
-			{
+		if (_pfds[i].revents & (POLLIN | POLLHUP)) {
+			if (isServerFd(_pfds[i].fd)) {
 				INFO_LOG("Handling new client connecting on fd " + std::to_string(_pfds[i].fd));
 				handleNewClient(_pfds[i].fd);
-			}
-			else
-			{
+			} else {
 				INFO_LOG("Handling client data from fd " + std::to_string(_pfds[i].fd));
 				handleClientData(i);
 			}

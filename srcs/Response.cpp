@@ -25,12 +25,20 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 {
 	static std::string	startDir = std::filesystem::current_path();
 
-	// If request has already been flagged as bad don't continue
-	switch (req.getStatus()) {
-		case RequestStatus::Invalid:
+	ResponseCode	bypass = _req.getResponseCodeBypass();
+
+	if (bypass != Unassigned) {
+		_statusCode = bypass;
+		formResponse();
+
+		return;
+	}
+
+	switch (_req.getStatus()) {
+		case ClientStatus::Invalid:
 			_statusCode = BadRequest;
 		break;
-		case RequestStatus::RecvTimeout:
+		case ClientStatus::RecvTimeout:
 			_statusCode = RequestTimeout;
 		break;
 		default: break;
@@ -47,7 +55,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		return;
 	}
 
-	std::string	reqTarget = req.getTarget();
+	std::string	reqTarget = _req.getTarget();
 
 	// Be prepared for shenanigans, validate URI format for target early
 	if (!uriFormatOk(reqTarget) || uriTargetAboveRoot(reqTarget)) {
@@ -102,7 +110,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 
 	// Check if resource can be found and set status code
 	// NOTE: Match allowed methods from route
-	switch (req.getRequestMethod()) {
+	switch (_req.getRequestMethod()) {
 		case RequestMethod::Get:
 			if (!Pages::isCached(getAbsPath(_target)) && !resourceExists(_target, searchDir)) {
 				INFO_LOG("Resource " + _target + " could not be found");
@@ -185,6 +193,10 @@ void	Response::formResponse()
 			_startLine	= _req.getHttpVersion() + " 204 No Content";
 			_body		= getResponsePageContent("204", _conf);
 		break;
+		case 207:
+			_startLine	= _req.getHttpVersion() + " 207 Created";
+			_body		= getResponsePageContent("207", _conf);
+		break;
 		case 400:
 			_startLine	= _req.getHttpVersion() + " 400 Bad Request";
 			_body		= getResponsePageContent("400", _conf);
@@ -201,6 +213,18 @@ void	Response::formResponse()
 			_startLine	= _req.getHttpVersion() + " 408 Request Timeout";
 			_body		= getResponsePageContent("408", _conf);
 		break;
+		case 409:
+			_startLine	= _req.getHttpVersion() + " 409 Conflict";
+			_body		= getResponsePageContent("409", _conf);
+		break;
+		case 413:
+			_startLine	= _req.getHttpVersion() + " 413 Content Too Large";
+			_body		= getResponsePageContent("413", _conf);
+		break;
+		case 422:
+			_startLine	= _req.getHttpVersion() + " 422 Unprocessable content";
+			_body		= getResponsePageContent("422", _conf);
+		break;
 		default:
 			_startLine	= _req.getHttpVersion() + " 500 Internal Server Error";
 			_body		= getResponsePageContent("500", _conf);
@@ -213,18 +237,21 @@ void	Response::formResponse()
 
 void	Response::sendToClient()
 {
-	size_t	bytesToSend = _content.length() - _bytesSent;
+	size_t const	bytesToSend		= _content.length() - _bytesSent;
+	char const		*bufferPosition	= _content.c_str() + _bytesSent;
 
-	if (bytesToSend == 0)
+	if (bytesToSend == 0) {
+		DEBUG_LOG("Complete response already sent");
 		return;
-
-	char const	*bufferPosition	= _content.c_str() + _bytesSent;
+	}
 
 	DEBUG_LOG("Calling send to fd " + std::to_string(_req.getFd()));
-	ssize_t		bytesSent		= send(_req.getFd(), bufferPosition, bytesToSend, MSG_DONTWAIT);
 
-	if (bytesSent < 0)
-		throw std::runtime_error(ERROR_LOG("send: " + std::string(strerror(errno))));
+	ssize_t const	bytesSent = send(_req.getFd(), bufferPosition, bytesToSend, MSG_DONTWAIT);
+	if (bytesSent < 0) {
+		ERROR_LOG("send: " + std::string(strerror(errno)));
+		return;
+	}
 
 	_bytesSent += bytesSent;
 }
@@ -253,7 +280,7 @@ static std::string	route(std::string target, Config const &conf)
 		if (key == "/")
 			continue;
 
-		auto	pos = target.find(key);
+		auto const	pos = target.find(key);
 
 		if (pos != std::string::npos) {
 			target.replace(pos, key.length(), val);
@@ -279,13 +306,13 @@ static std::string	route(std::string target, Config const &conf)
 
 static std::string	getContentType(std::string target)
 {
-	std::string	contentType			= "text/html";
-	auto		pos					= target.find_last_of(".");
+	std::string	contentType	= "text/html";
+	auto		pos			= target.find_last_of(".");
 
 	if (pos == std::string::npos)
 		return contentType;
 
-	auto		filenameExtension	= target.substr(pos);
+	std::string	filenameExtension	= target.substr(pos);
 
 	for (auto &c : filenameExtension)
 		c = std::tolower(c);
@@ -311,9 +338,9 @@ static std::string const	&getResponsePageContent(std::string const &key, Config 
 {
 	// Check status pages if the key is a three digit number
 	if (key.length() == 3 && std::all_of(key.begin(), key.end(), isdigit)) {
-		auto	it = conf.status_pages.find(key);
+		auto	it = conf.statusPages.find(key);
 
-		if (it != conf.status_pages.end() && resourceExists(it->second))
+		if (it != conf.statusPages.end() && resourceExists(it->second))
 			return Pages::getPageContent(getAbsPath(it->second));
 	} else {	// Othewise check normal routes
 		auto	it = conf.routes.find(key);
