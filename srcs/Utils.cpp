@@ -172,7 +172,9 @@ bool	resourceExists(std::string_view uri, std::string searchDir)
  * Validation is still very minimal, empty URIs and empty fields in URIs
  * currently invalidate the format, no invalid characters yet.
  *
- * @return	true if there are no empty fields, false if there are
+ * @param uri	String view of URI whose formatting is being evaluated
+ *
+ * @return	true if the URI is valid, false if not
  */
 bool	uriFormatOk(std::string_view uri)
 {
@@ -186,9 +188,14 @@ bool	uriFormatOk(std::string_view uri)
 	if (split[split.size() - 1].empty())
 		split.pop_back();
 
+	static std::string const	allowedCharacters = ":/?#[]@!$&'()*+,;=-._~%";
+
 	for (auto const &s : split) {
 		if (s.empty())
-			return false;	// NOTE: add validation for invalid characters
+			return false;
+		for (auto const &c : s)
+			if (!std::isalnum(c) && allowedCharacters.find(c) == std::string::npos)
+				return false;
 	}
 
 	return true;
@@ -431,7 +438,7 @@ bool	isPositiveDoubleLiteral(std::string_view sv)
 
 	try {
 		std::stod(std::string(sv));
-	} catch ( std::exception const &e ) {
+	} catch (std::exception const &e) {
 		return false;
 	}
 
