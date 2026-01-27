@@ -149,6 +149,7 @@ class Request
 		std::string const				&getTarget() const;
 		std::string const				&getBuffer() const;
 		std::string						getHost() const;
+		std::optional<std::string>		getQuery() const;
 		size_t							getContentLength() const;
 		bool							getKeepAlive() const;
 		int								getFd() const;

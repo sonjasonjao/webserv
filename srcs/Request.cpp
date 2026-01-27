@@ -783,6 +783,11 @@ void	Request::setUploadDir(std::string path)
 	_uploadDir = path;
 }
 
+std::optional<std::string>	Request::getQuery() const
+{
+	return _request.query;
+}
+
 void	Request::handleFileUpload()
 {
 	std::string const	partDelimiter	= "--" + _boundary.value();

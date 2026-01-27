@@ -272,6 +272,11 @@ void	Server::handleClientData(size_t& i)
 			it->setStatus(ClientStatus::Invalid);
 		}
 	}
+
+	if(it->isHeadersCompleted() && it->getTarget().find("cgi-bin") != std::string::npos) {
+		ERROR_LOG("Yeah..... are in side CGI execution");
+	}
+
 	if (it->isHeadersCompleted()) {
 		if(conf.clientMaxBodySize.has_value()) {
 			// if there is user defined value for clientMaxBodySize check against the value

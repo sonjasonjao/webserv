@@ -17,12 +17,15 @@ std::map<std::string, std::string> CGIHandler::getEnv(const std::string& scriptP
     env["PATH_INFO"]            = request.getTarget();   
     env["SCRIPT_FILENAME"]      = scriptPath;
     env["GATEWAY_INTERFACE"]    = "CGI/1.1";
+    env["SERVER_PROTOCOL"]      = request.getHttpVersion();
+    env["SERVER_NAME"]          = request.getHost();
+    env["SERVER_SOFTWARE"]      = "webserv 1.0";
 
     auto ct = request.getHeader("content-type");
     if(ct && !ct->empty()) {
         env["CONTENT_TYPE"] = ct->front();
     }
-
+    
     return (env);
 }
 
