@@ -207,16 +207,20 @@ void	Request::parseRequest()
  */
 void	Request::parseRequestLine(std::string &req)
 {
-	std::string method, target, httpVersion;
+	std::string					method, target, httpVersion;
 	std::vector<std::string>	methods = { "GET", "POST", "DELETE" };
-	method = extractFromLine(req, " ");
-	target = extractFromLine(req, " ");
-	httpVersion = req;
+	size_t						i = 0;
+
+	method		= extractFromLine(req, " ");
+	target 		= extractFromLine(req, " ");
+	httpVersion	= req;
+
 	if (method.empty() || target.empty() || httpVersion.empty()) {
 		_status = ClientStatus::Invalid;
 		return;
 	}
-	size_t	i = 0;
+	_request.methodString = method;
+
 	for (i = 0; i < methods.size(); i++)
 	{
 		if (methods[i] == method)
