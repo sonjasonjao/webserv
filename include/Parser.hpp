@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include "CustomException.hpp"
 #include "JSON.hpp"
 #include <fstream>
@@ -9,7 +8,6 @@
 #include <map>
 #include <optional>
 #include <cstdint>
-#include <cctype>
 
 /**
  * Default file_name extension for the configuration file, with out correct extension
@@ -31,12 +29,12 @@ struct Config {
 
 	uint16_t	port = 0;	// Port on which this server listens
 
-	std::map<std::string, std::string>	statusPages;	// Mapping from HTTP status code to custom page path.
-	std::map<std::string, Route>		routes;			// Set of routes (URI -> path definitions) for this server.
+	std::map<std::string, std::string>	statusPages;	// Mapping from HTTP status code to custom page path
+	std::map<std::string, Route>		routes;			// Set of routes (URI -> path definitions) for this server
 
-	std::optional<std::vector<std::string>>	allowedMethods;	// Server level allowed HTTP request methods.
+	std::optional<std::vector<std::string>>	allowedMethods;	// Server level allowed HTTP request methods
 
-	std::optional<size_t>		clientMaxBodySize;	// Default maximum allowed size (in bytes) of the request body for this server.
+	std::optional<size_t>		clientMaxBodySize;	// Default maximum allowed size (in bytes) of the request body for this server
 
 	bool	directoryListing	= false;
 	bool	autoindex			= false;
@@ -44,9 +42,9 @@ struct Config {
 
 class Parser {
 private:
-	std::string const	_fileName;			// File name of the configuration file.
-	std::ifstream		_file;				// ifstream instance to read the configuration file.
-	std::vector<Config>	_serverConfigs;		// List of fully parsed server configurations built from the token list.
+	std::string const	_fileName;			// File name of the configuration file
+	std::ifstream		_file;				// ifstream instance to read the configuration file
+	std::vector<Config>	_serverConfigs;		// List of fully parsed server configurations built from the token list
 
 public:
 	/**
@@ -55,7 +53,7 @@ public:
 	 * @return void - content of the file will be tokenize and save to a internal
 	 * container, type std::vector
 	 */
-	Parser(const std::string& fileName);	// The only way of creating a Parser instance should be via the argument constructor.
+	Parser(const std::string& fileName);	// The only way of creating a Parser instance should be via the argument constructor
 	Parser() = delete;
 	Parser(const Parser& other) = delete;
 	Parser& operator=(const Parser& other) = delete;
