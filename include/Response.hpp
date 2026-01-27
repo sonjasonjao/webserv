@@ -36,18 +36,25 @@ public:
 	bool	sendIsComplete() const;
 
 private:
-
-	void	formResponse();
-	void	handleDelete();
+	void		formResponse();
+	void		sanitizeTargetUri();
+	void		routing();
+	void		handleDirectoryTarget();
+	std::string	getDirectoryList(std::string_view target, std::string_view route);
+	void		locateTargetAndSetStatusCode();
 
 	Request const	&_req;
 	Config const	&_conf;
+	Route			_route;
 	std::string		_target;
+	std::string		_reqTargetSanitized;
 	std::string		_startLine;
 	std::string		_headerSection;
 	std::string		_body;
 	std::string		_content;
 	std::string		_contentType;
-	ResponseCode	_statusCode	= Unassigned;
-	size_t			_bytesSent	= 0;
+	std::string		_diagnosticMessage;
+	ResponseCode	_statusCode			= Unassigned;
+	size_t			_bytesSent			= 0;
+	bool			_directoryListing	= false;
 };

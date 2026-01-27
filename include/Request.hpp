@@ -145,6 +145,7 @@ class Request
 		std::string const				&getBody() const;
 		std::string const				&getTarget() const;
 		std::string const				&getBuffer() const;
+		std::string const				getMethodString() const {return "";};
 		std::string						getHost() const;
 		size_t							getContentLength() const;
 		bool							getKeepAlive() const;
