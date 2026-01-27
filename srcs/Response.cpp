@@ -158,18 +158,22 @@ int	Response::getStatusCode() const
  */
 void	Response::sendToClient()
 {
-	size_t	bytesToSend = _content.length() - _bytesSent;
+	size_t const	bytesToSend		= _content.length() - _bytesSent;
+	char const		*bufferPosition	= _content.c_str() + _bytesSent;
 
-	if (bytesToSend == 0)
+	if (bytesToSend == 0) {
+		DEBUG_LOG("Complete response already sent");
 		return;
-
-	char const	*bufferPosition	= _content.c_str() + _bytesSent;
+	}
 
 	DEBUG_LOG("Calling send to fd " + std::to_string(_req.getFd()));
-	ssize_t		bytesSent		= send(_req.getFd(), bufferPosition, bytesToSend, MSG_DONTWAIT);
 
-	if (bytesSent < 0)
-		throw std::runtime_error(ERROR_LOG("send: " + std::string(strerror(errno))));
+	ssize_t const	bytesSent = send(_req.getFd(), bufferPosition, bytesToSend, MSG_DONTWAIT);
+
+	if (bytesSent < 0) {
+		ERROR_LOG("send: " + std::string(strerror(errno)));
+		return;
+	}
 
 	_bytesSent += bytesSent;
 }
