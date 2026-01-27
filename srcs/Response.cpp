@@ -507,7 +507,7 @@ static std::string const	&getResponsePageContent(std::string const &key, Config 
 }
 
 /**
- * Helper funtion for forming directory lists, creates HTML unordered list out of a vector.
+ * Helper function for forming directory lists, creates HTML unordered list out of a vector.
  */
 static void	listify(std::vector<std::string> const &vec, size_t offset, std::stringstream &stream)
 {
