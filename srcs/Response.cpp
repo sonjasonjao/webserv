@@ -446,8 +446,8 @@ static Route	getRoute(std::string uri, Config const &conf)
  */
 static std::string	getContentType(std::string target)
 {
-	std::string	contentType			= "text/html";
-	auto		pos					= target.find_last_of(".");
+	std::string	contentType	= "text/html";
+	auto		pos			= target.find_last_of(".");
 
 	if (pos == std::string::npos)
 		return contentType;
