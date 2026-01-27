@@ -437,14 +437,8 @@ void	Response::locateTargetAndSetStatusCode()
 			INFO_LOG("Responding to POST request with target " + _target);
 			_statusCode = OK;
 		break;
+		// Delete has been handled and _statusCode set already in routing()
 		case RequestMethod::Delete:
-			if (!resourceExists(_target, searchDir)) {
-				INFO_LOG("Response: Resource " + _target + " could not be found");
-				_statusCode = NotFound;
-				break;
-			}
-			INFO_LOG("Resource " + _target + " deleted (not really but in the future)");
-			_statusCode = NoContent;
 		break;
 		default:
 			INFO_LOG("Unknown request method, response status defaulting to bad request");

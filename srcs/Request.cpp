@@ -801,7 +801,7 @@ std::vector<std::string> const	*Request::getHeader(std::string const &key) const
 	}
 }
 
-std::string const	&Request::getMethodString(void) const
+std::string const	Request::getMethodString() const
 {
 	return _request.methodString;
 }

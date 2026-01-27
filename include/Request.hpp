@@ -145,11 +145,10 @@ class Request
 		std::string const				&getBody() const;
 		std::string const				&getTarget() const;
 		std::string const				&getBuffer() const;
-		std::string const				getMethodString() const {return "";};
+		std::string const				getMethodString() const;
 		std::string						getHost() const;
 		size_t							getContentLength() const;
 		bool							getKeepAlive() const;
 		int								getFd() const;
 		int								getServerFd() const;
-		std::string const				&getMethodString(void) const;
 };
