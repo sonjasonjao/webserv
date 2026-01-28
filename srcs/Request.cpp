@@ -85,14 +85,6 @@ void	Request::resetKeepAlive()
 	_keepAlive = false;
 }
 
-void	Request::setStatusAndKeepAlive(ClientStatus status, bool clearBuffer)
-{
-	_status = status;
-	_keepAlive = false;
-	if (clearBuffer)
-		_buffer.clear();
-}
-
 /**
  * In handleConnections, each client fd is checked for possible timeouts by comparing
  * the stored _idleStart, _recvStart, and _sendStart with the current time stamp. Helper
@@ -108,7 +100,7 @@ void	Request::checkReqTimeouts()
 
 	if (durMs.count() > IDLE_TIMEOUT) {
 		DEBUG_LOG("Idle timeout with client fd " + std::to_string(_fd));
-		setStatusAndKeepAlive(ClientStatus::IdleTimeout, false);
+		_status = ClientStatus::IdleTimeout;
 		return;
 	}
 
@@ -116,7 +108,7 @@ void	Request::checkReqTimeouts()
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	if (_recvStart != init && durMs.count() > RECV_TIMEOUT) {
 		DEBUG_LOG("Recv timeout with client fd " + std::to_string(_fd));
-		setStatusAndKeepAlive(ClientStatus::RecvTimeout, false);
+		_status = ClientStatus::RecvTimeout;
 		return;
 	}
 
@@ -124,7 +116,7 @@ void	Request::checkReqTimeouts()
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	if (_sendStart != init && durMs.count() > SEND_TIMEOUT) {
 		DEBUG_LOG("Send timeout with client fd " + std::to_string(_fd));
-		setStatusAndKeepAlive(ClientStatus::SendTimeout, false);
+		_status = ClientStatus::SendTimeout;
 	}
 }
 
@@ -176,7 +168,7 @@ void	Request::parseRequest()
 		if (_buffer.empty())
 			_status = ClientStatus::CompleteReq;
 		else
-			setStatusAndKeepAlive(ClientStatus::Invalid, true);
+			_status = ClientStatus::Invalid;
 	} else if (_request.method == RequestMethod::Post && _boundary.has_value()) {
 		// handled from handleClientData in Server
 		return;
@@ -184,7 +176,7 @@ void	Request::parseRequest()
 		size_t	missingLen = _contentLen.value() - _body.size();
 		if (missingLen < _buffer.size()) {
 			// if the remaining buffer is larger than what's missing from contentLen, it's invalid
-			setStatusAndKeepAlive(ClientStatus::Invalid, true);
+			_status = ClientStatus::Invalid;
 			return;
 		} else {
 			_body += _buffer;
@@ -192,7 +184,7 @@ void	Request::parseRequest()
 		}
 		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
 			_responseCodeBypass = ContentTooLarge;
-			setStatusAndKeepAlive(ClientStatus::Invalid, true);
+			_status = ClientStatus::Invalid;
 		} else if (_body.size() < _contentLen.value()) {
 			_status = ClientStatus::WaitingData;
 		} else if (_body.size() == _contentLen.value())
@@ -263,7 +255,7 @@ void	Request::parseHeaders(std::string& str)
 
 	_headerSize = headEnd;
 	if (_headerSize > HEADERS_MAX_SIZE) {
-		setStatusAndKeepAlive(ClientStatus::Invalid, false);
+		_status = ClientStatus::Invalid;
 		return;
 	}
 
@@ -275,27 +267,28 @@ void	Request::parseHeaders(std::string& str)
 		}
 
 		line = extractFromLine(str, CRLF);
-		const size_t	point = line.find(":");
+		const size_t	colonPos = line.find(":");
 		// If header section has a line that doesn't include ':', it's a suspicious request
-		if (point == std::string::npos) {
-			setStatusAndKeepAlive(ClientStatus::Error, false);
+		if (colonPos == std::string::npos) {
+			_status = ClientStatus::Error;
+			_keepAlive = false;
 			return;
 		}
 
-		std::string	key = line.substr(0, point);
+		std::string	key = line.substr(0, colonPos);
 		for (size_t i = 0; i < key.size(); i++)
 			key[i] = std::tolower(static_cast<unsigned char>(key[i]));
 		// No header value after key and ':' means invalid request
-		if (line.length() <= point + 1) {
-			setStatusAndKeepAlive(ClientStatus::Invalid, false);
+		if (line.length() <= colonPos + 1) {
+			_status = ClientStatus::Invalid;
 			return;
 		}
 
-		std::string value = line.substr(point + 1, line.size() - (point + 1));
+		std::string value = line.substr(colonPos + 1, line.size() - (colonPos + 1));
 		auto realStart = value.find_first_not_of(' ');
 		if (realStart != 0)
 			value = value.substr(realStart);
-		/*For Content-Type, value will not be turned to lowercase to keep possible
+		/* For Content-Type, value will not be turned to lowercase to keep possible
 		boundary= value literal*/
 		if (key != "content-type") {
 			for (size_t i = 0; i < value.size(); i++)
@@ -303,7 +296,7 @@ void	Request::parseHeaders(std::string& str)
 		}
 		// Headers that allow only one value will be checked for validity
 		if (_headers.find(key) != _headers.end() && isUniqueHeader(key)) {
-			setStatusAndKeepAlive(ClientStatus::Invalid, false);
+			_status = ClientStatus::Invalid;
 			return;
 		}
 
@@ -339,7 +332,7 @@ void	Request::parseHeaders(std::string& str)
 		_status = ClientStatus::WaitingData;
 
 	if (_headers.empty() || !validateHeaders())
-		setStatusAndKeepAlive(ClientStatus::Invalid, false);
+		_status = ClientStatus::Invalid;
 }
 
 /**
@@ -357,26 +350,23 @@ void	Request::parseChunked()
 		// If buffer doesn't include the final chunk
 		if (headerEnd == std::string::npos && crlfPos != std::string::npos) {
 			while (crlfPos != std::string::npos) {
-				try
-				{
+				try {
 					len = std::stoi(_buffer.substr(0, crlfPos), 0, 16);
-				}
-				catch (const std::exception& e)
-				{
-					setStatusAndKeepAlive(ClientStatus::Invalid, true);
+				} catch (const std::exception& e) {
+					_status = ClientStatus::Invalid;
 					return;
 				}
 				_buffer = _buffer.substr(crlfPos + 2);
 				std::string	tmp = extractFromLine(_buffer, CRLF);
 				if (tmp.size() != len) {
-					setStatusAndKeepAlive(ClientStatus::Invalid, true);
+					_status = ClientStatus::Invalid;
 					return;
 				}
 				_body += tmp;
 				// after appending another chunk to body, checks for max body size
 				if (_body.size() > CLIENT_MAX_BODY_SIZE) {
 					_responseCodeBypass = ContentTooLarge;
-					setStatusAndKeepAlive(ClientStatus::Invalid, true);
+					_status = ClientStatus::Invalid;
 					return;
 				}
 				crlfPos = _buffer.find(CRLF);
@@ -386,46 +376,46 @@ void	Request::parseChunked()
 		// If buffer includes the final chunk
 		} else if (headerEnd != std::string::npos) {
 			while (crlfPos > 0 && _buffer.substr(crlfPos - 1, 5) != "0\r\n\r\n") {
-				try
-				{
+				try {
 					len = std::stoi(_buffer.substr(0, crlfPos), 0, 16);
-				}
-				catch (const std::exception& e)
-				{
-					setStatusAndKeepAlive(ClientStatus::Invalid, true);
+				} catch (const std::exception& e) {
+					_status = ClientStatus::Invalid;
 					return;
 				}
 				_buffer = _buffer.substr(crlfPos + 2);
 				std::string	tmp = extractFromLine(_buffer, CRLF);
 				if (tmp.size() != len) {
-					setStatusAndKeepAlive(ClientStatus::Invalid, true);
+					_status = ClientStatus::Invalid;
 					return;
 				}
 				_body += tmp;
 				if (_body.size() > CLIENT_MAX_BODY_SIZE) {
 					_responseCodeBypass = ContentTooLarge;
-					setStatusAndKeepAlive(ClientStatus::Invalid, true);
+					_status = ClientStatus::Invalid;
 					return;
 				}
 				crlfPos = _buffer.find(CRLF);
 			}
-			_body += extractFromLine(_buffer, "0\r\n\r\n");
+			if (extractFromLine(_buffer, "0\r\n\r\n") != "") {
+				_status = ClientStatus::Invalid;
+				return;
+			}
 			if (_body.size() > CLIENT_MAX_BODY_SIZE) {
 				_responseCodeBypass = ContentTooLarge;
-				setStatusAndKeepAlive(ClientStatus::Invalid, true);
+				_status = ClientStatus::Invalid;
 				return;
 			}
 			_status = ClientStatus::CompleteReq;
 
 		// If a chunked request does not have any CRLF, it's invalid
 		} else if (headerEnd == std::string::npos && crlfPos == std::string::npos) {
-			setStatusAndKeepAlive(ClientStatus::Invalid, true);
+			_status = ClientStatus::Invalid;
 			return;
 		}
 
 		// If buffer has data after the final chunk
 		if (!_buffer.empty())
-			setStatusAndKeepAlive(ClientStatus::Invalid, true);
+			_status = ClientStatus::Invalid;
 	}
 }
 
@@ -491,12 +481,9 @@ bool	Request::validateHeaders()
 
 	it = _headers.find("content-length");
 	if (it != _headers.end()) {
-		try
-		{
+		try {
 			_contentLen = std::stoi(it->second.front());
-		}
-		catch(const std::exception& e)
-		{
+		} catch(const std::exception& e) {
 			return false;
 		}
 	}
@@ -590,7 +577,7 @@ bool	Request::areValidChars(std::string& s)
  * protocol.
  *
  * In case the URI includes '?', we use it as a separator to get the query.
- * Later in CGI handler, the possible query will be split with &'s.
+ * Later in CGI handler, the possible query will be split with '&'s.
  */
 bool	Request::validateAndAssignTarget(std::string& target)
 {
@@ -767,6 +754,10 @@ void	Request::setStatus(ClientStatus status)
 	_status = status;
 }
 
+void	Request::setKeepAlive(bool value) {
+	_keepAlive = value;
+}
+
 void	Request::setResponseCodeBypass(ResponseCode code)
 {
 	_responseCodeBypass = code;
@@ -804,12 +795,9 @@ std::string const	&Request::getTarget() const
 
 std::vector<std::string> const	*Request::getHeader(std::string const &key) const
 {
-	try
-	{
+	try {
 		return &_headers.at(key);
-	}
-	catch (std::exception const &e)
-	{
+	} catch (std::exception const &e) {
 		return nullptr;
 	}
 }
@@ -909,7 +897,7 @@ bool	Request::saveToDisk(const MultipartPart& part)
 	if (!_uploadFD->good()) {
 		ERROR_LOG("Writing data to the file failed");
 		_responseCodeBypass = InternalServerError;
-		setStatusAndKeepAlive(ClientStatus::Invalid, true);
+		_status = ClientStatus::Invalid;
 		return false;
 	}
 
@@ -923,7 +911,7 @@ bool	Request::initialSaveToDisk(const MultipartPart& part)
 	if(!_uploadDir.has_value()) {
 		ERROR_LOG("Upload directory has not set in the config file");
 		_responseCodeBypass = Forbidden;
-		setStatusAndKeepAlive(ClientStatus::Invalid, true);
+		_status = ClientStatus::Invalid;
 		return false;
 	}
 
@@ -935,7 +923,7 @@ bool	Request::initialSaveToDisk(const MultipartPart& part)
 	} catch (const std::filesystem::filesystem_error& e) {
 		ERROR_LOG("Failed to create upload directory: " + std::string(e.what()));
 		_responseCodeBypass = InternalServerError;
-		setStatusAndKeepAlive(ClientStatus::Invalid, true);
+		_status = ClientStatus::Invalid;
 		return false;
 	}
 
@@ -946,7 +934,7 @@ bool	Request::initialSaveToDisk(const MultipartPart& part)
 	if (std::filesystem::exists(targetPath)) {
 		ERROR_LOG("File '" + std::string(targetPath) + "' already exists");
 		_responseCodeBypass = Conflict;
-		setStatusAndKeepAlive(ClientStatus::Invalid, true);
+		_status = ClientStatus::Invalid;
 		return false;
 	}
 
@@ -962,13 +950,13 @@ bool	Request::initialSaveToDisk(const MultipartPart& part)
 			ERROR_LOG("File " + part.filename + " initial write failed!");
 			_uploadFD->close();
 			_responseCodeBypass = InternalServerError;
-			setStatusAndKeepAlive(ClientStatus::Invalid, true);
+			_status = ClientStatus::Invalid;
 			return false;
 		}
 	} else {
 		ERROR_LOG("File " + part.filename + " save process failed!");
 		_responseCodeBypass = InternalServerError;
-		setStatusAndKeepAlive(ClientStatus::Invalid, true);
+		_status = ClientStatus::Invalid;
 		return false;
 	}
 }

@@ -11,7 +11,6 @@
 #include <fstream>
 #include <cerrno>
 #include <cstring>
-#include <iostream>
 
 /**
  * The IMF fixdate is the preferred format for HTTP timestamps

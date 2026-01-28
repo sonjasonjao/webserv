@@ -380,7 +380,7 @@ void	Server::removeClientFromPollFds(size_t& i)
  */
 void	Server::sendResponse(size_t& i)
 {
-	auto it = getRequestByFd(_pfds[i].fd);
+	auto	it = getRequestByFd(_pfds[i].fd);
 	if (it == _clients.end())
 		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 			+ std::to_string(_pfds[i].fd)));
@@ -397,6 +397,9 @@ void	Server::sendResponse(size_t& i)
 			INFO_LOG("Response partially sent, waiting for server to complete response sending");
 			return;
 		}
+
+		if ((res.getStatusCode() / 100) != 2)
+			it->setKeepAlive(false);
 	} catch (std::exception const &e) {
 		throw std::runtime_error(ERROR_LOG("Unexpected error in finding response for fd "
 			+ std::to_string(_pfds[i].fd)));

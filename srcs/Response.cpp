@@ -28,7 +28,7 @@ static void					listify(std::vector<std::string> const &vec, size_t offset, std:
  */
 Response::Response(Request const &req, Config const &conf) : _req(req), _conf(conf)
 {
-	INFO_LOG("Forming target for " + _req.getMethodString() + " request targeting " + _req.getTarget());
+	INFO_LOG("Forming response for " + _req.getMethodString() + " request targeting " + _req.getTarget());
 	/* Already flagged requests */
 
 	ResponseCode	bypass = _req.getResponseCodeBypass();
@@ -134,38 +134,6 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		std::cout << "Image data...";
 	std::cout << "\n--------------------------\n\n";
 	#endif
-}
-
-void	Response::handleDelete(void)
-{
-	_target = _reqTargetSanitized;
-
-	// If uploadDir is not given in config, file deletion is disabled
-	if (!_conf.uploadDir.has_value()) {
-		_statusCode = Forbidden;
-		return;
-	}
-	/*Target will be modified if needed for correct format: '/' is removed
-	from start, but is needed between uploadDir and target given in request*/
-	std::string	uploadDir = _conf.uploadDir.value();
-	if (_target.length() > 1 && _target[0] == '/')
-		_target = _target.substr(1);
-	if (uploadDir.back() == '/')
-		uploadDir.pop_back();
-	_target = uploadDir + "/" + _target;
-
-	if (!resourceExists(_target)) {
-		INFO_LOG("Response: Resource " + _target + " could not be found");
-		_statusCode = NotFound;
-	}
-	else {
-		if (std::filesystem::remove(_target) == false) {
-			INFO_LOG("Resource " + _target + " could not be deleted");
-			_statusCode = InternalServerError;
-		}
-		INFO_LOG("Resource " + _target + " deleted");
-		_statusCode = NoContent;
-	}
 }
 
 /* --------------------------------------------------------- Public functions */
@@ -333,6 +301,39 @@ void	Response::routing()
 		} else {
 			_target.replace(_target.find(_route.original), _route.original.length(), _route.target);
 		}
+	}
+}
+
+void	Response::handleDelete()
+{
+	_target = _reqTargetSanitized;
+
+	// If uploadDir is not given in config, file deletion is disabled
+	if (!_conf.uploadDir.has_value()) {
+		_statusCode = Forbidden;
+		return;
+	}
+	/* Target will be modified if needed for correct format: '/' is removed
+	from start, but is needed between uploadDir and target given in request*/
+	std::string	uploadDir = _conf.uploadDir.value();
+	if (_target.length() > 1 && _target[0] == '/')
+		_target = _target.substr(1);
+	if (uploadDir.back() == '/')
+		uploadDir.pop_back();
+	_target = uploadDir + "/" + _target;
+
+	if (!resourceExists(_target)) {
+		INFO_LOG("Response: Resource " + _target + " could not be found");
+		_statusCode = NotFound; // do we disconnect client?
+	}
+	else {
+		if (std::filesystem::remove(_target) == false) {
+			INFO_LOG("Resource " + _target + " could not be deleted");
+			_statusCode = InternalServerError; // do we disconnect client?
+			return;
+		}
+		INFO_LOG("Resource " + _target + " deleted");
+		_statusCode = NoContent;
 	}
 }
 

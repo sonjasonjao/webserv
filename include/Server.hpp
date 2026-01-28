@@ -39,7 +39,7 @@ class Server
 
 		Server const	&operator=(Server const &other) = delete;
 
-		void			createServerSockets(void);
+		void			createServerSockets();
 		int				createSingleServerSocket(Config conf);
 		void			run();
 		void			handleNewClient(int listener);

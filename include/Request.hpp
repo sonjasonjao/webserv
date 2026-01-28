@@ -96,15 +96,6 @@ class Request
 		std::optional<std::string>		_boundary;
 		std::optional<std::string>		_uploadDir;
 
-		bool	initialSaveToDisk(const MultipartPart& part);
-		bool	saveToDisk(const MultipartPart& part);
-
-	public:
-		Request() = delete;
-		Request(int fd, int serverFd);
-		~Request() = default;
-
-		void	processRequest(std::string const &buf);
 		void	parseRequest(void);
 		void	parseRequestLine(std::string &req);
 		void	parseHeaders(std::string &str);
@@ -117,6 +108,16 @@ class Request
 		bool	validateAndAssignTarget(std::string &target);
 		bool	validateAndAssignHttp(std::string &httpVersion);
 		bool	isUniqueHeader(std::string const &key);
+		bool	initialSaveToDisk(const MultipartPart& part);
+		bool	saveToDisk(const MultipartPart& part);
+
+	public:
+		Request() = delete;
+		Request(int fd, int serverFd);
+		~Request() = default;
+
+		void	processRequest(std::string const &buf);
+
 		bool	isHeadersCompleted() const;
 		bool	fillKeepAlive();
 		bool	boundaryHasValue();
@@ -129,7 +130,7 @@ class Request
 		void	setRecvStart();
 		void	setSendStart();
 		void	setStatus(ClientStatus status);
-		void	setStatusAndKeepAlive(ClientStatus status, bool clearBuffer);
+		void	setKeepAlive(bool value);
 		void	setResponseCodeBypass(ResponseCode code);
 
 		void	resetSendStart();
