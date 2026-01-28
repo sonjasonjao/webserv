@@ -73,6 +73,7 @@ void	Request::reset()
 		_uploadFD.reset();
 	}
 	_boundary.reset();
+	_responseCodeBypass = Unassigned;
 }
 
 /**
@@ -191,7 +192,7 @@ void	Request::parseRequest()
 		}
 		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
 			_responseCodeBypass = ContentTooLarge;
-			_status = ClientStatus::Invalid;
+			setStatusAndKeepAlive(ClientStatus::Invalid, true);
 		} else if (_body.size() < _contentLen.value()) {
 			_status = ClientStatus::WaitingData;
 		} else if (_body.size() == _contentLen.value())
@@ -372,6 +373,12 @@ void	Request::parseChunked()
 					return;
 				}
 				_body += tmp;
+				// after appending another chunk to body, checks for max body size
+				if (_body.size() > CLIENT_MAX_BODY_SIZE) {
+					_responseCodeBypass = ContentTooLarge;
+					setStatusAndKeepAlive(ClientStatus::Invalid, true);
+					return;
+				}
 				crlfPos = _buffer.find(CRLF);
 			}
 			_status = ClientStatus::WaitingData;
@@ -395,21 +402,24 @@ void	Request::parseChunked()
 					return;
 				}
 				_body += tmp;
+				if (_body.size() > CLIENT_MAX_BODY_SIZE) {
+					_responseCodeBypass = ContentTooLarge;
+					setStatusAndKeepAlive(ClientStatus::Invalid, true);
+					return;
+				}
 				crlfPos = _buffer.find(CRLF);
 			}
 			_body += extractFromLine(_buffer, "0\r\n\r\n");
+			if (_body.size() > CLIENT_MAX_BODY_SIZE) {
+				_responseCodeBypass = ContentTooLarge;
+				setStatusAndKeepAlive(ClientStatus::Invalid, true);
+				return;
+			}
 			_status = ClientStatus::CompleteReq;
 
 		// If a chunked request does not have any CRLF, it's invalid
 		} else if (headerEnd == std::string::npos && crlfPos == std::string::npos) {
 			setStatusAndKeepAlive(ClientStatus::Invalid, true);
-			return;
-		}
-
-		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
-			_responseCodeBypass = ContentTooLarge;
-			_status = ClientStatus::Invalid;
-			_buffer.clear(); //do we clear??
 			return;
 		}
 
@@ -899,7 +909,7 @@ bool	Request::saveToDisk(const MultipartPart& part)
 	if (!_uploadFD->good()) {
 		ERROR_LOG("Writing data to the file failed");
 		_responseCodeBypass = InternalServerError;
-		_status = ClientStatus::Invalid;
+		setStatusAndKeepAlive(ClientStatus::Invalid, true);
 		return false;
 	}
 
@@ -913,7 +923,7 @@ bool	Request::initialSaveToDisk(const MultipartPart& part)
 	if(!_uploadDir.has_value()) {
 		ERROR_LOG("Upload directory has not set in the config file");
 		_responseCodeBypass = Forbidden;
-		_status = ClientStatus::Invalid;
+		setStatusAndKeepAlive(ClientStatus::Invalid, true);
 		return false;
 	}
 
@@ -925,7 +935,7 @@ bool	Request::initialSaveToDisk(const MultipartPart& part)
 	} catch (const std::filesystem::filesystem_error& e) {
 		ERROR_LOG("Failed to create upload directory: " + std::string(e.what()));
 		_responseCodeBypass = InternalServerError;
-		_status = ClientStatus::Invalid;
+		setStatusAndKeepAlive(ClientStatus::Invalid, true);
 		return false;
 	}
 
@@ -936,7 +946,7 @@ bool	Request::initialSaveToDisk(const MultipartPart& part)
 	if (std::filesystem::exists(targetPath)) {
 		ERROR_LOG("File '" + std::string(targetPath) + "' already exists");
 		_responseCodeBypass = Conflict;
-		_status = ClientStatus::Invalid;
+		setStatusAndKeepAlive(ClientStatus::Invalid, true);
 		return false;
 	}
 
@@ -952,13 +962,13 @@ bool	Request::initialSaveToDisk(const MultipartPart& part)
 			ERROR_LOG("File " + part.filename + " initial write failed!");
 			_uploadFD->close();
 			_responseCodeBypass = InternalServerError;
-			_status = ClientStatus::Invalid;
+			setStatusAndKeepAlive(ClientStatus::Invalid, true);
 			return false;
 		}
 	} else {
 		ERROR_LOG("File " + part.filename + " save process failed!");
 		_responseCodeBypass = InternalServerError;
-		_status = ClientStatus::Invalid;
+		setStatusAndKeepAlive(ClientStatus::Invalid, true);
 		return false;
 	}
 }
