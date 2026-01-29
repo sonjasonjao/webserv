@@ -343,81 +343,79 @@ void	Request::parseChunked()
 {
 	size_t	len;
 
-	while (!_buffer.empty()) {
-		auto	crlfPos = _buffer.find(CRLF);
-		auto	headerEnd = _buffer.find("0\r\n\r\n");
+	auto	crlfPos = _buffer.find(CRLF);
+	auto	headerEnd = _buffer.find("0\r\n\r\n");
 
-		// If buffer doesn't include the final chunk
-		if (headerEnd == std::string::npos && crlfPos != std::string::npos) {
-			while (crlfPos != std::string::npos) {
-				try {
-					len = std::stoi(_buffer.substr(0, crlfPos), 0, 16);
-				} catch (const std::exception& e) {
-					_status = ClientStatus::Invalid;
-					return;
-				}
-				_buffer = _buffer.substr(crlfPos + 2);
-				std::string	tmp = extractFromLine(_buffer, CRLF);
-				if (tmp.size() != len) {
-					_status = ClientStatus::Invalid;
-					return;
-				}
-				_body += tmp;
-				// after appending another chunk to body, checks for max body size
-				if (_body.size() > CLIENT_MAX_BODY_SIZE) {
-					_responseCodeBypass = ContentTooLarge;
-					_status = ClientStatus::Invalid;
-					return;
-				}
-				crlfPos = _buffer.find(CRLF);
-			}
-			_status = ClientStatus::WaitingData;
-
-		// If buffer includes the final chunk
-		} else if (headerEnd != std::string::npos) {
-			while (crlfPos != std::string::npos && crlfPos > 0
-				&& _buffer.substr(crlfPos - 1, 5) != "0\r\n\r\n") {
-				try {
-					len = std::stoi(_buffer.substr(0, crlfPos), 0, 16);
-				} catch (const std::exception& e) {
-					_status = ClientStatus::Invalid;
-					return;
-				}
-				_buffer = _buffer.substr(crlfPos + 2);
-				std::string	tmp = extractFromLine(_buffer, CRLF);
-				if (tmp.size() != len) {
-					_status = ClientStatus::Invalid;
-					return;
-				}
-				_body += tmp;
-				if (_body.size() > CLIENT_MAX_BODY_SIZE) {
-					_responseCodeBypass = ContentTooLarge;
-					_status = ClientStatus::Invalid;
-					return;
-				}
-				crlfPos = _buffer.find(CRLF);
-			}
-			if (extractFromLine(_buffer, "0\r\n\r\n") != "") {
+	// If buffer doesn't include the final chunk
+	if (headerEnd == std::string::npos && crlfPos != std::string::npos) {
+		while (crlfPos != std::string::npos) {
+			try {
+				len = std::stoi(_buffer.substr(0, crlfPos), 0, 16);
+			} catch (const std::exception& e) {
 				_status = ClientStatus::Invalid;
 				return;
 			}
+			_buffer = _buffer.substr(crlfPos + 2);
+			std::string	tmp = extractFromLine(_buffer, CRLF);
+			if (tmp.size() != len) {
+				_status = ClientStatus::Invalid;
+				return;
+			}
+			_body += tmp;
+			// after appending another chunk to body, checks for max body size
 			if (_body.size() > CLIENT_MAX_BODY_SIZE) {
 				_responseCodeBypass = ContentTooLarge;
 				_status = ClientStatus::Invalid;
 				return;
 			}
-			_status = ClientStatus::CompleteReq;
+			crlfPos = _buffer.find(CRLF);
+		}
+		_status = ClientStatus::WaitingData;
 
-		// If a chunked request does not have any CRLF, it's invalid
-		} else if (headerEnd == std::string::npos && crlfPos == std::string::npos) {
+	// If buffer includes the final chunk
+	} else if (headerEnd != std::string::npos) {
+		while (crlfPos != std::string::npos && crlfPos > 0
+			&& _buffer.substr(crlfPos - 1, 5) != "0\r\n\r\n") {
+			try {
+				len = std::stoi(_buffer.substr(0, crlfPos), 0, 16);
+			} catch (const std::exception& e) {
+				_status = ClientStatus::Invalid;
+				return;
+			}
+			_buffer = _buffer.substr(crlfPos + 2);
+			std::string	tmp = extractFromLine(_buffer, CRLF);
+			if (tmp.size() != len) {
+				_status = ClientStatus::Invalid;
+				return;
+			}
+			_body += tmp;
+			if (_body.size() > CLIENT_MAX_BODY_SIZE) {
+				_responseCodeBypass = ContentTooLarge;
+				_status = ClientStatus::Invalid;
+				return;
+			}
+			crlfPos = _buffer.find(CRLF);
+		}
+		if (extractFromLine(_buffer, "0\r\n\r\n") != "") {
 			_status = ClientStatus::Invalid;
 			return;
 		}
-
-		// If buffer has data after the final chunk
-		if (!_buffer.empty())
+		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
+			_responseCodeBypass = ContentTooLarge;
 			_status = ClientStatus::Invalid;
+			return;
+		}
+		_status = ClientStatus::CompleteReq;
+
+	// If a chunked request does not have any CRLF, it's invalid
+	} else if (headerEnd == std::string::npos && crlfPos == std::string::npos) {
+		_status = ClientStatus::Invalid;
+		return;
 	}
+
+	// If buffer has data after the final chunk
+	if (!_buffer.empty())
+		_status = ClientStatus::Invalid;
 }
 
 /**
