@@ -711,6 +711,13 @@ std::vector<std::string> const	*Request::getHeader(std::string const &key) const
 	}
 }
 
+// need to access this data in CGI handler
 std::optional<std::string> const &Request::getQuery(void) const {
 	return (_request.query);
+}
+
+// since this is already processed and availabe data
+Request::stringMap const &Request::getHeaders(void) const
+{
+    return _headers;
 }

@@ -11,16 +11,44 @@ void freeEnvp(char** envp) {
 std::map<std::string, std::string> CGIHandler::getEnv(const std::string& scriptPath, const Request& request) {
     std::map<std::string, std::string> env;
 
+    // MEATA_VARIABLES required by the RFC 3875  
     env["REQUEST_METHOD"]       = (request.getRequestMethod() == RequestMethod::Post ? "POST" : (request.getRequestMethod() == RequestMethod::Get ? "GET" : "UNKNOWN"));
     env["QUERY_STRING"]         = request.getQuery().has_value() ? request.getQuery().value() : "";
     env["CONTENT_LENGTH"]       = std::to_string(request.getBody().size());
     env["PATH_INFO"]            = request.getTarget();   
     env["SCRIPT_FILENAME"]      = scriptPath;
     env["GATEWAY_INTERFACE"]    = "CGI/1.1";
+    env["SCRIPT_NAME"]          = request.getTarget();
+    env["SCRIPT_FILENAME"]      = scriptPath;
+    env["GATEWAY_INTERFACE"]    = "CGI/1.1";
+    env["SERVER_PROTOCOL"]      = request.getHttpVersion();
+    env["SERVER_SOFTWARE"]      = "Webserv/1.0";
+    env["REDIRECT_STATUS"]      = "200"; // this was added in one of our senior's project for php
 
     auto ct = request.getHeader("content-type");
     if(ct && !ct->empty()) {
         env["CONTENT_TYPE"] = ct->front();
+    }
+
+    // SREVER_DATA required by the RFC 3875
+    std::string host = request.getHost();
+    size_t colon = host.find(':');
+    if (colon != std::string::npos) {
+        env["SERVER_NAME"] = host.substr(0, colon);
+        env["SERVER_PORT"] = host.substr(colon + 1);
+    } else {
+        env["SERVER_NAME"] = host;
+        env["SERVER_PORT"] = "8080"; // we chane this to anything
+    }
+
+    // SCHEME_DATA required by RFC 3875 
+    for (const auto& [key, values] : request.getHeaders()) {
+        if (values.empty()) continue;
+        std::string envKey = "HTTP_";
+        for (char c : key) {
+            envKey += (c == '-' ? '_' : std::toupper(c));
+        }
+        env[envKey] = values.front(); 
     }
 
     return (env);
