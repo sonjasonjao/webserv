@@ -37,8 +37,8 @@ public:
 
 private:
 	void		formResponse();
-	void		sanitizeTargetUri();
 	void		routing();
+	void		handleDelete();
 	void		handleDirectoryTarget();
 	std::string	getDirectoryList(std::string_view target, std::string_view route);
 	void		locateTargetAndSetStatusCode();
