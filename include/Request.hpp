@@ -1,16 +1,21 @@
 #pragma once
 
+#include "Response.hpp"
 #include <unordered_map>
 #include <vector>
 #include <string>
 #include <optional>
 #include <chrono>
+#include <memory>
+#include <fstream>
 
 #define IDLE_TIMEOUT			10000 // timeout values to be decided, and should they be in Server.hpp?
 #define RECV_TIMEOUT			5000
 #define SEND_TIMEOUT			5000
 #define HEADERS_MAX_SIZE		8000
 #define CLIENT_MAX_BODY_SIZE	1000000
+
+enum ResponseCode : int;
 
 /**
  * Mandatory methods required in the subject, do we want to add more? -> Will affect
@@ -29,7 +34,7 @@ enum class RequestMethod
  * formed and ready to be sent from server. Error indicates there is a critical error in the HTTP
  * request, and thus client must be immediately disconnected.
  */
-enum class RequestStatus
+enum class ClientStatus
 {
 	WaitingData,
 	CompleteReq,
@@ -37,9 +42,8 @@ enum class RequestStatus
 	IdleTimeout,
 	RecvTimeout,
 	SendTimeout,
-	ContentTooLarge,
 	Invalid,
-	Error
+	Error,
 };
 
 struct RequestLine
@@ -50,68 +54,105 @@ struct RequestLine
 	RequestMethod				method;
 };
 
+/**
+ * This structure stores both the metadata (headers) and the payload (data)
+ * for a single part of a multipart message.
+ *
+ * - headers:      The raw HTTP header string for this part.
+ * - name:         The form-field name (from Content-Disposition 'name').
+ * - filename:     The client-side name of the file (from 'filename'), if provided.
+ * - content_type: The MIME type of the data (e.g., "text/plain" or "image/png").
+ * - data:         The raw content or binary body of the part.
+ */
+
+struct MultipartPart {
+    std::string headers;
+    std::string name;
+    std::string filename;
+    std::string contentType;
+    std::string data;
+};
+
 class Request
 {
 	using stringMap = std::unordered_map<std::string, std::vector<std::string>>;
 	using timePoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
 	private:
-		int							_fd;
-		int							_serverFd;
-		std::string					_buffer;
-		struct RequestLine			_request;
-		stringMap					_headers;
-		size_t						_headerSize;
-		std::string					_body;
-		std::optional<size_t>		_contentLen;
-		std::optional<std::string>	_boundary;
-		bool						_keepAlive;
-		bool						_chunked;
-		bool						_completeHeaders;
-		RequestStatus				_status;
-		timePoint					_idleStart;
-		timePoint					_recvStart;
-		timePoint					_sendStart;
+		int								_fd;
+		int								_serverFd;
+		ClientStatus					_status;
+		ResponseCode					_responseCodeBypass;
+		bool							_keepAlive;
+		bool							_chunked;
+		bool							_completeHeaders;
+		std::unique_ptr<std::ofstream>	_uploadFD;
+		timePoint						_idleStart;
+		timePoint						_recvStart;
+		timePoint						_sendStart;
+		size_t							_headerSize;
+		std::optional<size_t>			_contentLen;
+		stringMap						_headers;
+		struct RequestLine				_request;
+		std::string						_buffer;
+		std::string						_body;
+		std::optional<std::string>		_boundary;
+		std::optional<std::string>		_uploadDir;
+
+		bool	initialSaveToDisk(const MultipartPart& part);
+		bool	saveToDisk(const MultipartPart& part);
 
 	public:
 		Request() = delete;
 		Request(int fd, int serverFd);
 		~Request() = default;
 
-		void				saveRequest(std::string const &buf);
-		void				handleRequest(void);
-		void				parseRequest(void);
-		void				parseRequestLine(std::string &req);
-		void				parseHeaders(std::string &str);
-		bool				fillKeepAlive(void);
-		bool				validateHeaders(void);
-		void				parseChunked(void);
-		void				printData(void) const;
-		bool				isUniqueHeader(std::string const &key);
-		bool				validateAndAssignTarget(std::string &target);
-		bool				areValidChars(std::string &target);
-		bool				validateAndAssignHttp(std::string &httpVersion);
-		void				setStatus(RequestStatus status);
-		void				reset(void);
-		void				resetKeepAlive(void);
-		void				checkReqTimeouts(void);
-		void				setIdleStart(void);
-		void				setRecvStart(void);
-		void				setSendStart(void);
-		void				resetSendStart(void);
-		void				resetBuffer(void);
+		void	processRequest(std::string const &buf);
+		void	parseRequest(void);
+		void	parseRequestLine(std::string &req);
+		void	parseHeaders(std::string &str);
 
-		RequestMethod						getRequestMethod(void) const;
-		std::string const					&getHttpVersion(void) const;
-		std::string const					&getBody(void) const;
-		std::string const					&getTarget(void) const;
-		std::vector<std::string> const		*getHeader(std::string const &key) const;
-		std::string							getHost(void) const;
-		int									getFd(void) const;
-		int									getServerFd(void) const;
-		bool								getKeepAlive(void) const;
-		RequestStatus						getStatus(void) const;
-		std::string const					&getBuffer(void) const;
-		std::optional<std::string> const	&getQuery(void) const;
-		stringMap 							const &getHeaders(void) const;
+		void	parseChunked();
+		void	printData() const;
+
+		bool	validateHeaders();
+		bool	areValidChars(std::string &target);
+		bool	validateAndAssignTarget(std::string &target);
+		bool	validateAndAssignHttp(std::string &httpVersion);
+		bool	isUniqueHeader(std::string const &key);
+		bool	isHeadersCompleted() const;
+		bool	fillKeepAlive();
+		bool	boundaryHasValue();
+
+		void	reset();
+		void	resetKeepAlive();
+
+		void	checkReqTimeouts();
+		void	setIdleStart();
+		void	setRecvStart();
+		void	setSendStart();
+		void	setStatus(ClientStatus status);
+		void	setResponseCodeBypass(ResponseCode code);
+
+		void	resetSendStart();
+		void	resetBuffer();
+
+		void	handleFileUpload();
+		void	setUploadDir(std::string path);
+
+		std::vector<std::string> const	*getHeader(std::string const &key) const;
+		RequestMethod					getRequestMethod() const;
+		ClientStatus					getStatus() const;
+		ResponseCode					getResponseCodeBypass() const;
+		std::string const				&getHttpVersion() const;
+		std::string const				&getBody() const;
+		std::string const				&getTarget() const;
+		std::string const				&getBuffer() const;
+		std::string						getHost() const;
+		std::optional<std::string>		getQuery() const;
+		size_t							getContentLength() const;
+		bool							getKeepAlive() const;
+		int								getFd() const;
+		int								getServerFd() const;
+		stringMap						const &getHeaders(void) const;
 };
