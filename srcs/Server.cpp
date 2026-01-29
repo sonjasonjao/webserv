@@ -2,6 +2,7 @@
 #include "Log.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
+#include "CGIHandler.hpp"
 #include <iostream>
 #include <string>
 #include <sys/socket.h>
@@ -274,7 +275,10 @@ void	Server::handleClientData(size_t& i)
 	}
 
 	if(it->isHeadersCompleted() && it->getTarget().find("cgi-bin") != std::string::npos) {
-		ERROR_LOG("Yeah..... are in side CGI execution");
+		std::string path = "www" + it->getTarget();
+		std::string output = CGIHandler::execute(path, *it);
+		ERROR_LOG("Here is the out put from the CGI");
+		INFO_LOG("\n" + output + "\n---------------------\n");
 	}
 
 	if (it->isHeadersCompleted()) {

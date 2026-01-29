@@ -71,6 +71,9 @@ char** CGIHandler::mapToEnvp(const std::map<std::string, std::string>& envMap) {
 }
 
 std::string CGIHandler::execute(const std::string& scriptPath, const Request& request) {
+    
+    INFO_LOG("Path insdie the script will be " + scriptPath);
+    
     int pipe_in[2];
     int pipe_out[2];
 
