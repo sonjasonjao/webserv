@@ -48,14 +48,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	if (_statusCode != Unassigned) {
 		formResponse();
 
-		#if DEBUG_LOGGING
-		std::cout << "\n---- Response content ----\n";
-		if (_contentType.find("image") == std::string::npos)
-			std::cout << _content;
-		else
-			std::cout << "Image data...";
-		std::cout << "\n--------------------------\n\n";
-		#endif
+		debugPrintResponseContent();
 
 		return;
 	}
@@ -106,8 +99,12 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		}
 	}
 
-	if (req.getRequestMethod() == RequestMethod::Delete)
+	if (req.getRequestMethod() == RequestMethod::Delete) {
 		handleDelete();
+		formResponse();
+		debugPrintResponseContent();
+		return;
+	}
 	else if (!_route.original.empty())
 		INFO_LOG("Routing " + _reqTargetSanitized + " to " + _target);
 
@@ -126,14 +123,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 
 	formResponse(); /* ---------- Forming the contents of the response buffer */
 
-	#if DEBUG_LOGGING
-	std::cout << "\n---- Response content ----\n";
-	if (_contentType.find("image") == std::string::npos)
-		std::cout << _content;
-	else
-		std::cout << "Image data...";
-	std::cout << "\n--------------------------\n\n";
-	#endif
+	debugPrintResponseContent();
 }
 
 /* --------------------------------------------------------- Public functions */
@@ -327,13 +317,21 @@ void	Response::handleDelete()
 		_statusCode = NotFound; // do we disconnect client?
 	}
 	else {
-		if (std::filesystem::remove(_target) == false) {
-			INFO_LOG("Resource " + _target + " could not be deleted");
-			_statusCode = InternalServerError; // do we disconnect client?
-			return;
+		if (std::filesystem::is_directory(_target)) {
+			INFO_LOG("Resource " + _target + " is a directory");
+			_statusCode = Forbidden;
+		} else {
+			try {
+				bool ret = std::filesystem::remove(_target);
+				if (!ret)
+					throw std::runtime_error("");
+				INFO_LOG("Resource " + _target + " deleted");
+				_statusCode = NoContent;
+			} catch (std::exception &e) {
+				INFO_LOG("Resource " + _target + " could not be deleted");
+				_statusCode = InternalServerError; // do we disconnect client?
+			}
 		}
-		INFO_LOG("Resource " + _target + " deleted");
-		_statusCode = NoContent;
 	}
 }
 
@@ -438,14 +436,23 @@ void	Response::locateTargetAndSetStatusCode()
 			INFO_LOG("Responding to POST request with target " + _target);
 			_statusCode = OK;
 		break;
-		// Delete has been handled and _statusCode set already in handleDelete()
-		case RequestMethod::Delete:
-		break;
 		default:
 			INFO_LOG("Unknown request method, response status defaulting to bad request");
 			_statusCode = BadRequest;
 		break;
 	}
+}
+
+void	Response::debugPrintResponseContent()
+{
+	#if DEBUG_LOGGING
+	std::cout << "\n---- Response content ----\n";
+	if (_contentType.find("image") == std::string::npos)
+		std::cout << _content;
+	else
+		std::cout << "Image data...";
+	std::cout << "\n--------------------------\n\n";
+	#endif
 }
 
 /* --------------------------------------------------------- Static functions */

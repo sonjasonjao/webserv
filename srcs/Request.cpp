@@ -278,14 +278,14 @@ void	Request::parseHeaders(std::string& str)
 		std::string	key = line.substr(0, colonPos);
 		for (size_t i = 0; i < key.size(); i++)
 			key[i] = std::tolower(static_cast<unsigned char>(key[i]));
-		// No header value after key and ':' means invalid request
-		if (line.length() <= colonPos + 1) {
-			_status = ClientStatus::Invalid;
-			return;
-		}
 
 		std::string value = line.substr(colonPos + 1, line.size() - (colonPos + 1));
 		auto realStart = value.find_first_not_of(' ');
+		// No header value after key, ':', and space(s) means invalid request
+		if (realStart == std::string::npos) {
+			_status = ClientStatus::Invalid;
+			return;
+		}
 		if (realStart != 0)
 			value = value.substr(realStart);
 		/* For Content-Type, value will not be turned to lowercase to keep possible
@@ -375,7 +375,8 @@ void	Request::parseChunked()
 
 		// If buffer includes the final chunk
 		} else if (headerEnd != std::string::npos) {
-			while (crlfPos > 0 && _buffer.substr(crlfPos - 1, 5) != "0\r\n\r\n") {
+			while (crlfPos != std::string::npos && crlfPos > 0
+				&& _buffer.substr(crlfPos - 1, 5) != "0\r\n\r\n") {
 				try {
 					len = std::stoi(_buffer.substr(0, crlfPos), 0, 16);
 				} catch (const std::exception& e) {
