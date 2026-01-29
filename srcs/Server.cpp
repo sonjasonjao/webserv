@@ -278,7 +278,7 @@ void	Server::handleClientData(size_t& i)
 		std::string path = "www" + it->getTarget();
 		std::string output = CGIHandler::execute(path, *it);
 		ERROR_LOG("Here is the out put from the CGI");
-		INFO_LOG("\n" + output + "\n---------------------\n");
+		INFO_LOG("\n---------------------\n" + output + "\n---------------------\n");
 	}
 
 	if (it->isHeadersCompleted()) {
