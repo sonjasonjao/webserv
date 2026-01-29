@@ -28,7 +28,7 @@ static void					listify(std::vector<std::string> const &vec, size_t offset, std:
  */
 Response::Response(Request const &req, Config const &conf) : _req(req), _conf(conf)
 {
-	INFO_LOG("Forming target for " + _req.getMethodString() + " request targeting " + _req.getTarget());
+	INFO_LOG("Forming response for " + _req.getMethodString() + " request targeting " + _req.getTarget());
 	/* Already flagged requests */
 
 	ResponseCode	bypass = _req.getResponseCodeBypass();
@@ -48,14 +48,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	if (_statusCode != Unassigned) {
 		formResponse();
 
-		#if DEBUG_LOGGING
-		std::cout << "\n---- Response content ----\n";
-		if (_contentType.find("image") == std::string::npos)
-			std::cout << _content;
-		else
-			std::cout << "Image data...";
-		std::cout << "\n--------------------------\n\n";
-		#endif
+		debugPrintResponseContent();
 
 		return;
 	}
@@ -106,7 +99,13 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		}
 	}
 
-	if (!_route.original.empty())
+	if (req.getRequestMethod() == RequestMethod::Delete) {
+		handleDelete();
+		formResponse();
+		debugPrintResponseContent();
+		return;
+	}
+	else if (!_route.original.empty())
 		INFO_LOG("Routing " + _reqTargetSanitized + " to " + _target);
 
 	/* Directory targets */
@@ -124,14 +123,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 
 	formResponse(); /* ---------- Forming the contents of the response buffer */
 
-	#if DEBUG_LOGGING
-	std::cout << "\n---- Response content ----\n";
-	if (_contentType.find("image") == std::string::npos)
-		std::cout << _content;
-	else
-		std::cout << "Image data...";
-	std::cout << "\n--------------------------\n\n";
-	#endif
+	debugPrintResponseContent();
 }
 
 /* --------------------------------------------------------- Public functions */
@@ -302,6 +294,47 @@ void	Response::routing()
 	}
 }
 
+void	Response::handleDelete()
+{
+	_target = _reqTargetSanitized;
+
+	// If uploadDir is not given in config, file deletion is disabled
+	if (!_conf.uploadDir.has_value()) {
+		_statusCode = Forbidden;
+		return;
+	}
+	/* Target will be modified if needed for correct format: '/' is removed
+	from start, but is needed between uploadDir and target given in request*/
+	std::string	uploadDir = _conf.uploadDir.value();
+	if (_target.length() > 1 && _target[0] == '/')
+		_target = _target.substr(1);
+	if (uploadDir.back() == '/')
+		uploadDir.pop_back();
+	_target = uploadDir + "/" + _target;
+
+	if (!resourceExists(_target)) {
+		INFO_LOG("Response: Resource " + _target + " could not be found");
+		_statusCode = NotFound; // do we disconnect client?
+	}
+	else {
+		if (std::filesystem::is_directory(_target)) {
+			INFO_LOG("Resource " + _target + " is a directory");
+			_statusCode = Forbidden;
+		} else {
+			try {
+				bool ret = std::filesystem::remove(_target);
+				if (!ret)
+					throw std::runtime_error("");
+				INFO_LOG("Resource " + _target + " deleted");
+				_statusCode = NoContent;
+			} catch (std::exception &e) {
+				INFO_LOG("Resource " + _target + " could not be deleted");
+				_statusCode = InternalServerError; // do we disconnect client?
+			}
+		}
+	}
+}
+
 void	Response::handleDirectoryTarget()
 {
 	DEBUG_LOG("Target '" + _target + "' is a directory");
@@ -403,20 +436,23 @@ void	Response::locateTargetAndSetStatusCode()
 			INFO_LOG("Responding to POST request with target " + _target);
 			_statusCode = OK;
 		break;
-		case RequestMethod::Delete:
-			if (!resourceExists(_target, searchDir)) {
-				INFO_LOG("Response: Resource " + _target + " could not be found");
-				_statusCode = NotFound;
-				break;
-			}
-			INFO_LOG("Resource " + _target + " deleted (not really but in the future)");
-			_statusCode = NoContent;
-		break;
 		default:
 			INFO_LOG("Unknown request method, response status defaulting to bad request");
 			_statusCode = BadRequest;
 		break;
 	}
+}
+
+void	Response::debugPrintResponseContent()
+{
+	#if DEBUG_LOGGING
+	std::cout << "\n---- Response content ----\n";
+	if (_contentType.find("image") == std::string::npos)
+		std::cout << _content;
+	else
+		std::cout << "Image data...";
+	std::cout << "\n--------------------------\n\n";
+	#endif
 }
 
 /* --------------------------------------------------------- Static functions */
