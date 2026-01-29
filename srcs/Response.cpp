@@ -438,7 +438,7 @@ void	Response::locateTargetAndSetStatusCode()
 			INFO_LOG("Responding to POST request with target " + _target);
 			_statusCode = OK;
 		break;
-		// Delete has been handled and _statusCode set already in routing()
+		// Delete has been handled and _statusCode set already in handleDelete()
 		case RequestMethod::Delete:
 		break;
 		default:
