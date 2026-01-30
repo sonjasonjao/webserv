@@ -95,16 +95,21 @@ void	Request::resetKeepAlive()
  */
 void	Request::checkReqTimeouts()
 {
-	auto		now = std::chrono::high_resolution_clock::now();
-	auto		diff = now - _idleStart;
-	auto		durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
+	auto now   = std::chrono::high_resolution_clock::now();
+	auto diff  = now - _idleStart;
+	auto durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
+
 	timePoint	init = {};
+
+	// time-out check for client Ideling for long time
 	if (durMs.count() > IDLE_TIMEOUT) {
 		_status = ClientStatus::IdleTimeout;
 		DEBUG_LOG("Idle timeout with client fd " + std::to_string(_fd));
 		_keepAlive = false;
 		return;
 	}
+
+	// time-out check for data reciving from the client
 	diff = now - _recvStart;
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	if (_recvStart != init && durMs.count() > RECV_TIMEOUT) {
@@ -113,12 +118,26 @@ void	Request::checkReqTimeouts()
 		_keepAlive = false;
 		return;
 	}
+
+	// time-out check for data sending to the client
 	diff = now - _sendStart;
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	if (_sendStart != init && durMs.count() > SEND_TIMEOUT) {
 		_status = ClientStatus::SendTimeout;
 		DEBUG_LOG("Send timeout with client fd " + std::to_string(_fd));
 		_keepAlive = false;
+	}
+
+	// time-out checkout for CGI handlers
+	if(_status == ClientStatus::CgiRunning) {
+		diff = now - _cgiRequest.cgiStartTime;
+
+		durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
+		if (durMs.count() > 5000) { 				// 5 seconds CGI timeout can set to Server default also
+			_status = ClientStatus::RecvTimeout; 	// Treat as receive timeout for 504 handling
+			DEBUG_LOG("CGI timeout with client fd " + std::to_string(_fd));
+			_keepAlive = false;
+		}
 	}
 }
 
