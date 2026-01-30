@@ -71,6 +71,7 @@ void	Request::reset()
 		_uploadFD.reset();
 	}
 	_boundary.reset();
+	_responseCodeBypass = Unassigned;
 }
 
 /**
