@@ -207,6 +207,7 @@ void	Request::parseRequestLine(std::string &req)
 		_status = ClientStatus::Invalid;
 		return;
 	}
+	_request.methodString = method;
 	size_t	i = 0;
 	for (i = 0; i < methods.size(); i++)
 	{
@@ -735,6 +736,11 @@ void	Request::setResponseCodeBypass(ResponseCode code)
 std::string const	&Request::getBuffer() const
 {
 	return _buffer;
+}
+
+std::string const	&Request::getMethodString() const
+{
+	return _request.methodString;
 }
 
 RequestMethod	Request::getRequestMethod() const

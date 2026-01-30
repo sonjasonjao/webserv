@@ -52,6 +52,7 @@ struct RequestLine
 	std::optional<std::string>	query;
 	std::string					httpVersion;
 	RequestMethod				method;
+	std::string					methodString;
 };
 
 /**
@@ -66,11 +67,11 @@ struct RequestLine
  */
 
 struct MultipartPart {
-    std::string headers;
-    std::string name;
-    std::string filename;
-    std::string contentType;
-    std::string data;
+	std::string headers;
+	std::string name;
+	std::string filename;
+	std::string contentType;
+	std::string data;
 };
 
 class Request
@@ -148,7 +149,7 @@ class Request
 		std::string const				&getBody() const;
 		std::string const				&getTarget() const;
 		std::string const				&getBuffer() const;
-		std::string const				getMethodString() const {return "";};
+		std::string const				&getMethodString() const;
 		std::string						getHost() const;
 		size_t							getContentLength() const;
 		bool							getKeepAlive() const;
