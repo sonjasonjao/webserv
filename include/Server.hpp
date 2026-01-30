@@ -30,6 +30,7 @@ class Server
 		std::vector<ServerGroup>						_serverGroups;
 		std::list<Request>								_clients;
 		std::unordered_map<int, std::deque<Response>>	_responses;
+		std::map<int, Request*>							_cgiFdMap;
 
 	public:
 		Server() = delete;
@@ -55,4 +56,8 @@ class Server
 		bool			isServerFd(int fd);
 		Config const	&matchConfig(Request const &req);
 		ReqIter			getRequestByFd(int fd);
+		
+		// CGI handler related methods
+		bool 			isCgiFd(int fd);
+		void 			handleCgiOutput(size_t &i);
 };

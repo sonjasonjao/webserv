@@ -263,13 +263,26 @@ void	Server::handleClientData(size_t& i)
 	Config const	&conf = matchConfig(*it);
 
 	if(it->isCgiRequest()) {
+		// still need to add path sanitizing and validating
+		// if requesting scrpit not existing, not executable, etc.
 		std::string path = "www" + it->getTarget();
-		
-		std::string output = CGIHandler::execute(path, *it);
-		it->setCgiResult(output);
+		std::pair<pid_t, int> cgiInfo = CGIHandler::execute(path, *it);
 
-		ERROR_LOG("Here is the out put from the CGI");
-		INFO_LOG("\n---------------------\n" + output + "\n---------------------\n");
+		// Error occured
+		if (cgiInfo.first == -1 || cgiInfo.second == -1) {
+			it->setResponseCodeBypass(InternalServerError);
+			it->setStatus(ClientStatus::Invalid);
+		} else {
+			INFO_LOG("CGI started with PID " + std::to_string(cgiInfo.first) + " and reading from FD " + std::to_string(cgiInfo.second));
+			it->setCgiPid(cgiInfo.first);
+			it->setCgiStartTime();
+			it->setStatus(ClientStatus::CgiRunning);
+			
+			// Adding CGI read fd to poll list
+			_pfds.push_back({ cgiInfo.second, POLLIN, 0 });
+			_cgiFdMap[cgiInfo.second] = &(*it);
+			return;
+		}
 	}
 
 	if (it->getRequestMethod() == RequestMethod::Post && it->boundaryHasValue()) {
@@ -453,13 +466,23 @@ ReqIter	Server::getRequestByFd(int fd)
 void	Server::checkTimeouts()
 {
 	for (size_t i = 0; i < _pfds.size(); i++) {
+
+		// FIle descirptor is a CGI Client FD
+		// Not applying time-out logic for CGI Client FD, skipping
+		if(isCgiFd(_pfds[i].fd))
+			continue;
+
+		// File descriptor is NOT a Server Listener FD --> Client FD
+		// Not applying time-out logic for Server FDs, skipping 
 		if (!isServerFd(_pfds[i].fd)) {
+			
 			auto	it = getRequestByFd(_pfds[i].fd);
 
 			if (it == _clients.end())
 				throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 					+ std::to_string(_pfds[i].fd)));
 			it->checkReqTimeouts();
+
 			if (it->getStatus() == ClientStatus::RecvTimeout) {
 				Config	 const &conf = matchConfig(*it);
 
@@ -467,6 +490,7 @@ void	Server::checkTimeouts()
 				_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
 				sendResponse(i);
 			}
+
 			if (it->getStatus() == ClientStatus::IdleTimeout
 				|| it->getStatus() == ClientStatus::SendTimeout) {
 				removeClientFromPollFds(i);
@@ -509,6 +533,9 @@ void	Server::handleConnections()
 			if (isServerFd(_pfds[i].fd)) {
 				INFO_LOG("Handling new client connecting on fd " + std::to_string(_pfds[i].fd));
 				handleNewClient(_pfds[i].fd);
+			} else if (isCgiFd(_pfds[i].fd)) {
+				INFO_LOG("Handling  cgi from fd " + std::to_string(_pfds[i].fd));
+				handleCgiOutput(i);
 			} else {
 				INFO_LOG("Handling client data from fd " + std::to_string(_pfds[i].fd));
 				handleClientData(i);
@@ -532,4 +559,75 @@ Server::~Server()
 {
 	for (auto it = _pfds.begin(); it != _pfds.end(); it++)
 		close(it->fd);
+}
+
+bool Server::isCgiFd(int fd) {
+	return _cgiFdMap.find(fd) != _cgiFdMap.end();
+}
+
+void Server::handleCgiOutput(size_t &i) {
+	int cgiFd = _pfds[i].fd;
+	char buf[4096];
+	ssize_t bytesRead = read(cgiFd, buf, sizeof(buf));
+
+	// if the corresonding FD is not in the CGI map, will remove it from POLL
+	if (_cgiFdMap.find(cgiFd) == _cgiFdMap.end()) {
+		ERROR_LOG("CGI fd " + std::to_string(cgiFd) + " not found in map");
+		removeClientFromPollFds(i);
+		return;
+	}
+
+	Request* req = _cgiFdMap[cgiFd];
+
+	// Reading data from the CGI client FD 
+	if (bytesRead > 0) {
+		// append data to the existing data
+		req->setCgiResult(req->getCgiResult().append(buf, bytesRead));
+	// Can be either ERROR or finnised scripot execution
+	} else {
+		// script sucessfully executed
+		if (bytesRead == 0) {
+			INFO_LOG("CGI finished execution for fd " + std::to_string(cgiFd));
+		// ERROR occured
+		} else {
+			if (errno == EAGAIN || errno == EWOULDBLOCK)
+			// No data available right now, continue polling
+				return; 
+			
+			ERROR_LOG("read error from CGI fd: " + std::string(strerror(errno)));
+			req->setResponseCodeBypass(InternalServerError);
+			req->setStatus(ClientStatus::Invalid);
+		}
+
+		// Wait for the specific child process
+		int status;
+		waitpid(req->getCgiPid(), &status, 0);
+
+		// Cleanup CGI fd
+		close(cgiFd);
+
+		// Client FD from CGI - Request map 
+		_cgiFdMap.erase(cgiFd);
+		
+		// Remove CGI Client FD from the POLL list
+		removeClientFromPollFds(i);
+
+		if (req->getStatus() != ClientStatus::Invalid) {
+			// Find the client FD to enable POLLOUT
+			int clientFd = req->getFd();
+			for (auto& pfd : _pfds) {
+				if (pfd.fd == clientFd) {
+					pfd.events |= POLLOUT;
+					break;
+				}
+			}
+
+			// Setup for response
+			Config const &conf = matchConfig(*req); 
+			_responses[req->getFd()].emplace_back(Response(*req, conf));
+			req->reset();
+			req->setStatus(ClientStatus::ReadyForResponse);
+			req->resetSendStart();
+		}
+	}
 }

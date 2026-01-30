@@ -1,5 +1,7 @@
 #!/usr/bin/python3
-import sys
+import sys, time
+
+time.sleep(2)
 
 # Define the body
 body = "Hello from CGI!\n"
