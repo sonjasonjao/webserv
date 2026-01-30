@@ -70,7 +70,7 @@ char** CGIHandler::mapToEnvp(const std::map<std::string, std::string>& envMap) {
     return (envp);
 }
 
-std::string CGIHandler::execute(const std::string& scriptPath, const Request& request) {
+std::pair<pid_t, int> CGIHandler::execute(const std::string& scriptPath, const Request& request) {
     
     INFO_LOG("Path insdie the script will be " + scriptPath);
     
@@ -79,7 +79,7 @@ std::string CGIHandler::execute(const std::string& scriptPath, const Request& re
 
     if(pipe(pipe_in) == -1 || pipe(pipe_out) == -1) {
         ERROR_LOG("CGI Pipe failed!");
-        return ("Status: 500 Internal Server Error\r\n\r\n");
+        return {-1, -1};
     }
 
     // preparing enviornment and args for execv
@@ -94,7 +94,7 @@ std::string CGIHandler::execute(const std::string& scriptPath, const Request& re
         close(pipe_in[0]);close(pipe_in[1]);
         close(pipe_out[0]);close(pipe_out[1]);
         freeEnvp(envp);
-        return ("Status: 500 Internal Server Error\r\n\r\n");
+        return {-1, -1};
     }
 
     if(pid == 0) {
@@ -123,54 +123,13 @@ std::string CGIHandler::execute(const std::string& scriptPath, const Request& re
         close(pipe_in[0]); close(pipe_out[1]);
         // make read-edn non-blocking
         fcntl(pipe_out[0], F_SETFL, O_NONBLOCK);
-
+        // pass request body data to CHILD process
         if(!request.getBody().empty()) {
             write(pipe_in[1], request.getBody().c_str(), request.getBody().size());
         }
         close(pipe_in[1]);
-
-        std::string result;     // variable to store the result
-        char buffer[4096];      // temporay buffer
-        ssize_t bytesRead;      // track how much data read
-        int status;             // variable to track the status
-        int timeOut = 5;        // defauls time-out to avoid infinite loops
-
-        // starting the clock to track the time-out
-        auto start = std::chrono::steady_clock::now();
-
-        while(true) {
-
-            int wait_result = waitpid(pid, &status, WNOHANG);
-
-            while((bytesRead = read(pipe_out[0], buffer, sizeof(buffer))) > 0) {
-                result.append(buffer, bytesRead);
-            }
-
-            if(wait_result == pid) {
-                // child running successfull
-                break;
-            } else if (wait_result == 0) {
-                // child still running, check for timeout 
-                auto now = std::chrono::steady_clock::now();
-
-                if(std::chrono::duration_cast<std::chrono::seconds>(now - start).count() >= timeOut) {
-                    kill(pid, SIGKILL);
-                    waitpid(pid, &status, 0);
-                    result = "Status: 504 Gateway Timeout\r\n\r\n";
-                    break;
-                }
-                // wait 5ms before next check
-                usleep(5000); 
-            } else {
-                // something went wrong
-                result = "Status: 500 Internal Server Error\r\n\r\n";
-                break;
-            }
-        }
-        
-        close(pipe_out[0]);
         freeEnvp(envp);
-        return (result);
+        return { pid, pipe_out[0] };
     }
-    return ("Status: 500 Internal Server Error\r\n\r\n");
+    return { -1, -1 };
 }
