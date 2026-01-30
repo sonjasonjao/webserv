@@ -32,6 +32,7 @@ public:
 	std::string const				&getContent() const;
 	void							sendToClient();
 	bool							sendIsComplete();
+	Request	const					&getRequestInfo() const;
 
 private:
 

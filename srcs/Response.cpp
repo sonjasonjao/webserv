@@ -172,6 +172,13 @@ void	Response::formResponse()
 		return;
 	}
 
+	if(this->getRequestInfo().isCgiRequest()) {
+		// only need to add the start line, rest of the data generating inside the script
+		_startLine		= _req.getHttpVersion() + " 200 OK";
+		_content		= _startLine + CRLF + this->getRequestInfo().getCgiResult();
+		return;
+	}
+
 	if (_statusCode == 200)
 		_contentType = getContentType(_target);
 	else
@@ -412,4 +419,8 @@ static void	listify(std::vector<std::string> const &vec, size_t offset, std::str
 		stream << "</li>\n";
 	}
 	stream << "</ul>\n";
+}
+
+Request	const &Response::getRequestInfo() const{
+	return _req;
 }

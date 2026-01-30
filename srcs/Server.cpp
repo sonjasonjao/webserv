@@ -262,6 +262,16 @@ void	Server::handleClientData(size_t& i)
 
 	Config const	&conf = matchConfig(*it);
 
+	if(it->isCgiRequest()) {
+		std::string path = "www" + it->getTarget();
+		
+		std::string output = CGIHandler::execute(path, *it);
+		it->setCgiResult(output);
+
+		ERROR_LOG("Here is the out put from the CGI");
+		INFO_LOG("\n---------------------\n" + output + "\n---------------------\n");
+	}
+
 	if (it->getRequestMethod() == RequestMethod::Post && it->boundaryHasValue()) {
 		if(conf.uploadDir.has_value()) {
 			DEBUG_LOG("Handling file upload for client fd " + std::to_string(_pfds[i].fd));
@@ -273,14 +283,7 @@ void	Server::handleClientData(size_t& i)
 			it->setStatus(ClientStatus::Invalid);
 		}
 	}
-
-	if(it->isHeadersCompleted() && it->getTarget().find("cgi-bin") != std::string::npos) {
-		std::string path = "www" + it->getTarget();
-		std::string output = CGIHandler::execute(path, *it);
-		ERROR_LOG("Here is the out put from the CGI");
-		INFO_LOG("\n---------------------\n" + output + "\n---------------------\n");
-	}
-
+	
 	if (it->isHeadersCompleted()) {
 		if(conf.clientMaxBodySize.has_value()) {
 			// if there is user defined value for clientMaxBodySize check against the value

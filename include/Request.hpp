@@ -37,6 +37,7 @@ enum class RequestMethod
 enum class ClientStatus
 {
 	WaitingData,
+	CgiRunning,
 	CompleteReq,
 	ReadyForResponse,
 	IdleTimeout,
@@ -45,6 +46,7 @@ enum class ClientStatus
 	Invalid,
 	Error,
 };
+
 
 struct RequestLine
 {
@@ -73,6 +75,24 @@ struct MultipartPart {
     std::string data;
 };
 
+/**
+ * This structure storesall the data needed to process and form a response related to CGI
+ * handle process
+ *
+ * cgiRequest		Boolen flag to indetify and label CGI request
+ * cgiPid			Child process ID which excute the CGI script
+ * cgiStartTime		Script execution start time, tackle possible infinite loops
+ * cgiResult		Output from the child process
+ */
+struct CgiRequest {
+	using timePoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
+
+	bool			isCgiRequest;
+	pid_t       	cgiPid;
+	timePoint   	cgiStartTime;
+	std::string		cgiResult;
+};
+
 class Request
 {
 	using stringMap = std::unordered_map<std::string, std::vector<std::string>>;
@@ -94,6 +114,7 @@ class Request
 		std::optional<size_t>			_contentLen;
 		stringMap						_headers;
 		struct RequestLine				_request;
+		struct CgiRequest				_cgiRequest;
 		std::string						_buffer;
 		std::string						_body;
 		std::optional<std::string>		_boundary;
@@ -154,5 +175,15 @@ class Request
 		bool							getKeepAlive() const;
 		int								getFd() const;
 		int								getServerFd() const;
+		
+		// class methods directly intercat with CGI handler
+		bool							isCgiRequest() const;
+		void							setCgiFlag(bool flag);
+		void							setCgiResult(std::string str);
+		void        					setCgiPid(pid_t pid);
+		void        					setCgiStartTime();
+		pid_t       					getCgiPid() const;
+		timePoint   					getCgiStartTime() const;
+		std::string						getCgiResult() const;
 		stringMap						const &getHeaders(void) const;
 };
