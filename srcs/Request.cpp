@@ -59,7 +59,8 @@ void	Request::reset()
 {
 	_request.target.clear();
 	_request.method = RequestMethod::Unknown;
-	_request.httpVersion.clear();
+	_request.methodString.clear();
+	_request.httpVersion = "HTTP/1.1";
 	_request.query.reset();
 	_headers.clear();
 	_headerSize = 0;
@@ -808,11 +809,6 @@ std::vector<std::string> const	*Request::getHeader(std::string const &key) const
 	}
 }
 
-std::string const	&Request::getMethodString() const
-{
-	return _request.methodString;
-}
-
 size_t	Request::getContentLength() const
 {
 	if (_contentLen.has_value())
@@ -838,7 +834,7 @@ void	Request::handleFileUpload()
 			break;
 		}
 		if (_buffer.compare(partStart, endDelimiter.length(), endDelimiter) == 0) { // End delimiter of form data found
-			_buffer.erase(0, partStart + endDelimiter.length());
+			_buffer.clear();
 			_responseCodeBypass = Created;
 			_status = ClientStatus::CompleteReq;
 			break;

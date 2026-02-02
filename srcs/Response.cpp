@@ -568,4 +568,5 @@ static void	listify(std::vector<std::string> const &vec, size_t offset, std::str
 		stream << "</li>\n";
 	}
 	stream << "</ul>\n";
+	stream << "<a href=\"/index.html\">Back to main page</a>\n";
 }

@@ -15,7 +15,8 @@ R"(<!DOCTYPE html>
 	</head>
 	<body>
 		<h1>200: OK</h1>
-		<p>Default fallback page</p>
+		<p>Success! Whatever you asked for has been done.</p>
+		<a href="/index.html">Back to main page</a>
 	</body>
 </html>
 )";
@@ -27,7 +28,8 @@ R"(<!DOCTYPE html>
 	</head>
 	<body>
 		<h1>204: No Content</h1>
-		<p>Default fallback page</p>
+		<p>Success! File was deleted.</p>
+		<a href="/index.html">Back to main page</a>
 	</body>
 </html>
 )";
@@ -39,7 +41,8 @@ R"(<!DOCTYPE html>
 	</head>
 	<body>
 		<h1>207: Created</h1>
-		<p>Default fallback page</p>
+		<p>Success! File was uploaded.</p>
+		<a href="/index.html">Back to main page</a>
 	</body>
 </html>
 )";
@@ -81,7 +84,8 @@ R"(<!DOCTYPE html>
 	</head>
 	<body>
 		<h1>403: Forbidden</h1>
-		<p>Default fallback page</p>
+		<p>Oh no!</p>
+		<a href="/index.html">Back to main page</a>
 	</body>
 </html>
 )";
@@ -111,7 +115,8 @@ R"(<!DOCTYPE html>
 	</head>
 	<body>
 		<h1>404: Resource Not Found</h1>
-		<p>Default fallback page</p>
+		<p>Oh no!</p>
+		<a href="/index.html">Back to main page</a>
 	</body>
 </html>
 )";
@@ -123,7 +128,7 @@ R"(<!DOCTYPE html>
 	</head>
 	<body>
 		<h1>408: Request Timeout</h1>
-		<p>Default fallback page</p>
+		<a href="/index.html">Back to main page</a>
 	</body>
 </html>
 )";
@@ -135,7 +140,8 @@ R"(<!DOCTYPE html>
 	</head>
 	<body>
 		<h1>409: Conflict</h1>
-		<p>Default fallback page</p>
+		<p>Oh no!</p>
+		<a href="/index.html">Back to main page</a>
 	</body>
 </html>
 )";
@@ -147,7 +153,8 @@ R"(<!DOCTYPE html>
 	</head>
 	<body>
 		<h1>413: Content Too Large</h1>
-		<p>Default fallback page</p>
+		<p>Oh no!</p>
+		<a href="/index.html">Back to main page</a>
 	</body>
 </html>
 )";
@@ -159,7 +166,8 @@ R"(<!DOCTYPE html>
 	</head>
 	<body>
 		<h1>422: Unprocessable content</h1>
-		<p>Default fallback page</p>
+		<p>Oh no!</p>
+		<a href="/index.html">Back to main page</a>
 	</body>
 </html>
 )";
@@ -171,7 +179,8 @@ R"(<!DOCTYPE html>
 	</head>
 	<body>
 		<h1>500: Internal Server Error</h1>
-		<p>Default fallback page</p>
+		<p>Oh no!</p>
+		<a href="/index.html">Back to main page</a>
 	</body>
 </html>
 )";

@@ -12,16 +12,17 @@
             "client_max_body_size"  : 11048576,
 
             "routes" : {
-                "/"         : "www/pages",
-                "secret"    : "/home/jvarila/Documents/minimal.html",
-                "img"       : "www/images",
+                "/"          : "www/pages",
+                "secret"     : "/home/jvarila/Documents/minimal.html",
+                "img"        : "www/images",
                 "uploadfile" : "www/pages/upload.html",
-                "delete" : "www/pages/delete.html",
-                "uploads" : "www/uploads"
+                "deletefile" : "www/pages/delete.html",
+                "uploads"    : "www/uploads"
             },
 
             "status_pages" : {
                 "200" : "www/status_pages/200.html",
+                "204" : "www/status_pages/204.html",
                 "400" : "www/status_pages/400.html",
                 "404" : "www/status_pages/404.html"
             }

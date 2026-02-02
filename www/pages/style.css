@@ -2,30 +2,39 @@
 	box-sizing: border-box;
 }
 
-body {
-	background-color: #fd0;
+html {
+	height: 100%;
 }
 
-#page_wrapper {
+body {
+	background-color: white;
+	height: 100%;
+}
+
+.page-wrapper {
 	font-family: "Roboto", sans-serif;
-	width: 60%;
+	width: 70%;
+	height: 100%;
 	margin: 0 auto;
-	background-color: #f5c5c3;
+	background-color: #c6ecf7;
 	padding: 15px;
 }
 
 .banner {
-	padding-top: 30px;
-	display: inline-flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-}
-
-#authors {
-	padding-left: 30px;
+	padding-top: 15px;
+	text-align: center;
+	margin-bottom: 20px;
 }
 
 #filedelete {
 	margin-top: 15px;
+}
+
+.links {
+	margin-top: 15px;
+	margin-bottom: 15px;
+	display: flex;
+	flex-direction: row;
+	column-gap: 15px;
+	justify-content: center;
 }
