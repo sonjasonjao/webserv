@@ -303,9 +303,11 @@ void	Response::handleDelete()
 		_statusCode = Forbidden;
 		return;
 	}
-	/* Target will be modified if needed for correct format: '/' is removed
-	from start, but is needed between uploadDir and target given in request*/
+
 	std::string	uploadDir = _conf.uploadDir.value();
+
+	// Target will be modified if needed for correct format: '/' is removed
+	// from start, but is needed between uploadDir and target given in request
 	if (_target.length() > 1 && _target[0] == '/')
 		_target = _target.substr(1);
 	if (uploadDir.back() == '/')
@@ -313,25 +315,31 @@ void	Response::handleDelete()
 	_target = uploadDir + "/" + _target;
 
 	if (!resourceExists(_target)) {
-		INFO_LOG("Response: Resource " + _target + " could not be found");
+		INFO_LOG("Resource '" + _target + "' could not be found");
 		_statusCode = NotFound; // do we disconnect client?
+
+		return;
 	}
-	else {
-		if (std::filesystem::is_directory(_target)) {
-			INFO_LOG("Resource " + _target + " is a directory");
-			_statusCode = Forbidden;
-		} else {
-			try {
-				bool ret = std::filesystem::remove(_target);
-				if (!ret)
-					throw std::runtime_error("");
-				INFO_LOG("Resource " + _target + " deleted");
-				_statusCode = NoContent;
-			} catch (std::exception &e) {
-				INFO_LOG("Resource " + _target + " could not be deleted");
-				_statusCode = InternalServerError; // do we disconnect client?
-			}
-		}
+
+	if (std::filesystem::is_directory(_target)) {
+		INFO_LOG("Resource '" + _target + "' is a directory");
+		_statusCode = Forbidden;
+
+		return;
+	}
+
+	try {
+		bool	ret = std::filesystem::remove(_target);
+
+		if (!ret)
+			throw std::runtime_error("");
+
+		INFO_LOG("Resource " + _target + " deleted");
+		_statusCode = NoContent;
+	} catch (std::exception &e) {
+		INFO_LOG("Resource " + _target + " could not be deleted");
+		_statusCode = InternalServerError; // do we disconnect client?
+		_diagnosticMessage = "Target '" + _target + "' could not be deleted";
 	}
 }
 

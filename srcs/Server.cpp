@@ -294,7 +294,7 @@ void	Server::handleClientData(size_t& i)
 		return;
 	}
 
-	prepareResponse(*it);
+	prepareResponse(*it, conf);
 	_pfds[i].events |= POLLOUT;
 	it->setIdleStart();
 	it->setSendStart();
@@ -304,14 +304,9 @@ void	Server::handleClientData(size_t& i)
  * Builds the response to be sent to client, resets Request properties, and sets client status
  * to ReadyForResponse.
  */
-void	Server::prepareResponse(Request &req)
+void	Server::prepareResponse(Request &req, Config const &conf)
 {
 	INFO_LOG("Building response to client fd " + std::to_string(req.getFd()));
-
-	Config const	&conf = matchConfig(req);
-
-	DEBUG_LOG("Matched config: " + conf.host + " " + conf.serverName + " "
-		+ std::to_string(conf.port));
 	_responses[req.getFd()].emplace_back(Response(req, conf));
 	req.reset();
 	req.setStatus(ClientStatus::ReadyForResponse);
@@ -454,7 +449,7 @@ void	Server::checkTimeouts()
 
 			it->checkReqTimeouts();
 			if (it->getStatus() == ClientStatus::RecvTimeout) {
-				Config	 const &conf = matchConfig(*it);
+				Config const	&conf = matchConfig(*it);
 
 				DEBUG_LOG("Matched config: " + conf.host + " " + conf.serverName + " " + std::to_string(conf.port));
 				_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
