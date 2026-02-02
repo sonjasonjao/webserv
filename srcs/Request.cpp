@@ -71,11 +71,8 @@ void	Request::reset()
 		_uploadFD.reset();
 	}
 	_boundary.reset();
-
 	// reset and clearing CGI request data fields
-	_cgiRequest.isCgiRequest = false;
-	_cgiRequest.cgiPid = -1;
-	_cgiRequest.cgiResult.clear();
+	_cgiRequest.reset();
 }
 
 /**
@@ -129,11 +126,11 @@ void	Request::checkReqTimeouts()
 	}
 
 	// time-out checkout for CGI handlers
-	if(_status == ClientStatus::CgiRunning) {
-		diff = now - _cgiRequest.cgiStartTime;
+	if(_status == ClientStatus::CgiRunning && _cgiRequest.has_value()) {
+		diff = now - _cgiRequest->cgiStartTime;
 
 		durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
-		if (durMs.count() > 5000) { 				// 5 seconds CGI timeout can set to Server default also
+		if (durMs.count() > CGI_TIMEOUT) { 				// 5 seconds CGI timeout can set to Server default also
 			_status = ClientStatus::RecvTimeout; 	// Treat as receive timeout for 504 handling
 			DEBUG_LOG("CGI timeout with client fd " + std::to_string(_fd));
 			_keepAlive = false;
@@ -216,7 +213,7 @@ void	Request::parseRequest()
 	
 	// set cgiRequest flag to indentify in POLL event loop
 	if(_request.target.find_first_of("cgi-bin") != std::string::npos) {
-		_cgiRequest.isCgiRequest = true;
+		_cgiRequest.emplace();
 	}
 	printData();
 }
@@ -965,35 +962,48 @@ std::unordered_map<std::string, std::vector<std::string>> const &Request::getHea
     return _headers;
 }
 
-
-void	Request::setCgiFlag(bool flag) {
-	_cgiRequest.isCgiRequest = flag;
+bool	Request::isCgiRequest() const{
+	return _cgiRequest.has_value();
 }
 
 void	Request::setCgiResult(std::string str) {
-	_cgiRequest.cgiResult = str;
-}
-
-bool	Request::isCgiRequest() const{
-	return _cgiRequest.isCgiRequest;
-}
-
-std::string	Request::getCgiResult() const {
-	return _cgiRequest.cgiResult;
+	if(!_cgiRequest.has_value()) {
+		return;
+	}
+	_cgiRequest->cgiResult = str;
 }
 
 void	Request::setCgiPid(pid_t pid) {
-	_cgiRequest.cgiPid = pid;
+	if(!_cgiRequest.has_value()) {
+		return;
+	}
+	_cgiRequest->cgiPid = pid;
 }
 
 void	Request::setCgiStartTime() {
-	_cgiRequest.cgiStartTime = std::chrono::high_resolution_clock::now();
+	if(!_cgiRequest.has_value()) {
+		return;
+	}
+	_cgiRequest->cgiStartTime = std::chrono::high_resolution_clock::now();
 }
 
 pid_t  	Request::getCgiPid() const {
-	return _cgiRequest.cgiPid;
+	if(!_cgiRequest.has_value()) {
+		return -1;
+	}
+	return _cgiRequest->cgiPid;
 }
 
-std::chrono::time_point<std::chrono::high_resolution_clock>	Request::getCgiStartTime() const {
-	return _cgiRequest.cgiStartTime;
+std::string	Request::getCgiResult() const {
+	if(!_cgiRequest.has_value()) {
+		return "";
+	}
+	return _cgiRequest->cgiResult;
+}
+
+CgiRequest::timePoint	Request::getCgiStartTime() const {
+	if(!_cgiRequest.has_value()) {
+		return {};
+	}
+	return _cgiRequest->cgiStartTime;
 }

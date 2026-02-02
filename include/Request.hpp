@@ -178,6 +178,7 @@ class Request
 		int								getServerFd() const;
 		
 		// class methods directly intercat with CGI handler
+		bool							isCgiRequest() const;
 		void							setCgiResult(std::string str);
 		void        					setCgiPid(pid_t pid);
 		void        					setCgiStartTime();
