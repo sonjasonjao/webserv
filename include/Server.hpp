@@ -62,4 +62,5 @@ class Server
 		// CGI handler related methods
 		bool 			isCgiFd(int fd);
 		void 			handleCgiOutput(size_t &i);
+		void			cleanupCgi(Request* req);
 };

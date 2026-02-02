@@ -15,6 +15,7 @@
 #include <fcntl.h>
 #include <cstring>
 #include <signal.h>
+#include <sys/wait.h>
 
 volatile sig_atomic_t	endSignal = false;
 
@@ -247,6 +248,7 @@ void	Server::handleClientData(size_t& i)
 		removeClientFromPollFds(i);
 
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
+		cleanupCgi(&(*it));
 		_clients.erase(it);
 
 		return;
@@ -340,6 +342,7 @@ void	Server::handleClientData(size_t& i)
 		removeClientFromPollFds(i);
 
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
+		cleanupCgi(&(*it));
 		_clients.erase(it);
 
 		return;
@@ -455,6 +458,7 @@ void	Server::sendResponse(size_t& i)
 		removeClientFromPollFds(i);
 
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
+		cleanupCgi(&(*it));
 		_clients.erase(it);
 
 		return;
@@ -513,6 +517,7 @@ void	Server::checkTimeouts()
 				|| it->getStatus() == ClientStatus::SendTimeout) {
 				removeClientFromPollFds(i);
 				INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
+				cleanupCgi(&(*it));
 				_clients.erase(it);
 			}
 		}
@@ -601,7 +606,7 @@ void Server::handleCgiOutput(size_t &i) {
 	if (bytesRead > 0) {
 		// append data to the existing data
 		req->setCgiResult(req->getCgiResult().append(buf, bytesRead));
-	// Can be either ERROR or finnised scripot execution
+	// Can be either ERROR or finnised script execution
 	} else {
 		// script sucessfully executed
 		if (bytesRead == 0) {
@@ -619,7 +624,17 @@ void Server::handleCgiOutput(size_t &i) {
 
 		// Wait for the specific child process
 		int status;
-		waitpid(req->getCgiPid(), &status, 0);
+		pid_t result = waitpid(req->getCgiPid(), &status, WNOHANG);
+
+		if(result == 0) {
+			// child process still running
+			// 
+			INFO_LOG("CGI process execution finished : " + std::to_string(req->getCgiPid()));
+			kill(req->getCgiPid(), SIGKILL);
+			waitpid(req->getCgiPid(), &status, 0);
+		} else {
+			ERROR_LOG("Waiting for child failed: " + std::string(strerror(errno)));
+		}
 
 		// Cleanup CGI fd
 		close(cgiFd);
@@ -646,6 +661,47 @@ void Server::handleCgiOutput(size_t &i) {
 			req->reset();
 			req->setStatus(ClientStatus::ReadyForResponse);
 			req->resetSendStart();
+		}
+	}
+}
+
+void Server::cleanupCgi(Request *req) {
+	//vlidate the CGI process is still running
+	if(req->getCgiPid() != -1) {
+		int status;
+		pid_t result = waitpid(req->getCgiPid(), &status, WNOHANG);
+
+		if(result == 0) {
+			//process is still running need to stop
+			ERROR_LOG("Forced to kill the child process" + std::to_string(req->getCgiPid()));
+			kill(req->getCgiPid(), SIGKILL);
+			waitpid(req->getCgiPid(), &status, 0);
+		} else if(result == -1 && errno != ECHILD) {
+			if(errno == EINTR) {
+				// srever interupted by a signal while waiting
+				ERROR_LOG("Server interupted while waiting for child :" + std::to_string(req->getCgiPid())); 
+			} else {
+				ERROR_LOG("Unexpected error occured while waiting for child: " + std::string(strerror(errno)));
+			}
+		}
+
+		// remove from POLL_FDS and CGI_FDS
+		auto it = _cgiFdMap.begin();
+		
+		while( it != _cgiFdMap.end()) {
+			if(it->second == req) {
+				int cgiFD = it->first;
+				// extract the index from the POLL_FD
+				for(size_t i = 0; i < _pfds.size(); i++) {
+					if(_pfds[i].fd == cgiFD) {
+						removeClientFromPollFds(i);
+						break;
+					}
+				}
+				it = _cgiFdMap.erase(it);
+			} else {
+				it++;
+			}
 		}
 	}
 }
