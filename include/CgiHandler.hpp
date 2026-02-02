@@ -16,7 +16,7 @@
 #include "Utils.hpp"
 #include "Log.hpp"
 
-class CGIHandler {
+class CgiHandler {
     public:
         static std::pair<pid_t, int> execute(const std::string& scriptPath, const Request& request);
     private:

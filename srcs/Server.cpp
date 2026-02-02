@@ -2,7 +2,7 @@
 #include "Log.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
-#include "CGIHandler.hpp"
+#include "CgiHandler.hpp"
 #include <iostream>
 #include <string>
 #include <sys/socket.h>
@@ -284,7 +284,7 @@ void	Server::handleClientData(size_t& i)
 		}
 
 		// execute the CGI script
-		std::pair<pid_t, int> cgiInfo = CGIHandler::execute(path, *it);
+		std::pair<pid_t, int> cgiInfo = CgiHandler::execute(path, *it);
 
 		// Error occured
 		if (cgiInfo.first == -1 || cgiInfo.second == -1) {

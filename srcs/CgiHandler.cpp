@@ -1,4 +1,4 @@
-#include  "CGIHandler.hpp"
+#include  "CgiHandler.hpp"
 
 void freeEnvp(char** envp) {
     if (!envp) return;
@@ -8,7 +8,7 @@ void freeEnvp(char** envp) {
     delete[] envp; // Delete the array of pointers
 }
 
-std::map<std::string, std::string> CGIHandler::getEnv(const std::string& scriptPath, const Request& request) {
+std::map<std::string, std::string> CgiHandler::getEnv(const std::string& scriptPath, const Request& request) {
     std::map<std::string, std::string> env;
 
     // MEATA_VARIABLES required by the RFC 3875  
@@ -54,7 +54,7 @@ std::map<std::string, std::string> CGIHandler::getEnv(const std::string& scriptP
     return (env);
 }
 
-char** CGIHandler::mapToEnvp(const std::map<std::string, std::string>& envMap) {
+char** CgiHandler::mapToEnvp(const std::map<std::string, std::string>& envMap) {
     char** envp = new char* [envMap.size() + 1];
 
     int i = 0;
@@ -70,7 +70,7 @@ char** CGIHandler::mapToEnvp(const std::map<std::string, std::string>& envMap) {
     return (envp);
 }
 
-std::pair<pid_t, int> CGIHandler::execute(const std::string& scriptPath, const Request& request) {
+std::pair<pid_t, int> CgiHandler::execute(const std::string& scriptPath, const Request& request) {
     
     INFO_LOG("Path insdie the script will be " + scriptPath);
     
