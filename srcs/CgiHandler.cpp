@@ -1,4 +1,11 @@
-#include  "CgiHandler.hpp"
+#include "CgiHandler.hpp"
+#include "Log.hpp"
+#include <cstring>
+#include <cstdlib>
+#include <fcntl.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 void freeEnvp(char** envp) {
     if (!envp) return;
@@ -38,7 +45,7 @@ std::map<std::string, std::string> CgiHandler::getEnv(const std::string& scriptP
         env["SERVER_PORT"] = host.substr(colon + 1);
     } else {
         env["SERVER_NAME"] = host;
-        env["SERVER_PORT"] = "8080"; // we chane this to anything
+        env["SERVER_PORT"] = "8080"; // we can change this to anything
     }
 
     // SCHEME_DATA required by RFC 3875 
@@ -72,8 +79,6 @@ char** CgiHandler::mapToEnvp(const std::map<std::string, std::string>& envMap) {
 
 std::pair<pid_t, int> CgiHandler::execute(const std::string& scriptPath, const Request& request) {
     
-    INFO_LOG("Path insdie the script will be " + scriptPath);
-    
     int pipe_in[2];
     int pipe_out[2];
 
@@ -84,8 +89,11 @@ std::pair<pid_t, int> CgiHandler::execute(const std::string& scriptPath, const R
 
     // preparing enviornment and args for execv
     std::map<std::string, std::string> envMap = getEnv(scriptPath, request);
+    // making copy for persisting existance
+    std::string path = scriptPath;
+
     char** envp = mapToEnvp(envMap);
-    char* argv[] = { const_cast<char* >(scriptPath.c_str()), nullptr };
+    char* argv[] = { const_cast<char* >(path.c_str()), nullptr };
 
     pid_t pid = fork();
 
@@ -101,28 +109,43 @@ std::pair<pid_t, int> CgiHandler::execute(const std::string& scriptPath, const R
         // insdie child process
 
         // reading from the STDIN_FILENO
-        dup2(pipe_in[0], STDIN_FILENO);
+        if (dup2(pipe_in[0], STDIN_FILENO) == -1) {
+            ERROR_LOG("CGI dup2 input failed: " + std::string(strerror(errno)));
+            std::exit(1);
+        }
         // writing to the STDOUT_FILENO
-        dup2(pipe_out[1], STDOUT_FILENO);
+        if (dup2(pipe_out[1], STDOUT_FILENO) == -1 ) {
+            ERROR_LOG("CGI dup2 input failed: " + std::string(strerror(errno)));
+            std::exit(1);
+        }
 
         // closing unused file FDs
         close(pipe_in[0]);close(pipe_in[1]);
         close(pipe_out[0]);close(pipe_out[1]);
 
         // execute script
-        execve(scriptPath.c_str(), argv, envp);
+        execve(path.c_str(), argv, envp);
 
         // <-- from here, if execve fails -->
         std::cerr << "CGI execve failed: " << strerror(errno) << std::endl;
-        exit(1);
+        std::exit(1);
 
     } else {
         // inside parent process
 
         // closing read end and write end
         close(pipe_in[0]); close(pipe_out[1]);
-        // make read-edn non-blocking
-        fcntl(pipe_out[0], F_SETFL, O_NONBLOCK);
+        
+        // make read-end non-blocking
+        if(fcntl(pipe_out[0], F_SETFL, O_NONBLOCK) == -1) { 
+            ERROR_LOG("CGI fcntl failed: " + std::string(strerror(errno)));
+            close(pipe_in[1]); close(pipe_out[0]);
+            kill(pid, SIGKILL);
+            waitpid(pid, nullptr, 0);
+            freeEnvp(envp);
+            return {-1, -1};
+        }
+        
         // pass request body data to CHILD process
         if(!request.getBody().empty()) {
             write(pipe_in[1], request.getBody().c_str(), request.getBody().size());
