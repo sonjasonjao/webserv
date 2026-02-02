@@ -17,10 +17,6 @@
 
 enum ResponseCode : int;
 
-/**
- * Mandatory methods required in the subject, do we want to add more? -> Will affect
- * request parsing and possibly class member attributes.
- */
 enum class RequestMethod
 {
 	Get,
@@ -100,15 +96,6 @@ class Request
 		std::optional<std::string>		_boundary;
 		std::optional<std::string>		_uploadDir;
 
-		bool	initialSaveToDisk(const MultipartPart& part);
-		bool	saveToDisk(const MultipartPart& part);
-
-	public:
-		Request() = delete;
-		Request(int fd, int serverFd);
-		~Request() = default;
-
-		void	processRequest(std::string const &buf);
 		void	parseRequest(void);
 		void	parseRequestLine(std::string &req);
 		void	parseHeaders(std::string &str);
@@ -121,6 +108,16 @@ class Request
 		bool	validateAndAssignTarget(std::string &target);
 		bool	validateAndAssignHttp(std::string &httpVersion);
 		bool	isUniqueHeader(std::string const &key);
+		bool	initialSaveToDisk(MultipartPart const &part);
+		bool	saveToDisk(MultipartPart const &part);
+
+	public:
+		Request() = delete;
+		Request(int fd, int serverFd);
+		~Request() = default;
+
+		void	processRequest(std::string const &buf);
+
 		bool	isHeadersCompleted() const;
 		bool	fillKeepAlive();
 		bool	boundaryHasValue();
@@ -133,11 +130,10 @@ class Request
 		void	setRecvStart();
 		void	setSendStart();
 		void	setStatus(ClientStatus status);
-		void	setStatusAndKeepAlive(ClientStatus status, bool clearBuffer);
+		void	setKeepAlive(bool value);
 		void	setResponseCodeBypass(ResponseCode code);
 
 		void	resetSendStart();
-		void	resetBuffer();
 
 		void	handleFileUpload();
 		void	setUploadDir(std::string path);
@@ -150,7 +146,7 @@ class Request
 		std::string const				&getBody() const;
 		std::string const				&getTarget() const;
 		std::string const				&getBuffer() const;
-		std::string const				&getMethodString(void) const;
+		std::string const				&getMethodString() const;
 		std::string						getHost() const;
 		size_t							getContentLength() const;
 		bool							getKeepAlive() const;
