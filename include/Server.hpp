@@ -6,6 +6,8 @@
 #include <list>
 #include <deque>
 #include <unordered_map>
+#include <filesystem>
+#include <unistd.h>
 #include <poll.h>
 
 #define MAX_PENDING		20 // all of these to be decided

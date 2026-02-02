@@ -263,9 +263,27 @@ void	Server::handleClientData(size_t& i)
 	Config const	&conf = matchConfig(*it);
 
 	if(it->isCgiRequest()) {
-		// still need to add path sanitizing and validating
-		// if requesting scrpit not existing, not executable, etc.
+		// still need to add path extraction from the route
 		std::string path = "www" + it->getTarget();
+		// path validating
+
+		// check if the scrpit is exist
+		if(std::filesystem::exists(path)) {
+			ERROR_LOG("CGI script not exists" + path);
+			it->setResponseCodeBypass(NotFound);
+			it->setStatus(ClientStatus::Invalid);
+			return;
+		}
+
+		// check if the script has execution permission
+		if(access(path.c_str(), X_OK) == -1) {
+			ERROR_LOG("CGI script can not execute" + path);
+			it->setResponseCodeBypass(Forbidden);
+			it->setStatus(ClientStatus::Invalid);
+			return;
+		}
+
+		// execute the CGI script
 		std::pair<pid_t, int> cgiInfo = CGIHandler::execute(path, *it);
 
 		// Error occured
