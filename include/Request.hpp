@@ -14,6 +14,7 @@
 #define SEND_TIMEOUT			5000
 #define HEADERS_MAX_SIZE		8000
 #define CLIENT_MAX_BODY_SIZE	1000000
+#define CGI_TIMEOUT				5000
 
 enum ResponseCode : int;
 
@@ -87,8 +88,7 @@ struct MultipartPart {
 struct CgiRequest {
 	using timePoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
-	bool			isCgiRequest;
-	pid_t       	cgiPid;
+	pid_t       	cgiPid = -1;
 	timePoint   	cgiStartTime;
 	std::string		cgiResult;
 };
@@ -114,7 +114,7 @@ class Request
 		std::optional<size_t>			_contentLen;
 		stringMap						_headers;
 		struct RequestLine				_request;
-		struct CgiRequest				_cgiRequest;
+		std::optional<CgiRequest>		_cgiRequest;
 		std::string						_buffer;
 		std::string						_body;
 		std::optional<std::string>		_boundary;
@@ -178,8 +178,6 @@ class Request
 		int								getServerFd() const;
 		
 		// class methods directly intercat with CGI handler
-		bool							isCgiRequest() const;
-		void							setCgiFlag(bool flag);
 		void							setCgiResult(std::string str);
 		void        					setCgiPid(pid_t pid);
 		void        					setCgiStartTime();
