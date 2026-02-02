@@ -28,7 +28,7 @@
 				e.preventDefault();
 				let data = new FormData(filedelete);
 				const fileName = data.get("delfile");
-				fetch(fileName, {
+				const result = fetch(fileName, {
 					method: "DELETE"
 				});
 			});
