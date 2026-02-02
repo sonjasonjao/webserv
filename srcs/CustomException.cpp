@@ -3,13 +3,13 @@
 CustomException::CustomException() noexcept:
 	_error_message("unknown") {}
 
-CustomException::CustomException(const std::string& msg) noexcept:
+CustomException::CustomException(std::string const &msg) noexcept:
 	_error_message(msg) {}
 
-CustomException::CustomException(const CustomException& other) noexcept:
+CustomException::CustomException(CustomException const &other) noexcept:
 	_error_message(other._error_message) {}
 
-CustomException&	CustomException::operator=(const CustomException& other) noexcept {
+CustomException&	CustomException::operator=(CustomException const &other) noexcept {
 	if (this != &other) {
 		this->_error_message = other._error_message;
 	}

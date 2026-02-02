@@ -21,5 +21,5 @@ bool	isValidImfFixdate(std::string_view sv);
 bool	isUnsignedIntLiteral(std::string_view sv);
 bool	isPositiveDoubleLiteral(std::string_view sv);
 
-std::string	extractValue(const std::string& source, const std::string& key);
-std::string	extractQuotedValue(const std::string& source, const std::string& key);
+std::string	extractValue(std::string const &source, std::string const &key);
+std::string	extractQuotedValue(std::string const &source, std::string const &key);

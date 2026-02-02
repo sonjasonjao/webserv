@@ -448,7 +448,7 @@ bool	isPositiveDoubleLiteral(std::string_view sv)
 /**
  * helper function to extract a value from a string based on a prefix
 */
-std::string	extractValue(const std::string& source, const std::string& key)
+std::string	extractValue(std::string const &source, std::string const &key)
 {
 	size_t	pos = source.find(key);
 
@@ -465,7 +465,7 @@ std::string	extractValue(const std::string& source, const std::string& key)
 /**
  * helper function to extract a quoted value from a string based on a prefix
 */
-std::string	extractQuotedValue(const std::string& source, const std::string& key)
+std::string	extractQuotedValue(std::string const &source, std::string const &key)
 {
 	size_t	pos = source.find(key);
 
