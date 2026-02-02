@@ -1,20 +1,11 @@
 #pragma once
 
+#include "Request.hpp"
 #include <string>
 #include <map>
 #include <vector>
-#include <cstring>
-#include <iostream>
-#include <chrono>
-#include <thread>
-#include <signal.h>
-#include <sys/wait.h>
-#include <fcntl.h>
-#include <unistd.h>
-
-#include "Request.hpp"
-#include "Utils.hpp"
-#include "Log.hpp"
+#include <utility>
+#include <sys/types.h>
 
 class CgiHandler {
     public:
