@@ -108,8 +108,8 @@ class Request
 		bool	validateAndAssignTarget(std::string &target);
 		bool	validateAndAssignHttp(std::string &httpVersion);
 		bool	isUniqueHeader(std::string const &key);
-		bool	initialSaveToDisk(const MultipartPart& part);
-		bool	saveToDisk(const MultipartPart& part);
+		bool	initialSaveToDisk(MultipartPart const &part);
+		bool	saveToDisk(MultipartPart const &part);
 
 	public:
 		Request() = delete;

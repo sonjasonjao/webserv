@@ -378,7 +378,7 @@ std::string	Response::getDirectoryList(std::string_view target, std::string_view
 	stream << "<h1>" << target << "</h1>";
 
 	try {
-		for (const auto &e : std::filesystem::directory_iterator(route)) {
+		for (auto const &e : std::filesystem::directory_iterator(route)) {
 
 			std::string	name = e.path().string();
 
@@ -561,7 +561,7 @@ static void	listify(std::vector<std::string> const &vec, size_t offset, std::str
 {
 	stream << "<ul>\n";
 
-	for (const auto &v : vec) {
+	for (auto const &v : vec) {
 		stream << "<li>";
 		stream << "<a href=\"" << v.substr(offset) << "\">";
 		stream << v.substr(offset);

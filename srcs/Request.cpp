@@ -40,7 +40,7 @@ Request::Request(int fd, int serverFd)
  * been received completely (ending with "\r\n\r\n"), we assume the request is partial. In that
  * case, we go back to poll() to wait for the rest of the response before parsing.
  */
-void	Request::processRequest(std::string const& buf)
+void	Request::processRequest(std::string const &buf)
 {
 	_buffer += buf;
 
@@ -124,7 +124,7 @@ void	Request::checkReqTimeouts()
  * Helper to extract a string until delimiter from buffer. Returns the extracted string
  * and updates _buffer by removing that extracted string.
  */
-std::string	extractFromLine(std::string& orig, std::string delim)
+std::string	extractFromLine(std::string &orig, std::string delim)
 {
 	auto		it	= orig.find(delim);
 	std::string	tmp	= "";
@@ -245,7 +245,7 @@ void	Request::parseRequestLine(std::string &req)
  * Parses and stores each header as key and value to an unordered map until the end
  * of headers marked with "\r\n\r\n".
  */
-void	Request::parseHeaders(std::string& str)
+void	Request::parseHeaders(std::string &str)
 {
 	std::string	line;
 	size_t		headEnd = str.find("\r\n\r\n");
@@ -267,7 +267,9 @@ void	Request::parseHeaders(std::string& str)
 		}
 
 		line = extractFromLine(str, CRLF);
-		const size_t	colonPos = line.find(":");
+
+		size_t const	colonPos = line.find(":");
+
 		// If header section has a line that doesn't include ':', it's a suspicious request
 		if (colonPos == std::string::npos) {
 			_status = ClientStatus::Error;
@@ -276,11 +278,13 @@ void	Request::parseHeaders(std::string& str)
 		}
 
 		std::string	key = line.substr(0, colonPos);
+
 		for (size_t i = 0; i < key.size(); i++)
 			key[i] = std::tolower(static_cast<unsigned char>(key[i]));
 
-		std::string value = line.substr(colonPos + 1, line.size() - (colonPos + 1));
-		auto realStart = value.find_first_not_of(' ');
+		std::string	value		= line.substr(colonPos + 1, line.size() - (colonPos + 1));
+		auto		realStart	= value.find_first_not_of(' ');
+
 		// No header value after key, ':', and space(s) means invalid request
 		if (realStart == std::string::npos) {
 			_status = ClientStatus::Invalid;
@@ -302,6 +306,7 @@ void	Request::parseHeaders(std::string& str)
 
 		std::istringstream	values(value);
 		std::string			oneValue;
+
 		/* For Content-Type, possible multiple values on same line are separated
 		with a semicolon, for other headers, with a comma*/
 		if (key == "content-type") {
@@ -351,7 +356,7 @@ void	Request::parseChunked()
 		while (crlfPos != std::string::npos) {
 			try {
 				len = std::stoi(_buffer.substr(0, crlfPos), 0, 16);
-			} catch (const std::exception& e) {
+			} catch (std::exception const &e) {
 				_status = ClientStatus::Invalid;
 				return;
 			}
@@ -378,7 +383,7 @@ void	Request::parseChunked()
 			&& _buffer.substr(crlfPos - 1, 5) != "0\r\n\r\n") {
 			try {
 				len = std::stoi(_buffer.substr(0, crlfPos), 0, 16);
-			} catch (const std::exception& e) {
+			} catch (std::exception const &e) {
 				_status = ClientStatus::Invalid;
 				return;
 			}
@@ -482,7 +487,7 @@ bool	Request::validateHeaders()
 	if (it != _headers.end()) {
 		try {
 			_contentLen = std::stoi(it->second.front());
-		} catch(const std::exception& e) {
+		} catch(std::exception const &e) {
 			return false;
 		}
 	}
@@ -515,7 +520,7 @@ bool	Request::validateHeaders()
 /**
  * Defines headers that can have only one value, and checks if any of them has more.
  */
-bool	Request::isUniqueHeader(std::string const& key)
+bool	Request::isUniqueHeader(std::string const &key)
 {
 	std::unordered_set<std::string>	uniques = {
 		"access-control-request-method",
@@ -560,7 +565,7 @@ bool	Request::isUniqueHeader(std::string const& key)
 /**
  * Validates target path characters.
  */
-bool	Request::areValidChars(std::string& s)
+bool	Request::areValidChars(std::string &s)
 {
 	for (size_t i = 0; i < s.size(); i++) {
 		if (s[i] < 32 || s[i] >= 127 || s[i] == '<' || s[i] == '>'
@@ -578,7 +583,7 @@ bool	Request::areValidChars(std::string& s)
  * In case the URI includes '?', we use it as a separator to get the query.
  * Later in CGI handler, the possible query will be split with '&'s.
  */
-bool	Request::validateAndAssignTarget(std::string& target)
+bool	Request::validateAndAssignTarget(std::string &target)
 {
 	if (target.size() == 1 && target != "/")
 		return false;
@@ -607,7 +612,7 @@ bool	Request::validateAndAssignTarget(std::string& target)
 /**
  * Only accepts HTTP/1.0 and HTTP/1.1 as valid versions on the request line.
  */
-bool	Request::validateAndAssignHttp(std::string& httpVersion)
+bool	Request::validateAndAssignHttp(std::string &httpVersion)
 {
 	if (!std::regex_match(httpVersion, std::regex("HTTP/1.([01])")))
 		return false;
@@ -718,7 +723,7 @@ std::string	Request::getHost() const {
 
 	try {
 		host = (_headers.at("host")).front();
-	} catch(const std::exception& e) {}
+	} catch(std::exception const &e) {}
 
 	return host;
 }
@@ -889,7 +894,7 @@ void	Request::handleFileUpload()
 	}
 }
 
-bool	Request::saveToDisk(const MultipartPart& part)
+bool	Request::saveToDisk(MultipartPart const &part)
 {
 	_uploadFD->write(part.data.c_str(), part.data.size());
 
@@ -904,7 +909,7 @@ bool	Request::saveToDisk(const MultipartPart& part)
 	return true;
 }
 
-bool	Request::initialSaveToDisk(const MultipartPart& part)
+bool	Request::initialSaveToDisk(MultipartPart const &part)
 {
 	// if the upload directory has not set in the config file upload operation is forbidden
 	if(!_uploadDir.has_value()) {
@@ -919,7 +924,7 @@ bool	Request::initialSaveToDisk(const MultipartPart& part)
 		if (!std::filesystem::exists(_uploadDir.value()))
 			std::filesystem::create_directories(_uploadDir.value());
 
-	} catch (const std::filesystem::filesystem_error& e) {
+	} catch (std::filesystem::filesystem_error const &e) {
 		ERROR_LOG("Failed to create upload directory: " + std::string(e.what()));
 		_responseCodeBypass = InternalServerError;
 		_status = ClientStatus::Invalid;

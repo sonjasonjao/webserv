@@ -9,10 +9,11 @@ protected:
 
 public:
 	CustomException() noexcept;
-	CustomException(const std::string& msg) noexcept;
-	CustomException(const CustomException& other) noexcept;
-	CustomException& operator=(const CustomException& other) noexcept;
+	CustomException(std::string const &msg) noexcept;
+	CustomException(CustomException const &other) noexcept;
 	~CustomException() noexcept;
 
-	const char* what() const noexcept;
+	CustomException	&operator=(CustomException const &other) noexcept;
+
+	const char	*what() const noexcept;
 };
