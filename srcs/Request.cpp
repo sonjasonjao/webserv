@@ -189,8 +189,7 @@ void	Request::parseRequest()
 			_status = ClientStatus::WaitingData;
 		} else if (_body.size() == _contentLen.value())
 			_status = ClientStatus::CompleteReq;
-	}
-	else if (_chunked)
+	} else if (_chunked)
 		parseChunked();
 
 	printData();
@@ -319,8 +318,7 @@ void	Request::parseHeaders(std::string &str)
 					oneValue = oneValue.substr(1);
 				_headers[key].emplace_back(oneValue);
 			}
-		}
-		else {
+		} else {
 			if (value.find(",") == std::string::npos) {
 				_headers[key].emplace_back(value);
 				continue;
