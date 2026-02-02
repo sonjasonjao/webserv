@@ -32,7 +32,7 @@ void	handleSignal(int sig)
  * At construction, server starts listening to SIGINT, _configs will be fetched from parser,
  * and grouped for correct server socket creation.
  */
-Server::Server(Parser& parser)
+Server::Server(Parser &parser)
 {
 	signal(SIGINT, handleSignal);
 	_configs = parser.getServerConfigs();
@@ -43,7 +43,7 @@ Server::Server(Parser& parser)
  * Loops through existing serverGroups and checks whether any of them shares the same
  * IP and port with this current config.
  */
-bool	Server::isGroupMember(Config& conf)
+bool	Server::isGroupMember(Config &conf)
 {
 	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++) {
 		if (it->defaultConf->host == conf.host && it->defaultConf->port == conf.port) {
@@ -207,7 +207,7 @@ void	Server::handleNewClient(int listener)
  * Finds the Request object of the client that poll() has recognized to have sent something,
  * calls recv() to get the data, and parses the request.
  */
-void	Server::handleClientData(size_t& i)
+void	Server::handleClientData(size_t &i)
 {
 	if (_clients.empty())
 		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
@@ -346,7 +346,7 @@ Config const	&Server::matchConfig(Request const &req)
  * critical error in request, timeout, or keepAlive being false), this function closes its fd
  * and removes it from _pfds.
  */
-void	Server::removeClientFromPollFds(size_t& i)
+void	Server::removeClientFromPollFds(size_t &i)
 {
 	INFO_LOG("Closing fd " + std::to_string(_pfds[i].fd));
 	close(_pfds[i].fd);
@@ -373,7 +373,7 @@ void	Server::removeClientFromPollFds(size_t& i)
  * being false, disconnects and removes the client; in case of keepAlive, sets client status
  * back to WaitingData.
  */
-void	Server::sendResponse(size_t& i)
+void	Server::sendResponse(size_t &i)
 {
 	auto	it = getRequestByFd(_pfds[i].fd);
 	if (it == _clients.end())
@@ -507,7 +507,7 @@ void	Server::handleConnections()
 	checkTimeouts();
 }
 
-std::vector<Config> const&	Server::getConfigs() const
+std::vector<Config> const	&Server::getConfigs() const
 {
 	return _configs;
 }
