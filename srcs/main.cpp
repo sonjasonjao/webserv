@@ -53,11 +53,11 @@ int	main(int argc, char **argv)
 		Pages::loadDefaults();
 		server.run();
 
-	} catch (const Parser::ParserException& e) {
+	} catch (Parser::ParserException const &e) {
 		std::cerr << "Exiting\n";
 
 		return EXIT_FAILURE;
-	} catch (const std::exception& e) {
+	} catch (std::exception const &e) {
 		std::cerr << "Exiting\n";
 
 		return EXIT_FAILURE;

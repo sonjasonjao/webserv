@@ -26,18 +26,18 @@ struct Token {
 	std::vector<Token>	children;
 };
 
-void	printToken(const Token& root, int indent = 0);
+void	printToken(Token const &root, int indent = 0);
 
 std::string	typeToString(TokenType type);
 std::string	trim(std::string_view sv);
-std::string	getKey(const Token& token);
-std::string	removeQuotes(const std::string& str);
+std::string	getKey(Token const &token);
+std::string	removeQuotes(std::string const &str);
 
 std::vector<std::string>	splitElements(std::string_view sv);
 
-size_t	unquotedDelimiter(std::string_view sv, const char c);
+size_t	unquotedDelimiter(std::string_view sv, char const c);
 
-TokenType	getTokenType(const std::string& str);
+TokenType	getTokenType(std::string const &str);
 
-Token	createToken(const std::string& str);
-Token	createToken(const std::string& str, TokenType type);
+Token	createToken(std::string const &str);
+Token	createToken(std::string const &str, TokenType type);

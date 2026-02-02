@@ -17,10 +17,6 @@
 
 enum ResponseCode : int;
 
-/**
- * Mandatory methods required in the subject, do we want to add more? -> Will affect
- * request parsing and possibly class member attributes.
- */
 enum class RequestMethod
 {
 	Get,
@@ -32,7 +28,7 @@ enum class RequestMethod
 /**
  * WaitingData is set for a new client by default, and ReadyForResponse whenever a response is
  * formed and ready to be sent from server. Error indicates there is a critical error in the HTTP
- * request, and thus client must be immediately disconnected.
+ * request, and thus client must be immediately disconnected without sending a response.
  */
 enum class ClientStatus
 {
@@ -100,15 +96,6 @@ class Request
 		std::optional<std::string>		_boundary;
 		std::optional<std::string>		_uploadDir;
 
-		bool	initialSaveToDisk(const MultipartPart& part);
-		bool	saveToDisk(const MultipartPart& part);
-
-	public:
-		Request() = delete;
-		Request(int fd, int serverFd);
-		~Request() = default;
-
-		void	processRequest(std::string const &buf);
 		void	parseRequest(void);
 		void	parseRequestLine(std::string &req);
 		void	parseHeaders(std::string &str);
@@ -121,6 +108,16 @@ class Request
 		bool	validateAndAssignTarget(std::string &target);
 		bool	validateAndAssignHttp(std::string &httpVersion);
 		bool	isUniqueHeader(std::string const &key);
+		bool	initialSaveToDisk(MultipartPart const &part);
+		bool	saveToDisk(MultipartPart const &part);
+
+	public:
+		Request() = delete;
+		Request(int fd, int serverFd);
+		~Request() = default;
+
+		void	processRequest(std::string const &buf);
+
 		bool	isHeadersCompleted() const;
 		bool	fillKeepAlive();
 		bool	boundaryHasValue();
@@ -133,10 +130,10 @@ class Request
 		void	setRecvStart();
 		void	setSendStart();
 		void	setStatus(ClientStatus status);
+		void	setKeepAlive(bool value);
 		void	setResponseCodeBypass(ResponseCode code);
 
 		void	resetSendStart();
-		void	resetBuffer();
 
 		void	handleFileUpload();
 		void	setUploadDir(std::string path);

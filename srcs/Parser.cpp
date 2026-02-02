@@ -6,7 +6,7 @@
 #include <filesystem>
 #include <stack>
 
-Parser::Parser(const std::string& fileName)
+Parser::Parser(std::string const &fileName)
 	:	_fileName(fileName), _file()
 {
 	std::error_code ec;
@@ -98,17 +98,16 @@ void Parser::tokenizeFile()
 	 * configuration file should contain at least one server configuration
 	 * anything other than "server" as the key will throw an error
 	*/
-	for (const auto& node : root.children) {
+	for (auto const &node : root.children) {
 		// check the if the node is a server block
 		if (getKey(node) == "server") {
 			// if node has a value
 			if (node.children.size() > 1) {
 				//extract first children
-				const Token& content = node.children[1];
+				Token const	&content = node.children[1];
 
 				if (!content.children.empty()) {
-
-					for (const auto& block : content.children) {
+					for (auto const &block : content.children) {
 
 						// first isolate all the ports related to a server config
 						std::vector<std::string> collection = getCollectionBykey(block, "listen");
@@ -121,7 +120,7 @@ void Parser::tokenizeFile()
 							throw ParserException(ERROR_LOG("Missing ports in config files!"));
 						}
 
-						for (auto& item : collection) {
+						for (auto &item : collection) {
 							if (!isValidPort(item)) {
 								_serverConfigs.clear();
 								throw ParserException(ERROR_LOG("Invalid port value: " + item));
@@ -130,7 +129,6 @@ void Parser::tokenizeFile()
 								_serverConfigs.emplace_back(config);
 							}
 						}
-
 					}
 				} else {
 					// server key exists but has no content: treat as malformed configuration
@@ -185,7 +183,7 @@ size_t	Parser::getNumberOfServerConfigs()
  * @return	value of the config created on the fly, will recreate the similar
  *			data in the respective vector, temporary data so no reference
  */
-Config Parser::convertToServerData(const Token& block)
+Config Parser::convertToServerData(Token const &block)
 {
 	Config config;
 
@@ -407,7 +405,7 @@ Config Parser::convertToServerData(const Token& block)
  * @param root, key block of data in the AST need to convert
  * @return vector of strings
  */
-std::vector<std::string>	Parser::getCollectionBykey(const Token& root, const std::string& key)
+std::vector<std::string>	Parser::getCollectionBykey(Token const &root, std::string const &key)
 {
 	std::vector<std::string> collection;
 	for (auto item : root.children) {

@@ -104,8 +104,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		formResponse();
 		debugPrintResponseContent();
 		return;
-	}
-	else if (!_route.original.empty())
+	} else if (!_route.original.empty())
 		INFO_LOG("Routing " + _reqTargetSanitized + " to " + _target);
 
 	/* Directory targets */
@@ -297,16 +296,17 @@ void	Response::routing()
 void	Response::handleDelete()
 {
 	_target = _reqTargetSanitized;
-	DEBUG_LOG("Target is " + _target);
 
 	// If uploadDir is not given in config, file deletion is disabled
 	if (!_conf.uploadDir.has_value()) {
 		_statusCode = Forbidden;
 		return;
 	}
-	/* Target will be modified if needed for correct format: '/' is removed
-	from start, but is needed between uploadDir and target given in request*/
+
 	std::string	uploadDir = _conf.uploadDir.value();
+
+	// Target will be modified if needed for correct format: '/' is removed
+	// from start, but is needed between uploadDir and target given in request
 	if (_target.length() > 1 && _target[0] == '/')
 		_target = _target.substr(1);
 	if (uploadDir.back() == '/')
@@ -314,25 +314,31 @@ void	Response::handleDelete()
 	_target = uploadDir + "/" + _target;
 
 	if (!resourceExists(_target)) {
-		INFO_LOG("Response: Resource " + _target + " could not be found");
+		INFO_LOG("Resource '" + _target + "' could not be found");
 		_statusCode = NotFound; // do we disconnect client?
+
+		return;
 	}
-	else {
-		if (std::filesystem::is_directory(_target)) {
-			INFO_LOG("Resource " + _target + " is a directory");
-			_statusCode = Forbidden;
-		} else {
-			try {
-				bool ret = std::filesystem::remove(_target);
-				if (!ret)
-					throw std::runtime_error("");
-				INFO_LOG("Resource " + _target + " deleted");
-				_statusCode = NoContent;
-			} catch (std::exception &e) {
-				INFO_LOG("Resource " + _target + " could not be deleted");
-				_statusCode = InternalServerError; // do we disconnect client?
-			}
-		}
+
+	if (std::filesystem::is_directory(_target)) {
+		INFO_LOG("Resource '" + _target + "' is a directory");
+		_statusCode = Forbidden;
+
+		return;
+	}
+
+	try {
+		bool	ret = std::filesystem::remove(_target);
+
+		if (!ret)
+			throw std::runtime_error("");
+
+		INFO_LOG("Resource " + _target + " deleted");
+		_statusCode = NoContent;
+	} catch (std::exception &e) {
+		INFO_LOG("Resource " + _target + " could not be deleted");
+		_statusCode = InternalServerError; // do we disconnect client?
+		_diagnosticMessage = "Target '" + _target + "' could not be deleted";
 	}
 }
 
@@ -371,7 +377,7 @@ std::string	Response::getDirectoryList(std::string_view target, std::string_view
 	stream << "<h1>" << target << "</h1>";
 
 	try {
-		for (const auto &e : std::filesystem::directory_iterator(route)) {
+		for (auto const &e : std::filesystem::directory_iterator(route)) {
 
 			std::string	name = e.path().string();
 
@@ -554,7 +560,7 @@ static void	listify(std::vector<std::string> const &vec, size_t offset, std::str
 {
 	stream << "<ul>\n";
 
-	for (const auto &v : vec) {
+	for (auto const &v : vec) {
 		stream << "<li>";
 		stream << "<a href=\"" << v.substr(offset) << "\">";
 		stream << v.substr(offset);
