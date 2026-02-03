@@ -192,7 +192,9 @@ void	Request::parseRequest()
 	} else if (_chunked)
 		parseChunked();
 
+	#if DEBUG_LOGGING
 	printData();
+	#endif
 }
 
 /**
@@ -205,9 +207,9 @@ void	Request::parseRequestLine(std::string &req)
 	std::vector<std::string>	methods = { "GET", "POST", "DELETE" };
 	size_t						i = 0;
 
-	method = extractFromLine(req, " ");
-	target = extractFromLine(req, " ");
-	httpVersion = req;
+	method		= extractFromLine(req, " ");
+	target 		= extractFromLine(req, " ");
+	httpVersion	= req;
 
 	if (method.empty() || target.empty() || httpVersion.empty()) {
 		_status = ClientStatus::Invalid;
