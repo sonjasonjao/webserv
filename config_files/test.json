@@ -15,8 +15,8 @@
                 "/"          : "www/pages",
                 "secret"     : "/home/jvarila/Documents/minimal.html",
                 "img"        : "www/images",
-                "uploadfile" : "www/pages/upload.html",
-                "deletefile" : "www/pages/delete.html",
+                "upload"     : "www/pages/upload.html",
+                "delete"     : "www/pages/delete.html",
                 "uploads"    : "www/uploads"
             },
 
