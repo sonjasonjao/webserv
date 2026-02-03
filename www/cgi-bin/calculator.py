@@ -17,11 +17,8 @@ def main():
         body = "Error: Invalid numbers"
         status = "400 Bad Request"
 
-    # 2. Print Headers using \r\n (HTTP standard)
-    sys.stdout.write(f"Status: {status}\r\n")
     sys.stdout.write("Content-Type: text/plain\r\n")
-    # len() on a string is safe here since result is numeric or ASCII
-    sys.stdout.write(f"Content-Length: {len(body)}\r\n")
+    sys.stdout.write(f"Content-Length: {len(body)}\r\n\r\n")
 
     # 3. THE MANDATORY BLANK LINE
     sys.stdout.write("\r\n")

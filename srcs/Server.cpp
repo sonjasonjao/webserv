@@ -266,6 +266,7 @@ void	Server::handleClientData(size_t &i)
             it->setResponseCodeBypass(Forbidden);
             it->setStatus(ClientStatus::Invalid);
             prepareResponse(*it, conf);
+            _pfds[i].events |= POLLOUT;
             return;
         }
 
@@ -628,7 +629,6 @@ void Server::handleCgiOutput(size_t &i) {
         if (bytesRead == 0)
         {
             INFO_LOG("CGI finished execution for fd " + std::to_string(cgiFd));
-            // ERROR occured
         }
         else
         {
@@ -671,22 +671,21 @@ void Server::handleCgiOutput(size_t &i) {
 		removeClientFromPollFds(i);
 
 		if (req->getStatus() != ClientStatus::Invalid) {
-			// Find the client FD to enable POLLOUT
-			int clientFd = req->getFd();
-			for (auto& pfd : _pfds) {
+            // Setup for response
+            Config const &conf = matchConfig(*req);
+            prepareResponse(*req, conf);
+
+            // Find the client FD to enable POLLOUT
+            int clientFd = req->getFd();
+            for (auto& pfd : _pfds) {
 				if (pfd.fd == clientFd) {
 					pfd.events |= POLLOUT;
 					break;
 				}
-			}
-
-			// Setup for response
-			Config const &conf = matchConfig(*req); 
-			_responses[req->getFd()].emplace_back(Response(*req, conf));
-			req->reset();
-			req->setStatus(ClientStatus::ReadyForResponse);
-			req->resetSendStart();
-		}
+            }
+            req->setIdleStart();
+            req->setSendStart();
+        }
     }
 }
 
@@ -698,19 +697,21 @@ void Server::cleanupCgi(Request *req) {
 
 		if(result == 0) {
 			//process is still running need to stop
-			ERROR_LOG("Forced to kill the child process" + std::to_string(req->getCgiPid()));
-			kill(req->getCgiPid(), SIGKILL);
-			waitpid(req->getCgiPid(), &status, 0);
+            ERROR_LOG("Forced to kill the child process " + std::to_string(req->getCgiPid()));
+            kill(req->getCgiPid(), SIGKILL);
+            waitpid(req->getCgiPid(), &status, 0);
 		} else if(result == -1 && errno != ECHILD) {
 			if(errno == EINTR) {
-				// srever interupted by a signal while waiting
-				ERROR_LOG("Server interupted while waiting for child :" + std::to_string(req->getCgiPid())); 
-			} else {
-				ERROR_LOG("Unexpected error occured while waiting for child: " + std::string(strerror(errno)));
-			}
-		}
+                // server interrupted by a signal while waiting
+                ERROR_LOG("Server interrupted while waiting for child: " + std::to_string(req->getCgiPid()));
+            }
+            else
+            {
+                ERROR_LOG("Unexpected error occurred while waiting for child: " + std::string(strerror(errno)));
+            }
+        }
 
-		// remove from POLL_FDS and CGI_FDS
+        // remove from POLL_FDS and CGI_FDS
 		auto it = _cgiFdMap.begin();
 		
 		while( it != _cgiFdMap.end()) {

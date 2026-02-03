@@ -74,11 +74,10 @@ struct MultipartPart {
 };
 
 /**
- * This structure storesall the data needed to process and form a response related to CGI
- * handle process
+ * This structure stores all the data needed to process and form a response related to CGI
+ * request handling.
  *
- * cgiRequest		Boolen flag to indetify and label CGI request
- * cgiPid			Child process ID which excute the CGI script
+ * cgiPid			Child process ID which executes the CGI script
  * cgiStartTime		Script execution start time, tackle possible infinite loops
  * cgiResult		Output from the child process
  */

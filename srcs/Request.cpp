@@ -213,9 +213,9 @@ void	Request::parseRequest()
 	} else if (_chunked)
 		parseChunked();
 
-	
-	// set cgiRequest flag to indentify in POLL event loop
-    if (_request.target.find("cgi-bin") != std::string::npos)
+    // set cgiRequest flag to indentify in POLL event loop
+    // Check for /cgi-bin/ as a path segment
+    if (_request.target.find("/cgi-bin/") != std::string::npos)
     {
         _cgiRequest.emplace();
     }

@@ -1,6 +1,7 @@
 #include "Response.hpp"
 #include "Request.hpp"
 #include "Utils.hpp"
+#include "CgiHandler.hpp"
 #include "Log.hpp"
 #include "Pages.hpp"
 #include <algorithm>
@@ -119,11 +120,15 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		return;
 	}
 
-	locateTargetAndSetStatusCode();
+    // if request is not a CGI request, then try to locate the resource on the disk
+    if (!req.isCgiRequest())
+    {
+        locateTargetAndSetStatusCode();
+    }
 
-	formResponse(); /* ---------- Forming the contents of the response buffer */
+    formResponse(); /* ---------- Forming the contents of the response buffer */
 
-	debugPrintResponseContent();
+    debugPrintResponseContent();
 }
 
 /* --------------------------------------------------------- Public functions */
@@ -202,50 +207,63 @@ void	Response::formResponse()
 		}
 	}
 
-	if(this->getRequestInfo().isCgiRequest()) {
-        std::string result = this->getRequestInfo().getCgiResult(), value;
-        if (auto pos = result.find(CRLF); pos != std::string::npos)
+    if (this->getRequestInfo().isCgiRequest() && _statusCode == Unassigned)
+    {
+        CgiResponse res = CgiHandler::parseCgiOutput(this->getRequestInfo().getCgiResult());
+        if (res.body.empty() && res.status.empty() && res.contentLength == "0")
         {
-            value = result.substr(pos + 2);
+            ERROR_LOG("Malformed CGI output or script crashed!");
+            _statusCode = InternalServerError;
+            // Fall through to error handling below
         }
-        // only need to add the start line, rest of the data generating inside the script
-		_startLine		= _req.getHttpVersion() + " 200 OK";
-        _content = _startLine + CRLF + value;
-        return;
-	}
+        else
+        {
+            _startLine = _req.getHttpVersion() + " " + res.status;
+            _contentType = res.contentType;
+            _headerSection += "Content-Type: " + _contentType + std::string(CRLF);
+            _headerSection += "Content-Length: " + res.contentLength + CRLF;
+            _content = _startLine + CRLF + _headerSection + CRLF + res.body;
+            return;
+        }
+    }
 
-	if (_statusCode == 200)
-		_contentType = getContentType(_target);
-	else
-		_contentType = "text/html";
+    if (_statusCode == 200)
+    {
+        _contentType = getContentType(_target);
+    }
+    else
+    {
+        _contentType = "text/html";
+    }
 
-	_headerSection += "Content-Type: " + _contentType + std::string(CRLF);
+    _headerSection += "Content-Type: " + _contentType + std::string(CRLF);
 
-	switch (_statusCode) {
-		case 200:
-			_startLine	= _req.getHttpVersion() + " 200 OK";
-			if (!_target.empty() && _target[0] == '/')
-				_body	= Pages::getPageContent(_target);
-			else if (!_target.empty())
-				_body	= Pages::getPageContent(getAbsPath(_target));
-			else
-				_body	= getResponsePageContent("200", _conf);
-		break;
-		case 204:
-			_startLine	= _req.getHttpVersion() + " 204 No Content";
-			_body		= getResponsePageContent("204", _conf);
-		break;
-		case 207:
-			_startLine	= _req.getHttpVersion() + " 207 Created";
-			_body		= getResponsePageContent("207", _conf);
-		break;
-		case 400:
-			_startLine	= _req.getHttpVersion() + " 400 Bad Request";
-			_body		= getResponsePageContent("400", _conf);
-		break;
-		case 403:
-			_startLine	= _req.getHttpVersion() + " 403 Forbidden";
-			_body		= getResponsePageContent("403", _conf);
+    switch (_statusCode)
+    {
+    case 200:
+        _startLine = _req.getHttpVersion() + " 200 OK";
+        if (!_target.empty() && _target[0] == '/')
+            _body = Pages::getPageContent(_target);
+        else if (!_target.empty())
+            _body = Pages::getPageContent(getAbsPath(_target));
+        else
+            _body = getResponsePageContent("200", _conf);
+        break;
+    case 204:
+        _startLine = _req.getHttpVersion() + " 204 No Content";
+        _body = getResponsePageContent("204", _conf);
+        break;
+    case 207:
+        _startLine = _req.getHttpVersion() + " 207 Created";
+        _body = getResponsePageContent("207", _conf);
+        break;
+    case 400:
+        _startLine = _req.getHttpVersion() + " 400 Bad Request";
+        _body = getResponsePageContent("400", _conf);
+        break;
+    case 403:
+        _startLine = _req.getHttpVersion() + " 403 Forbidden";
+        _body = getResponsePageContent("403", _conf);
 		break;
 		case 404:
 			_startLine	= _req.getHttpVersion() + " 404 Not Found";
@@ -278,11 +296,11 @@ void	Response::formResponse()
 					_body.insert(pos, "<p>" + _diagnosticMessage + "</p>");
 			}
 		break;
-	}
+        }
 
-	_headerSection += "Content-Length: " + std::to_string(_body.length()) + CRLF;
+        _headerSection += "Content-Length: " + std::to_string(_body.length()) + CRLF;
 
-	_content = _startLine + CRLF + _headerSection + CRLF + _body;
+        _content = _startLine + CRLF + _headerSection + CRLF + _body;
 }
 
 void	Response::routing()

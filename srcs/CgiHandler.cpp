@@ -18,7 +18,7 @@ void freeEnvp(char** envp) {
 std::map<std::string, std::string> CgiHandler::getEnv(const std::string& scriptPath, const Request& request) {
     std::map<std::string, std::string> env;
 
-    // MEATA_VARIABLES required by the RFC 3875  
+    // META_VARIABLES required by the RFC 3875
     env["REQUEST_METHOD"]       = (request.getRequestMethod() == RequestMethod::Post ? "POST" : (request.getRequestMethod() == RequestMethod::Get ? "GET" : "UNKNOWN"));
     env["QUERY_STRING"]         = request.getQuery().has_value() ? request.getQuery().value() : "";
     env["CONTENT_LENGTH"]       = std::to_string(request.getBody().size());
@@ -35,7 +35,7 @@ std::map<std::string, std::string> CgiHandler::getEnv(const std::string& scriptP
         env["CONTENT_TYPE"] = ct->front();
     }
 
-    // SREVER_DATA required by the RFC 3875
+    // SERVER_DATA required by the RFC 3875
     std::string host = request.getHost();
     size_t colon = host.find(':');
     if (colon != std::string::npos) {
@@ -82,18 +82,14 @@ std::pair<pid_t, int> CgiHandler::execute(const std::string& scriptPath, const R
 
     if(pipe(pipe_in) == -1 || pipe(pipe_out) == -1) {
         ERROR_LOG("CGI Pipe failed!");
-        if (pipe(pipe_in) == -1)
+        // Clean up pipe_in if pipe_out failed
+        if (pipe_in[0] != -1)
         {
-            ERROR_LOG("CGI Pipe failed!");
-            return {-1, -1};
-        }
-        if (pipe(pipe_out) == -1)
-        {
-            ERROR_LOG("CGI Pipe failed!");
             close(pipe_in[0]);
             close(pipe_in[1]);
-            return {-1, -1};
         }
+        return {-1, -1};
+    }
     std::map<std::string, std::string> envMap = getEnv(scriptPath, request);
     // making copy for persisting existance
     std::string path = scriptPath;
@@ -113,16 +109,15 @@ std::pair<pid_t, int> CgiHandler::execute(const std::string& scriptPath, const R
 
     if(pid == 0) {
         // insdie child process
-
-        if (dup2(pipe_out[1], STDOUT_FILENO) == -1)
+        // Redirect stdin to read from pipe_in
+        if (dup2(pipe_in[0], STDOUT_FILENO) == -1)
         {
-            ERROR_LOG("CGI dup2 output failed: " + std::string(strerror(errno)));
-            std::exit(1);
+            ERROR_LOG("CGI dup2 input failed: " + std::string(strerror(errno)));
             std::exit(1);
         }
-        // writing to the STDOUT_FILENO
+        // Redirect stdout to write to pipe_out
         if (dup2(pipe_out[1], STDOUT_FILENO) == -1 ) {
-            ERROR_LOG("CGI dup2 input failed: " + std::string(strerror(errno)));
+            ERROR_LOG("CGI dup2 output failed: " + std::string(strerror(errno)));
             std::exit(1);
         }
 
@@ -147,34 +142,102 @@ std::pair<pid_t, int> CgiHandler::execute(const std::string& scriptPath, const R
         if(fcntl(pipe_out[0], F_SETFL, O_NONBLOCK) == -1) { 
             ERROR_LOG("CGI fcntl failed: " + std::string(strerror(errno)));
             close(pipe_in[1]); close(pipe_out[0]);
-            if (!request.getBody().empty())
-            {
-                const char *data = request.getBody().c_str();
-                size_t remaining = request.getBody().size();
-                while (remaining > 0)
-                {
-                    ssize_t written = write(pipe_in[1], data, remaining);
-                    if (written == -1)
-                    {
-                        if (errno == EINTR)
-                            continue;
-                        ERROR_LOG("CGI write failed: " + std::string(strerror(errno)));
-                        break;
-                    }
-                    data += written;
-                    remaining -= written;
-                }
-            }
+            kill(pid, SIGKILL);
+            waitpid(pid, nullptr, 0);
             return {-1, -1};
         }
-        
+
         // pass request body data to CHILD process
-        if(!request.getBody().empty()) {
-            write(pipe_in[1], request.getBody().c_str(), request.getBody().size());
+        if (!request.getBody().empty())
+        {
+            const char *data = request.getBody().c_str();
+            size_t remaining = request.getBody().size();
+            while (remaining > 0)
+            {
+                ssize_t written = write(pipe_in[1], data, remaining);
+                if (written == -1)
+                {
+                    if (errno == EINTR)
+                        continue;
+                    ERROR_LOG("CGI write failed: " + std::string(strerror(errno)));
+                    break;
+                }
+                data += written;
+                remaining -= written;
+            }
         }
         close(pipe_in[1]);
         freeEnvp(envp);
         return { pid, pipe_out[0] };
     }
     return { -1, -1 };
+}
+
+CgiResponse CgiHandler::parseCgiOutput(const std::string &rawOutput)
+{
+    CgiResponse response;
+
+    // Separate Header section from Body section
+    size_t bodyPos = rawOutput.find("\r\n\r\n");
+    size_t headerEndLen = 4;
+
+    if (bodyPos == std::string::npos)
+    {
+        bodyPos = rawOutput.find("\n\n");
+        headerEndLen = 2;
+    }
+
+    // Handle case where no header/body separator is found
+    if (bodyPos == std::string::npos)
+    {
+        response.body = rawOutput;
+        response.contentLength = std::to_string(response.body.length());
+        return response;
+    }
+
+    std::string headerSection = rawOutput.substr(0, bodyPos);
+    response.body = rawOutput.substr(bodyPos + headerEndLen);
+
+    std::string line;
+    size_t start = 0;
+    size_t end;
+
+    while ((end = headerSection.find('\n', start)) != std::string::npos)
+    {
+        line = headerSection.substr(start, end - start);
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+
+        size_t colonPos = line.find(':');
+        if (colonPos != std::string::npos)
+        {
+            std::string key = line.substr(0, colonPos);
+            std::string value = line.substr(colonPos + 1);
+
+            // Trim leading/trailing spaces from value
+            size_t first = value.find_first_not_of(" ");
+            size_t last = value.find_last_not_of(" ");
+            if (first != std::string::npos)
+            {
+                value = value.substr(first, (last - first + 1));
+            }
+
+            // Mapping fields
+            if (key == "Status")
+                response.status = value;
+            else if (key == "Content-Type")
+                response.contentType = value;
+            else if (key == "Content-Length")
+                response.contentLength = value;
+        }
+        start = end + 1;
+    }
+
+    // Content-Length, set it based on body size
+    if (response.contentLength == "0" && !response.body.empty())
+    {
+        response.contentLength = std::to_string(response.body.length());
+    }
+
+    return response;
 }
