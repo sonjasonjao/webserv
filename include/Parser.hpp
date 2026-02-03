@@ -53,18 +53,19 @@ public:
 	 * @return void - content of the file will be tokenize and save to a internal
 	 * container, type std::vector
 	 */
-	Parser(const std::string& fileName);	// The only way of creating a Parser instance should be via the argument constructor
+	Parser(std::string const &fileName);	// The only way of creating a Parser instance should be via the argument constructor
 	Parser() = delete;
-	Parser(const Parser& other) = delete;
-	Parser& operator=(const Parser& other) = delete;
+	Parser(Parser const &other) = delete;
 	~Parser();
+
+	Parser	&operator=(Parser const &other) = delete;
 
 	/**
 	 * All the exceptions in Parsing will be categorize under ParserException
 	 * and will carry a string describing what went wrong
 	 */
 	struct ParserException : public CustomException {
-		ParserException(const std::string& str):
+		ParserException(std::string const &str):
 			CustomException(str) {}
 	};
 
@@ -74,12 +75,12 @@ public:
 	 */
 	void tokenizeFile();
 
-	const Config&				getServerConfig(size_t index);
-	const std::vector<Config>	&getServerConfigs() const;
-	std::vector<std::string>	getCollectionBykey(const Token& root, const std::string& key);
+	Config const				&getServerConfig(size_t index);
+	std::vector<Config> const	&getServerConfigs() const;
+	std::vector<std::string>	getCollectionBykey(Token const &root, std::string const &key);
 	size_t						getNumberOfServerConfigs();
 
-	Config	convertToServerData(const Token& server);
+	Config	convertToServerData(Token const &server);
 
 	bool	isValidJSONString(std::string_view sv);
 	bool	isPrimitiveValue(std::string_view sv);

@@ -42,13 +42,12 @@ class Server
 
 		Server const	&operator=(Server const &other) = delete;
 
-		std::vector<Config> const	&getConfigs() const;
-
 		void			createServerSockets();
 		int				createSingleServerSocket(Config conf);
 		void			run();
 		void			handleNewClient(int listener);
 		void			handleClientData(size_t &i);
+		void			prepareResponse(Request &req, Config const &conf);
 		void			removeClientFromPollFds(size_t &i);
 		void			sendResponse(size_t &i);
 		void			checkTimeouts();
@@ -58,6 +57,8 @@ class Server
 		bool			isServerFd(int fd);
 		Config const	&matchConfig(Request const &req);
 		ReqIter			getRequestByFd(int fd);
+
+		std::vector<Config> const	&getConfigs() const;
 		
 		// CGI handler related methods
 		bool 			isCgiFd(int fd);
