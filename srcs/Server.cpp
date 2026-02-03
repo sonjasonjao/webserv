@@ -307,7 +307,7 @@ void	Server::handleClientData(size_t &i)
 			it->setCgiPid(cgiInfo.first);
 			it->setCgiStartTime();
 			it->setStatus(ClientStatus::CgiRunning);
-			
+
 			// Adding CGI read fd to poll list
 			_pfds.push_back({ cgiInfo.second, POLLIN, 0 });
 			_cgiFdMap[cgiInfo.second] = &(*it);
@@ -326,7 +326,7 @@ void	Server::handleClientData(size_t &i)
 			it->setStatus(ClientStatus::Invalid);
 		}
 	}
-	
+
 	if (it->isHeadersCompleted()) {
 		if(conf.clientMaxBodySize.has_value()) {
 			// if there is user defined value for clientMaxBodySize check against the value
@@ -516,9 +516,9 @@ void	Server::checkTimeouts()
             continue;
 
 		// File descriptor is NOT a Server Listener FD --> Client FD
-		// Not applying time-out logic for Server FDs, skipping 
+		// Not applying time-out logic for Server FDs, skipping
 		if (!isServerFd(_pfds[i].fd)) {
-			
+
 			auto	it = getRequestByFd(_pfds[i].fd);
 
 			if (it == _clients.end())
@@ -533,8 +533,6 @@ void	Server::checkTimeouts()
 
 				DEBUG_LOG("Matched config: " + conf.host + " " + conf.serverName + " " + std::to_string(conf.port));
 				_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
-				if (it->getStatus() == ClientStatus::GatewayTimeout)
-					it->setKeepAlive(false);
 				sendResponse(i);
 			} else if (it->getStatus() == ClientStatus::IdleTimeout
 				|| it->getStatus() == ClientStatus::SendTimeout) {
@@ -580,7 +578,7 @@ void	Server::handleConnections()
 				INFO_LOG("Handling new client connecting on fd " + std::to_string(_pfds[i].fd));
 				handleNewClient(_pfds[i].fd);
 			} else if (isCgiFd(_pfds[i].fd)) {
-				INFO_LOG("Handling  cgi from fd " + std::to_string(_pfds[i].fd));
+				INFO_LOG("Handling cgi from fd " + std::to_string(_pfds[i].fd));
 				handleCgiOutput(i);
 			} else {
 				INFO_LOG("Handling client data from fd " + std::to_string(_pfds[i].fd));
@@ -625,7 +623,7 @@ void Server::handleCgiOutput(size_t &i) {
 
 	Request* req = _cgiFdMap[cgiFd];
 
-	// Reading data from the CGI client FD 
+	// Reading data from the CGI client FD
 	if (bytesRead > 0) {
 		// append data to the existing data
 		req->setCgiResult(req->getCgiResult().append(buf, bytesRead));
@@ -672,9 +670,9 @@ void Server::handleCgiOutput(size_t &i) {
         // Cleanup CGI fd
         close(cgiFd);
 
-		// Client FD from CGI - Request map 
+		// Client FD from CGI - Request map
 		_cgiFdMap.erase(cgiFd);
-		
+
 		// Remove CGI Client FD from the POLL list
 		removeClientFromPollFds(i);
 
@@ -721,7 +719,7 @@ void Server::cleanupCgi(Request *req) {
 
         // remove from POLL_FDS and CGI_FDS
 		auto it = _cgiFdMap.begin();
-		
+
 		while( it != _cgiFdMap.end()) {
 			if(it->second == req) {
 				int cgiFD = it->first;

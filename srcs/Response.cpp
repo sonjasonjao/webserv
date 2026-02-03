@@ -45,7 +45,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	switch (_req.getStatus()) {
 		case ClientStatus::Invalid:			_statusCode = BadRequest;		break;
 		case ClientStatus::RecvTimeout:		_statusCode = RequestTimeout;	break;
-		case ClientStatus::GatewayTimeout:	_statusCode = GatewayTimeout;		break;
+		case ClientStatus::GatewayTimeout:	_statusCode = GatewayTimeout;	break;
 		default: break;
 	}
 	if (_statusCode != Unassigned) {
