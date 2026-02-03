@@ -29,7 +29,8 @@ static void					listify(std::vector<std::string> const &vec, size_t offset, std:
 Response::Response(Request const &req, Config const &conf) : _req(req), _conf(conf)
 {
 	INFO_LOG("Forming response for " + _req.getMethodString() + " request targeting " + _req.getTarget());
-	/* Already flagged requests */
+
+	/* --- Already flagged requests --- */
 
 	ResponseCode	bypass = _req.getResponseCodeBypass();
 
@@ -53,7 +54,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		return;
 	}
 
-	/* Target URI validation */
+	/* --- Target URI validation --- */
 
 	_target = _req.getTarget();
 
@@ -65,19 +66,21 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		return;
 	}
 
-	/* Target URI sanitation */
+	/* --- Target URI sanitation --- */
 
 	// If the path has any ".." or "./" aka unnecessary parts, remove them
 	_target = std::filesystem::path(_req.getTarget()).lexically_normal();
 
 	// Save original sanitized request target before routing
 	_reqTargetSanitized = _target;
-	if (_reqTargetSanitized.size() > 1 && _reqTargetSanitized[0] == '/')
+	if (_reqTargetSanitized.length() > 1 && _reqTargetSanitized[0] == '/')
 		_reqTargetSanitized = _reqTargetSanitized.substr(1);
 
-	routing();	// Routing possibly remaps the target path
+	/* --- Route matching --- */
 
-	/* Forbidden methods */
+	routing(); // Routing possibly remaps _target
+
+	/* --- Forbidden methods --- */
 
 	auto const	*okMethods = &_route.allowedMethods;
 
@@ -108,7 +111,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	else if (!_route.original.empty())
 		INFO_LOG("Routing " + _reqTargetSanitized + " to " + _target);
 
-	/* Directory targets */
+	/* --- Directory targets --- */
 
 	if (_req.getRequestMethod() == RequestMethod::Get && std::filesystem::is_directory(_target))
 		handleDirectoryTarget();
@@ -475,20 +478,25 @@ static Route	getRoute(std::string uri, Config const &conf)
 	if (uri.length() > 1 && uri[0] == '/')
 		uri = uri.substr(1);
 
-	// Check for an exact route for target
+	// Check for an exact route for target, aka the key matches the URI exactly
 	auto	it = conf.routes.find(uri);
 
 	if (it != conf.routes.end())
 		return it->second;
 
-	// Check for a partial route for target, exclude possible "/" substitution at this step
+	// Search for a partial match
 	for (auto const &[key, val] : conf.routes) {
 		if (key == "/")
 			continue;
 
 		auto	pos = uri.find(key);
 
-		if (pos != std::string::npos)
+		/**
+		 * Only allow partial matches at the beginning of the URI, and limit them to paths,
+		 * so that 'key.html' and 'one/key/two' would be disqualified, but 'key/one.html'
+		 * would be fine.
+		 */
+		if (pos == 0 && uri[key.length()] == '/')
 			return val;
 	}
 
