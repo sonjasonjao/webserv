@@ -262,20 +262,22 @@ void	Server::handleClientData(size_t &i)
         }
         else
         {
-            ERROR_LOG("CGI funtionality not enabled !");
+            ERROR_LOG("CGI functionality not enabled !");
             it->setResponseCodeBypass(Forbidden);
             it->setStatus(ClientStatus::Invalid);
             prepareResponse(*it, conf);
             return;
         }
 
-        // check if the scrpit is exist
+        // check if the script is exist
         if (!std::filesystem::exists(path))
         {
             ERROR_LOG("CGI script not exists : " + path.string());
             it->setResponseCodeBypass(NotFound);
             it->setStatus(ClientStatus::Invalid);
-			return;
+            prepareResponse(*it, conf);
+            _pfds[i].events |= POLLOUT;
+            return;
         }
 
         // check if the script has execution permission
@@ -283,10 +285,12 @@ void	Server::handleClientData(size_t &i)
             ERROR_LOG("CGI script can not execute : " + path.string());
             it->setResponseCodeBypass(Forbidden);
             it->setStatus(ClientStatus::Invalid);
-			return;
-		}
+            prepareResponse(*it, conf);
+            _pfds[i].events |= POLLOUT;
+            return;
+        }
 
-		// execute the CGI script
+        // execute the CGI script
         std::pair<pid_t, int> cgiInfo = CgiHandler::execute(path.string(), *it);
 
         // Error occured
@@ -500,10 +504,10 @@ void	Server::checkTimeouts()
 {
 	for (size_t i = 0; i < _pfds.size(); i++) {
 
-		// FIle descirptor is a CGI Client FD
-		// Not applying time-out logic for CGI Client FD, skipping
-		if(isCgiFd(_pfds[i].fd))
-			continue;
+        // FIle descriptor is a CGI Client FD
+        // Not applying time-out logic for CGI Client FD, skipping
+        if (isCgiFd(_pfds[i].fd))
+            continue;
 
 		// File descriptor is NOT a Server Listener FD --> Client FD
 		// Not applying time-out logic for Server FDs, skipping 
@@ -616,32 +620,37 @@ void Server::handleCgiOutput(size_t &i) {
 	if (bytesRead > 0) {
 		// append data to the existing data
 		req->setCgiResult(req->getCgiResult().append(buf, bytesRead));
-	// Can be either ERROR or finnised script execution
-	} else {
-		// script sucessfully executed
-		if (bytesRead == 0) {
-			INFO_LOG("CGI finished execution for fd " + std::to_string(cgiFd));
-		// ERROR occured
-		} else {
-			if (errno == EAGAIN || errno == EWOULDBLOCK)
-			// No data available right now, continue polling
-				return; 
-			
-			ERROR_LOG("read error from CGI fd: " + std::string(strerror(errno)));
-			req->setResponseCodeBypass(InternalServerError);
-			req->setStatus(ClientStatus::Invalid);
-		}
+        // Can be either ERROR or finished script execution
+    }
+    else
+    {
+        // script sucessfully executed
+        if (bytesRead == 0)
+        {
+            INFO_LOG("CGI finished execution for fd " + std::to_string(cgiFd));
+            // ERROR occured
+        }
+        else
+        {
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
+                // No data available right now, continue polling
+                return;
 
-		// Wait for the specific child process
-		int status;
-		pid_t result = waitpid(req->getCgiPid(), &status, WNOHANG);
+            ERROR_LOG("read error from CGI fd: " + std::string(strerror(errno)));
+            req->setResponseCodeBypass(InternalServerError);
+            req->setStatus(ClientStatus::Invalid);
+        }
 
-		if(result == 0) {
-			// child process still running
-			// 
-			INFO_LOG("CGI process execution finished : " + std::to_string(req->getCgiPid()));
-			kill(req->getCgiPid(), SIGKILL);
-			waitpid(req->getCgiPid(), &status, 0);
+        // Wait for the specific child process
+        int status;
+        pid_t result = waitpid(req->getCgiPid(), &status, WNOHANG);
+
+        if (result == 0)
+        {
+            // child process still running, force kill
+            DEBUG_LOG("CGI process still running, killing PID " + std::to_string(req->getCgiPid()));
+            kill(req->getCgiPid(), SIGKILL);
+            waitpid(req->getCgiPid(), &status, 0);
         }
         else if (result > 0)
         {
@@ -678,11 +687,11 @@ void Server::handleCgiOutput(size_t &i) {
 			req->setStatus(ClientStatus::ReadyForResponse);
 			req->resetSendStart();
 		}
-	}
+    }
 }
 
 void Server::cleanupCgi(Request *req) {
-	//vlidate the CGI process is still running
+	//validate the CGI process is still running
 	if(req->getCgiPid() != -1) {
 		int status;
 		pid_t result = waitpid(req->getCgiPid(), &status, WNOHANG);

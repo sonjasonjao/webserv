@@ -215,10 +215,11 @@ void	Request::parseRequest()
 
 	
 	// set cgiRequest flag to indentify in POLL event loop
-	if(_request.target.find_first_of("cgi-bin") != std::string::npos) {
-		_cgiRequest.emplace();
-	}
-	printData();
+    if (_request.target.find("cgi-bin") != std::string::npos)
+    {
+        _cgiRequest.emplace();
+    }
+    printData();
 }
 
 /**

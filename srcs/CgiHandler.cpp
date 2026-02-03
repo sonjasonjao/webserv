@@ -25,9 +25,7 @@ std::map<std::string, std::string> CgiHandler::getEnv(const std::string& scriptP
     env["PATH_INFO"]            = request.getTarget();   
     env["SCRIPT_FILENAME"]      = scriptPath;
     env["GATEWAY_INTERFACE"]    = "CGI/1.1";
-    env["SCRIPT_NAME"]          = request.getTarget();
-    env["SCRIPT_FILENAME"]      = scriptPath;
-    env["GATEWAY_INTERFACE"]    = "CGI/1.1";
+    env["SCRIPT_NAME"] = request.getTarget();
     env["SERVER_PROTOCOL"]      = request.getHttpVersion();
     env["SERVER_SOFTWARE"]      = "Webserv/1.0";
     env["REDIRECT_STATUS"]      = "200"; // this was added in one of our senior's project for php
@@ -84,10 +82,18 @@ std::pair<pid_t, int> CgiHandler::execute(const std::string& scriptPath, const R
 
     if(pipe(pipe_in) == -1 || pipe(pipe_out) == -1) {
         ERROR_LOG("CGI Pipe failed!");
-        return {-1, -1};
-    }
-
-    // preparing enviornment and args for execv
+        if (pipe(pipe_in) == -1)
+        {
+            ERROR_LOG("CGI Pipe failed!");
+            return {-1, -1};
+        }
+        if (pipe(pipe_out) == -1)
+        {
+            ERROR_LOG("CGI Pipe failed!");
+            close(pipe_in[0]);
+            close(pipe_in[1]);
+            return {-1, -1};
+        }
     std::map<std::string, std::string> envMap = getEnv(scriptPath, request);
     // making copy for persisting existance
     std::string path = scriptPath;
@@ -108,9 +114,10 @@ std::pair<pid_t, int> CgiHandler::execute(const std::string& scriptPath, const R
     if(pid == 0) {
         // insdie child process
 
-        // reading from the STDIN_FILENO
-        if (dup2(pipe_in[0], STDIN_FILENO) == -1) {
-            ERROR_LOG("CGI dup2 input failed: " + std::string(strerror(errno)));
+        if (dup2(pipe_out[1], STDOUT_FILENO) == -1)
+        {
+            ERROR_LOG("CGI dup2 output failed: " + std::string(strerror(errno)));
+            std::exit(1);
             std::exit(1);
         }
         // writing to the STDOUT_FILENO
@@ -140,9 +147,24 @@ std::pair<pid_t, int> CgiHandler::execute(const std::string& scriptPath, const R
         if(fcntl(pipe_out[0], F_SETFL, O_NONBLOCK) == -1) { 
             ERROR_LOG("CGI fcntl failed: " + std::string(strerror(errno)));
             close(pipe_in[1]); close(pipe_out[0]);
-            kill(pid, SIGKILL);
-            waitpid(pid, nullptr, 0);
-            freeEnvp(envp);
+            if (!request.getBody().empty())
+            {
+                const char *data = request.getBody().c_str();
+                size_t remaining = request.getBody().size();
+                while (remaining > 0)
+                {
+                    ssize_t written = write(pipe_in[1], data, remaining);
+                    if (written == -1)
+                    {
+                        if (errno == EINTR)
+                            continue;
+                        ERROR_LOG("CGI write failed: " + std::string(strerror(errno)));
+                        break;
+                    }
+                    data += written;
+                    remaining -= written;
+                }
+            }
             return {-1, -1};
         }
         

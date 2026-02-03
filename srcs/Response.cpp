@@ -204,7 +204,7 @@ void	Response::formResponse()
 
 	if(this->getRequestInfo().isCgiRequest()) {
         std::string result = this->getRequestInfo().getCgiResult(), value;
-        if (auto pos = result.find_first_of(CRLF); pos != std::string::npos)
+        if (auto pos = result.find(CRLF); pos != std::string::npos)
         {
             value = result.substr(pos + 2);
         }
