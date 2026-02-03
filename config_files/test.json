@@ -13,7 +13,7 @@
 
 			"routes" : {
 				"/"         : "www/pages",
-                "cgi-bin" : "www",
+                "cgi-bin"   : "www",
 				"secret"    : "/home/jvarila/Documents/minimal.html",
 				"img"       : "www/images",
 				"future_syntax_possibly" : {
