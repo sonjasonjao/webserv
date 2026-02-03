@@ -1,42 +1,42 @@
 {
-	"server" : [
-		{
-			"host"              : "127.0.0.1",
-			"server_name"         : "localhost",
-			"listen"            : [8081],
-			"allowed_methods"   : ["GET", "POST"],
+    "server" : [
+        {
+            "host"              : "127.0.0.1",
+            "server_name"         : "localhost",
+            "listen"            : ["8081"],
+            "allowed_methods"   : ["GET", "POST"],
 
-			"directory_listing"     : true,
-			"autoindex"             : false,
-			"upload_dir"            : "www/uploads/something_else",
-			"client_max_body_size"  : 11048576,
+            "directory_listing"     : true,
+            "autoindex"             : false,
+            "upload_dir"            : "www/uploads/something_else",
+            "client_max_body_size"  : 11048576,
 
-			"routes" : {
-				"/"         : "www/pages",
+            "routes" : {
                 "cgi-bin"   : "www",
-				"secret"    : "/home/jvarila/Documents/minimal.html",
-				"img"       : "www/images",
-				"future_syntax_possibly" : {
-					"target"            : "www/pages",
-					"allowed_methods"   : ["GET", "POST", "DELETE"]
-				}
-			},
+                "/"         : "www/pages",
+                "secret"    : "/home/jvarila/Documents/minimal.html",
+                "img"       : "www/images",
+                "future_syntax_possibly" : {
+                    "target"            : "www/pages",
+                    "allowed_methods"   : ["GET", "POST", "DELETE"]
+                }
+            },
 
-			"status_pages" : {
-				"200" : "www/status_pages/200.html",
-				"400" : "www/status_pages/400.html",
-				"404" : "www/status_pages/404.html"
-			}
-		},
-		{
-			"host"      : "127.0.0.1",
-			"server_name" : "www.test.com",
-			"listen"    : [8081]
-		},
-		{
-			"host"      : "127.0.0.1",
-			"server_name" : "www.webserv.com",
-			"listen"    : [2025, 2026, 2027, 2028, 2029]
-		}
-	]
+            "status_pages" : {
+                "200" : "www/status_pages/200.html",
+                "400" : "www/status_pages/400.html",
+                "404" : "www/status_pages/404.html"
+            }
+        },
+        {
+            "host"      : "127.0.0.1",
+            "server_name" : "www.test.com",
+            "listen"    : [8081]
+        },
+        {
+            "host"      : "127.0.0.1",
+            "server_name" : "www.webserv.com",
+            "listen"    : [2025, 2026, 2027, 2028, 2029]
+        }
+    ]
 }
