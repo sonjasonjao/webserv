@@ -31,7 +31,6 @@ public:
 
 	std::string const	&getContent() const;
 	int					getStatusCode() const;
-	Request const 		&getRequestInfo() const;
 
 	void	sendToClient();
 	bool	sendIsComplete() const;

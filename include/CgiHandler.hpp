@@ -14,13 +14,13 @@ struct CgiResponse {
 };
 
 class CgiHandler {
-	using StringMap = std::map<std::string, std::string>;
+	using stringMap = std::map<std::string, std::string>;
 
 public:
 	static std::pair<pid_t, int>	execute(std::string const &scriptPath, Request const &request);
 	static CgiResponse				parseCgiOutput(std::string const &rawOutput);
 
 private:
-	static StringMap	getEnv(std::string const &scriptPath, Request const &request);
+	static stringMap	getEnv(std::string const &scriptPath, Request const &request);
 	static char			**mapToEnvp(const std::map<std::string, std::string> &envMap);
 };

@@ -221,7 +221,8 @@ void	Server::handleClientData(size_t &i)
 		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 			+ std::to_string(_pfds[i].fd)));
 
-	if (it->getStatus() != ClientStatus::WaitingData)
+	if (it->getStatus() != ClientStatus::WaitingData
+		&& it->getStatus() != ClientStatus::CgiRunning)
 		return;
 
 	char	buf[RECV_BUF_SIZE + 1];
@@ -257,48 +258,48 @@ void	Server::handleClientData(size_t &i)
 	Config const	&conf = matchConfig(*it);
 
 	if(it->isCgiRequest()) {
-        std::filesystem::path path;
-        // extracting the CGI path from routes
-        if (auto p = conf.routes.find("cgi-bin"); p != conf.routes.end())
-        {
-            path = p->second.target + it->getTarget();
-        }
-        else
-        {
-            ERROR_LOG("CGI functionality not enabled !");
-            it->setResponseCodeBypass(Forbidden);
-            it->setStatus(ClientStatus::Invalid);
-            prepareResponse(*it, conf);
-            _pfds[i].events |= POLLOUT;
-            return;
-        }
+		std::filesystem::path path;
+		// extracting the CGI path from routes
+		if (auto p = conf.routes.find("cgi-bin"); p != conf.routes.end())
+		{
+			path = p->second.target + it->getTarget();
+		}
+		else
+	{
+			ERROR_LOG("CGI functionality not enabled !");
+			it->setResponseCodeBypass(Forbidden);
+			it->setStatus(ClientStatus::Invalid);
+			prepareResponse(*it, conf);
+			_pfds[i].events |= POLLOUT;
+			return;
+		}
 
-        // check if the script is exist
-        if (!std::filesystem::exists(path))
-        {
-            ERROR_LOG("CGI script not exists : " + path.string());
-            it->setResponseCodeBypass(NotFound);
-            it->setStatus(ClientStatus::Invalid);
-            prepareResponse(*it, conf);
-            _pfds[i].events |= POLLOUT;
-            return;
-        }
+		// check if the script is exist
+		if (!std::filesystem::exists(path))
+		{
+			ERROR_LOG("CGI script not exists : " + path.string());
+			it->setResponseCodeBypass(NotFound);
+			it->setStatus(ClientStatus::Invalid);
+			prepareResponse(*it, conf);
+			_pfds[i].events |= POLLOUT;
+			return;
+		}
 
-        // check if the script has execution permission
-        if(access(path.c_str(), X_OK) == -1) {
-            ERROR_LOG("CGI script can not execute : " + path.string());
-            it->setResponseCodeBypass(Forbidden);
-            it->setStatus(ClientStatus::Invalid);
-            prepareResponse(*it, conf);
-            _pfds[i].events |= POLLOUT;
-            return;
-        }
+		// check if the script has execution permission
+		if(access(path.c_str(), X_OK) == -1) {
+			ERROR_LOG("CGI script can not execute : " + path.string());
+			it->setResponseCodeBypass(Forbidden);
+			it->setStatus(ClientStatus::Invalid);
+			prepareResponse(*it, conf);
+			_pfds[i].events |= POLLOUT;
+			return;
+		}
 
-        // execute the CGI script
-        std::pair<pid_t, int> cgiInfo = CgiHandler::execute(path.string(), *it);
+		// execute the CGI script
+		std::pair<pid_t, int> cgiInfo = CgiHandler::execute(path.string(), *it);
 
-        // Error occured
-        if (cgiInfo.first == -1 || cgiInfo.second == -1) {
+		// Error occured
+		if (cgiInfo.first == -1 || cgiInfo.second == -1) {
 			it->setResponseCodeBypass(InternalServerError);
 			it->setStatus(ClientStatus::Invalid);
 		} else {

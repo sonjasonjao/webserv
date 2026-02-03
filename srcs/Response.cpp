@@ -210,9 +210,9 @@ void	Response::formResponse()
 		}
 	}
 
-    if (this->getRequestInfo().isCgiRequest() && _statusCode == Unassigned)
+    if (_req.isCgiRequest() && _statusCode == Unassigned)
     {
-        CgiResponse res = CgiHandler::parseCgiOutput(this->getRequestInfo().getCgiResult());
+        CgiResponse res = CgiHandler::parseCgiOutput(_req.getCgiResult());
         if (res.body.empty() && res.status.empty() && res.contentLength == "0")
         {
             ERROR_LOG("Malformed CGI output or script crashed!");
@@ -607,8 +607,4 @@ static void	listify(std::vector<std::string> const &vec, size_t offset, std::str
 		stream << "</li>\n";
 	}
 	stream << "</ul>\n";
-}
-
-Request	const &Response::getRequestInfo() const{
-	return _req;
 }

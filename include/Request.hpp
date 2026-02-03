@@ -44,7 +44,6 @@ enum class ClientStatus
 	Error,
 };
 
-
 struct RequestLine
 {
 	std::string					target;
@@ -66,11 +65,11 @@ struct RequestLine
  */
 
 struct MultipartPart {
-    std::string headers;
-    std::string name;
-    std::string filename;
-    std::string contentType;
-    std::string data;
+	std::string	 headers;
+	std::string	 name;
+	std::string	 filename;
+	std::string	 contentType;
+	std::string	 data;
 };
 
 /**
@@ -84,9 +83,9 @@ struct MultipartPart {
 struct CgiRequest {
 	using timePoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
-	pid_t       	cgiPid = -1;
-	timePoint   	cgiStartTime;
-	std::string		cgiResult;
+	pid_t		cgiPid = -1;
+	timePoint	cgiStartTime;
+	std::string	cgiResult;
 };
 
 class Request
@@ -179,6 +178,7 @@ class Request
 		void							setCgiResult(std::string str);
 		void        					setCgiPid(pid_t pid);
 		void        					setCgiStartTime();
+		void							printStatus() const;
 		pid_t       					getCgiPid() const;
 		timePoint   					getCgiStartTime() const;
 		std::string						getCgiResult() const;

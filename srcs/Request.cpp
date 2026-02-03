@@ -647,28 +647,36 @@ bool	Request::validateAndAssignHttp(std::string &httpVersion)
 	return true;
 }
 
-/**
- * Helper function to print ClientStatus value.
- */
-static void	printStatus(ClientStatus status)
+void	Request::printStatus() const
 {
-	switch (status)
-	{
+	switch (_status) {
 		case ClientStatus::WaitingData:
 			std::cout << "Waiting for more data\n";
-			break;
+		break;
+		case ClientStatus::CgiRunning:
+			std::cout << "CGI running\n";
+		break;
 		case ClientStatus::CompleteReq:
 			std::cout << "Complete and valid request received\n";
-			break;
+		break;
 		case ClientStatus::Error:
 			std::cout << "Critical error found, client to be disconnected\n";
-			break;
+		break;
 		case ClientStatus::Invalid:
 			std::cout << "Invalid HTTP request\n";
-			break;
+		break;
 		case ClientStatus::ReadyForResponse:
 			std::cout << "Ready to receive response\n";
-			break;
+		break;
+		case ClientStatus::RecvTimeout:
+			std::cout << "Receive timed out\n";
+		break;
+		case ClientStatus::SendTimeout:
+			std::cout << "Send timed out\n";
+		break;
+		case ClientStatus::IdleTimeout:
+			std::cout << "Idle timed out\n";
+		break;
 		default:
 			std::cout << "Unknown\n";
 	}
@@ -715,7 +723,7 @@ void	Request::printData() const
 	std::cout << "	Keep alive?		" << _keepAlive << '\n';
 	std::cout << "	Complete headers?	" << _completeHeaders << '\n';
 	std::cout << "	Status?			";
-	printStatus(_status);
+	printStatus();
 	std::cout << "	Chunked?		" << _chunked << "\n";
 	if (_boundary.has_value())
 		std::cout << "	Boundary:		'" << _boundary.value() << "'\n";
