@@ -222,7 +222,7 @@ std::string const	&Pages::getPageContent(std::string const &key)
 	std::string	page = getFileAsString(key, "/");	// Force absolute filepath for unique identifiers for resources
 
 	if (page.length() > CACHE_SIZE_MAX)
-		throw std::runtime_error(ERROR_LOG("File " + key + " is too large for cache"));
+		throw std::runtime_error(ERROR_LOG("File '" + key + "' is too large for cache"));
 
 	while (cacheSize > 0 && cacheSize > CACHE_SIZE_MAX - page.length()) {
 		DEBUG_LOG("Removing " + cacheQueue.front().first + " from cache to make space for " + key);
