@@ -447,7 +447,8 @@ void	Server::sendResponse(size_t &i)
 		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
 			+ std::to_string(_pfds[i].fd)));
 	if (it->getStatus() != ClientStatus::ReadyForResponse
-		&& it->getStatus() != ClientStatus::RecvTimeout)
+		&& it->getStatus() != ClientStatus::RecvTimeout
+		&& it->getStatus() != ClientStatus::GatewayTimeout)
 		return;
 
 	try {
@@ -526,11 +527,14 @@ void	Server::checkTimeouts()
 
 			it->checkReqTimeouts();
 
-			if (it->getStatus() == ClientStatus::RecvTimeout) {
+			if (it->getStatus() == ClientStatus::RecvTimeout
+				|| it->getStatus() == ClientStatus::GatewayTimeout) {
 				Config const	&conf = matchConfig(*it);
 
 				DEBUG_LOG("Matched config: " + conf.host + " " + conf.serverName + " " + std::to_string(conf.port));
 				_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
+				if (it->getStatus() == ClientStatus::GatewayTimeout)
+					it->setKeepAlive(false);
 				sendResponse(i);
 			} else if (it->getStatus() == ClientStatus::IdleTimeout
 				|| it->getStatus() == ClientStatus::SendTimeout) {

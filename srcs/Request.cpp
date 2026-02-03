@@ -133,8 +133,8 @@ void	Request::checkReqTimeouts()
 		diff = now - _cgiRequest->cgiStartTime;
 
 		durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
-		if (durMs.count() > CGI_TIMEOUT) { 				// 5 seconds CGI timeout can set to Server default also
-			_status = ClientStatus::RecvTimeout; 	// Treat as receive timeout for 504 handling
+		if (durMs.count() > CGI_TIMEOUT) {
+			_status = ClientStatus::GatewayTimeout; // Treat as receive timeout for 504 handling
 			DEBUG_LOG("CGI timeout with client fd " + std::to_string(_fd));
 			_keepAlive = false;
 		}
@@ -676,6 +676,9 @@ void	Request::printStatus() const
 		break;
 		case ClientStatus::IdleTimeout:
 			std::cout << "Idle timed out\n";
+		break;
+		case ClientStatus::GatewayTimeout:
+			std::cout << "Server timed out waiting for CGI\n";
 		break;
 		default:
 			std::cout << "Unknown\n";

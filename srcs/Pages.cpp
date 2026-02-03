@@ -14,7 +14,7 @@ R"(<!DOCTYPE html>
 	<head>
 	</head>
 	<body>
-		<h1>200: OK</h1>
+		<h1>200 OK</h1>
 		<p>Default fallback page</p>
 	</body>
 </html>
@@ -26,7 +26,7 @@ R"(<!DOCTYPE html>
 	<head>
 	</head>
 	<body>
-		<h1>204: No Content</h1>
+		<h1>204 No Content</h1>
 		<p>Default fallback page</p>
 	</body>
 </html>
@@ -38,7 +38,7 @@ R"(<!DOCTYPE html>
 	<head>
 	</head>
 	<body>
-		<h1>207: Created</h1>
+		<h1>207 Created</h1>
 		<p>Default fallback page</p>
 	</body>
 </html>
@@ -48,27 +48,9 @@ constexpr static char const * const	DEFAULT400	= \
 R"(<!DOCTYPE html>
 <html>
 	<head>
-		<style>
-			body, html {
-				color: yellow;
-				width: 100%;
-				height: 100%;
-				margin: 0;
-				padding: 0;
-			}
-			p {
-				font-size: 5rem;
-				display: block;
-				text-align: center;
-				vertical-align: middle;
-				margin: 0 auto;
-				margin-top: 2rem;
-				color: red;
-			}
-		</style>
 	</head>
 	<body>
-		<h1>400: Bad Request</h1>
+		<h1>400 Bad Request</h1>
 		<p>Default fallback page</p>
 	</body>
 </html>
@@ -80,7 +62,7 @@ R"(<!DOCTYPE html>
 	<head>
 	</head>
 	<body>
-		<h1>403: Forbidden</h1>
+		<h1>403 Forbidden</h1>
 		<p>Default fallback page</p>
 	</body>
 </html>
@@ -90,27 +72,9 @@ constexpr static char const * const	DEFAULT404	= \
 R"(<!DOCTYPE html>
 <html>
 	<head>
-		<style>
-			body, html {
-				color: yellow;
-				width: 100%;
-				height: 100%;
-				margin: 0;
-				padding: 0;
-			}
-			p {
-				font-size: 5rem;
-				display: block;
-				text-align: center;
-				vertical-align: middle;
-				margin: 0 auto;
-				margin-top: 2rem;
-				color: red;
-			}
-		</style>
 	</head>
 	<body>
-		<h1>404: Resource Not Found</h1>
+		<h1>404 Resource Not Found</h1>
 		<p>Default fallback page</p>
 	</body>
 </html>
@@ -122,7 +86,7 @@ R"(<!DOCTYPE html>
 	<head>
 	</head>
 	<body>
-		<h1>408: Request Timeout</h1>
+		<h1>408 Request Timeout</h1>
 		<p>Default fallback page</p>
 	</body>
 </html>
@@ -134,7 +98,7 @@ R"(<!DOCTYPE html>
 	<head>
 	</head>
 	<body>
-		<h1>409: Conflict</h1>
+		<h1>409 Conflict</h1>
 		<p>Default fallback page</p>
 	</body>
 </html>
@@ -146,7 +110,7 @@ R"(<!DOCTYPE html>
 	<head>
 	</head>
 	<body>
-		<h1>413: Content Too Large</h1>
+		<h1>413 Content Too Large</h1>
 		<p>Default fallback page</p>
 	</body>
 </html>
@@ -158,7 +122,7 @@ R"(<!DOCTYPE html>
 	<head>
 	</head>
 	<body>
-		<h1>422: Unprocessable content</h1>
+		<h1>422 Unprocessable content</h1>
 		<p>Default fallback page</p>
 	</body>
 </html>
@@ -170,7 +134,19 @@ R"(<!DOCTYPE html>
 	<head>
 	</head>
 	<body>
-		<h1>500: Internal Server Error</h1>
+		<h1>500 Internal Server Error</h1>
+		<p>Default fallback page</p>
+	</body>
+</html>
+)";
+
+constexpr static char const * const	DEFAULT504	= \
+R"(<!DOCTYPE html>
+<html>
+	<head>
+	</head>
+	<body>
+		<h1>504 Gateway Timeout</h1>
 		<p>Default fallback page</p>
 	</body>
 </html>
@@ -190,6 +166,7 @@ void	Pages::loadDefaults()
 	defaultPages["default413"] = DEFAULT413;
 	defaultPages["default422"] = DEFAULT422;
 	defaultPages["default500"] = DEFAULT500;
+	defaultPages["default504"] = DEFAULT504;
 }
 
 bool	Pages::isCached(std::string const &key)

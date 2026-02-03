@@ -18,7 +18,8 @@ enum ResponseCode : int {
 	Conflict				= 409,
 	ContentTooLarge			= 413,
 	UnprocessableContent	= 422,
-	InternalServerError 	= 500
+	InternalServerError 	= 500,
+	GatewayTimeout			= 504
 };
 
 class Response {

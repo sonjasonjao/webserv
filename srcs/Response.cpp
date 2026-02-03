@@ -45,6 +45,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	switch (_req.getStatus()) {
 		case ClientStatus::Invalid:			_statusCode = BadRequest;		break;
 		case ClientStatus::RecvTimeout:		_statusCode = RequestTimeout;	break;
+		case ClientStatus::GatewayTimeout:	_statusCode = GatewayTimeout;		break;
 		default: break;
 	}
 	if (_statusCode != Unassigned) {
@@ -287,6 +288,10 @@ void	Response::formResponse()
 		case 422:
 			_startLine	= _req.getHttpVersion() + " 422 Unprocessable content";
 			_body		= getResponsePageContent("422", _conf);
+		break;
+		case 504:
+			_startLine	= _req.getHttpVersion() + " 504 Loop Detected";
+			_body		= getResponsePageContent("504", _conf);
 		break;
 		default:
 			_startLine	= _req.getHttpVersion() + " 500 Internal Server Error";

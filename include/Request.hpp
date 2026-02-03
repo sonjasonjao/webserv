@@ -14,7 +14,7 @@
 #define SEND_TIMEOUT			5000
 #define HEADERS_MAX_SIZE		8000
 #define CLIENT_MAX_BODY_SIZE	1000000
-#define CGI_TIMEOUT				5000
+#define CGI_TIMEOUT				4000
 
 enum ResponseCode : int;
 
@@ -40,6 +40,7 @@ enum class ClientStatus
 	IdleTimeout,
 	RecvTimeout,
 	SendTimeout,
+	GatewayTimeout,
 	Invalid,
 	Error,
 };
