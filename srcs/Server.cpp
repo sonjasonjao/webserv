@@ -245,7 +245,10 @@ void	Server::handleClientData(size_t &i)
 	buf[numBytes] = '\0';
 
 	INFO_LOG("Received client data from fd " + std::to_string(_pfds[i].fd));
+
+	#if DEBUG_LOGGING
 	std::cout << "\n---- Request data ----\n" << buf << "----------------------\n\n";
+	#endif
 
 	it->setIdleStart();
 	it->setRecvStart();

@@ -219,7 +219,9 @@ void	Request::parseRequest()
     {
         _cgiRequest.emplace();
     }
-    printData();
+	#if DEBUG_LOGGING
+	printData();
+	#endif
 }
 
 /**
@@ -232,9 +234,9 @@ void	Request::parseRequestLine(std::string &req)
 	std::vector<std::string>	methods = { "GET", "POST", "DELETE" };
 	size_t						i = 0;
 
-	method = extractFromLine(req, " ");
-	target = extractFromLine(req, " ");
-	httpVersion = req;
+	method		= extractFromLine(req, " ");
+	target 		= extractFromLine(req, " ");
+	httpVersion	= req;
 
 	if (method.empty() || target.empty() || httpVersion.empty()) {
 		_status = ClientStatus::Invalid;
@@ -831,7 +833,7 @@ std::vector<std::string> const	*Request::getHeader(std::string const &key) const
 	}
 }
 
-std::string const	Request::getMethodString() const
+std::string const	&Request::getMethodString() const
 {
 	return _request.methodString;
 }
