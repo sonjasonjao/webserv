@@ -10,7 +10,7 @@
 		<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
 	</head>
 	<body>
-		<div class="page-wrapper" id="delete-content">
+		<div class="page-wrapper">
 			<h1>Delete files</h1>
 			<p>
 				Here you can delete previously uploaded files.
@@ -21,33 +21,8 @@
 				<input type="text" id="delfile" name="delfile" required>
 				<button type="submit" id="delete">Delete</button>
 			</form>
-		</div>
-		<div class="links">
 			<a href="/index.html">Back to main page</a>
 		</div>
-		<script>
-			let filedelete = document.querySelector("#filedelete");
-			filedelete.addEventListener('submit', async (e) => {
-				e.preventDefault();
-				let data = new FormData(filedelete);
-				const fileName = data.get("delfile");
-					fetch(fileName, {
-						method: "DELETE"
-					})
-					.then(response => { return response.text(); })
-					.then(html => {
-						if (html !== "") {
-							document.open();
-							document.write(html);
-							document.close();
-						} else {
-							const wrapper = document.querySelector("#delete-content");
-							let info = document.createElement('p');
-							info.textContent = "File deleted successfully!";
-							wrapper.appendChild(info);
-						}
-					});
-			});
-		</script>
+		<script src="./delete.js"></script>
 	</body>
 </html>

@@ -12,6 +12,7 @@ constexpr static char const * const	DEFAULT200	= \
 R"(<!DOCTYPE html>
 <html>
 	<head>
+		<title>200 OK</title>
 	</head>
 	<body>
 		<h1>200: OK</h1>
@@ -25,6 +26,7 @@ constexpr static char const * const	DEFAULT204	= \
 R"(<!DOCTYPE html>
 <html>
 	<head>
+		<title>204 No Content</title>
 	</head>
 	<body>
 		<h1>204: No Content</h1>
@@ -38,6 +40,7 @@ constexpr static char const * const	DEFAULT207	= \
 R"(<!DOCTYPE html>
 <html>
 	<head>
+		<title>207 Created</title>
 	</head>
 	<body>
 		<h1>207: Created</h1>
@@ -51,24 +54,7 @@ constexpr static char const * const	DEFAULT400	= \
 R"(<!DOCTYPE html>
 <html>
 	<head>
-		<style>
-			body, html {
-				color: yellow;
-				width: 100%;
-				height: 100%;
-				margin: 0;
-				padding: 0;
-			}
-			p {
-				font-size: 5rem;
-				display: block;
-				text-align: center;
-				vertical-align: middle;
-				margin: 0 auto;
-				margin-top: 2rem;
-				color: red;
-			}
-		</style>
+		<title>400 Bad Request</title>
 	</head>
 	<body>
 		<h1>400: Bad Request</h1>
@@ -81,6 +67,7 @@ constexpr static char const * const	DEFAULT403	= \
 R"(<!DOCTYPE html>
 <html>
 	<head>
+		<title>403 Forbidden</title>
 	</head>
 	<body>
 		<h1>403: Forbidden</h1>
@@ -94,24 +81,7 @@ constexpr static char const * const	DEFAULT404	= \
 R"(<!DOCTYPE html>
 <html>
 	<head>
-		<style>
-			body, html {
-				color: yellow;
-				width: 100%;
-				height: 100%;
-				margin: 0;
-				padding: 0;
-			}
-			p {
-				font-size: 5rem;
-				display: block;
-				text-align: center;
-				vertical-align: middle;
-				margin: 0 auto;
-				margin-top: 2rem;
-				color: red;
-			}
-		</style>
+		<title>404 Not Found</title>
 	</head>
 	<body>
 		<h1>404: Resource Not Found</h1>
@@ -125,6 +95,7 @@ constexpr static char const * const	DEFAULT408	= \
 R"(<!DOCTYPE html>
 <html>
 	<head>
+		<title>408 Request Timeout</title>
 	</head>
 	<body>
 		<h1>408: Request Timeout</h1>
@@ -137,6 +108,7 @@ constexpr static char const * const	DEFAULT409	= \
 R"(<!DOCTYPE html>
 <html>
 	<head>
+		<title>409 Conflict</title>
 	</head>
 	<body>
 		<h1>409: Conflict</h1>
@@ -150,6 +122,7 @@ constexpr static char const * const	DEFAULT413	= \
 R"(<!DOCTYPE html>
 <html>
 	<head>
+		<title>413 Content Too Large</title>
 	</head>
 	<body>
 		<h1>413: Content Too Large</h1>
@@ -163,6 +136,7 @@ constexpr static char const * const	DEFAULT422	= \
 R"(<!DOCTYPE html>
 <html>
 	<head>
+		<title>422 Unprocessable content</title>
 	</head>
 	<body>
 		<h1>422: Unprocessable content</h1>
@@ -176,6 +150,7 @@ constexpr static char const * const	DEFAULT500	= \
 R"(<!DOCTYPE html>
 <html>
 	<head>
+		<title>500 Internal Server Error</title>
 	</head>
 	<body>
 		<h1>500: Internal Server Error</h1>
