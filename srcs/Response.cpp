@@ -203,10 +203,15 @@ void	Response::formResponse()
 	}
 
 	if(this->getRequestInfo().isCgiRequest()) {
-		// only need to add the start line, rest of the data generating inside the script
+        std::string result = this->getRequestInfo().getCgiResult(), value;
+        if (auto pos = result.find_first_of(CRLF); pos != std::string::npos)
+        {
+            value = result.substr(pos + 2);
+        }
+        // only need to add the start line, rest of the data generating inside the script
 		_startLine		= _req.getHttpVersion() + " 200 OK";
-		_content		= _startLine + CRLF + this->getRequestInfo().getCgiResult();
-		return;
+        _content = _startLine + CRLF + value;
+        return;
 	}
 
 	if (_statusCode == 200)

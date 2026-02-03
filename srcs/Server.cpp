@@ -254,31 +254,43 @@ void	Server::handleClientData(size_t &i)
 	Config const	&conf = matchConfig(*it);
 
 	if(it->isCgiRequest()) {
-		// still need to add path extraction from the route
-		std::string path = "www" + it->getTarget();
-		// path validating
+        std::filesystem::path path;
+        // extracting the CGI path from routes
+        if (auto p = conf.routes.find("cgi-bin"); p != conf.routes.end())
+        {
+            path = p->second.target + it->getTarget();
+        }
+        else
+        {
+            ERROR_LOG("CGI funtionality not enabled !");
+            it->setResponseCodeBypass(Forbidden);
+            it->setStatus(ClientStatus::Invalid);
+            prepareResponse(*it, conf);
+            return;
+        }
 
-		// check if the scrpit is exist
-		if(std::filesystem::exists(path)) {
-			ERROR_LOG("CGI script not exists" + path);
-			it->setResponseCodeBypass(NotFound);
-			it->setStatus(ClientStatus::Invalid);
+        // check if the scrpit is exist
+        if (!std::filesystem::exists(path))
+        {
+            ERROR_LOG("CGI script not exists : " + path.string());
+            it->setResponseCodeBypass(NotFound);
+            it->setStatus(ClientStatus::Invalid);
 			return;
-		}
+        }
 
-		// check if the script has execution permission
-		if(access(path.c_str(), X_OK) == -1) {
-			ERROR_LOG("CGI script can not execute" + path);
-			it->setResponseCodeBypass(Forbidden);
-			it->setStatus(ClientStatus::Invalid);
+        // check if the script has execution permission
+        if(access(path.c_str(), X_OK) == -1) {
+            ERROR_LOG("CGI script can not execute : " + path.string());
+            it->setResponseCodeBypass(Forbidden);
+            it->setStatus(ClientStatus::Invalid);
 			return;
 		}
 
 		// execute the CGI script
-		std::pair<pid_t, int> cgiInfo = CgiHandler::execute(path, *it);
+        std::pair<pid_t, int> cgiInfo = CgiHandler::execute(path.string(), *it);
 
-		// Error occured
-		if (cgiInfo.first == -1 || cgiInfo.second == -1) {
+        // Error occured
+        if (cgiInfo.first == -1 || cgiInfo.second == -1) {
 			it->setResponseCodeBypass(InternalServerError);
 			it->setStatus(ClientStatus::Invalid);
 		} else {
@@ -630,12 +642,18 @@ void Server::handleCgiOutput(size_t &i) {
 			INFO_LOG("CGI process execution finished : " + std::to_string(req->getCgiPid()));
 			kill(req->getCgiPid(), SIGKILL);
 			waitpid(req->getCgiPid(), &status, 0);
-		} else {
-			ERROR_LOG("Waiting for child failed: " + std::string(strerror(errno)));
-		}
+        }
+        else if (result > 0)
+        {
+            INFO_LOG("CGI process " + std::to_string(result) + " exited with status " + std::to_string(status));
+        }
+        else
+        {
+            ERROR_LOG("Waiting for child failed: " + std::string(strerror(errno)));
+        }
 
-		// Cleanup CGI fd
-		close(cgiFd);
+        // Cleanup CGI fd
+        close(cgiFd);
 
 		// Client FD from CGI - Request map 
 		_cgiFdMap.erase(cgiFd);
