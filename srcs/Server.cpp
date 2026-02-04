@@ -230,8 +230,7 @@ void	Server::handleClientData(size_t &i)
 
 	ssize_t	numBytes = recv(_pfds[i].fd, buf, RECV_BUF_SIZE, 0);
 
-	if (numBytes <= 0)
-	{
+	if (numBytes <= 0) {
 		if (numBytes == 0)
 			INFO_LOG("Client disconnected on fd " + std::to_string(_pfds[i].fd));
 		else
@@ -516,37 +515,33 @@ void	Server::checkTimeouts()
 {
 	for (size_t i = 0; i < _pfds.size(); i++) {
 
-        // FIle descriptor is a CGI Client FD
-        // Not applying time-out logic for CGI Client FD, skipping
-        if (isCgiFd(_pfds[i].fd))
-            continue;
+		if (isCgiFd(_pfds[i].fd)) // Not applying time-out logic for CGI Client FD, skipping
+			continue;
 
-		// File descriptor is NOT a Server Listener FD --> Client FD
-		// Not applying time-out logic for Server FDs, skipping
-		if (!isServerFd(_pfds[i].fd)) {
+		if (isServerFd(_pfds[i].fd)) // Not applying time-out logic for Server FDs, skipping
+			continue;
 
-			auto	it = getRequestByFd(_pfds[i].fd);
+		auto	it = getRequestByFd(_pfds[i].fd);
 
-			if (it == _clients.end())
-				throw std::runtime_error(ERROR_LOG("Could not find request with fd "
-					+ std::to_string(_pfds[i].fd)));
+		if (it == _clients.end())
+			throw std::runtime_error(ERROR_LOG("Could not find request with fd "
+									  + std::to_string(_pfds[i].fd)));
 
-			it->checkReqTimeouts();
+		it->checkReqTimeouts();
 
-			if (it->getStatus() == ClientStatus::RecvTimeout
-				|| it->getStatus() == ClientStatus::GatewayTimeout) {
-				Config const	&conf = matchConfig(*it);
+		if (it->getStatus() == ClientStatus::RecvTimeout
+			|| it->getStatus() == ClientStatus::GatewayTimeout) {
+			Config const	&conf = matchConfig(*it);
 
-				DEBUG_LOG("Matched config: " + conf.host + " " + conf.serverName + " " + std::to_string(conf.port));
-				_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
-				sendResponse(i);
-			} else if (it->getStatus() == ClientStatus::IdleTimeout
-				|| it->getStatus() == ClientStatus::SendTimeout) {
-				removeClientFromPollFds(i);
-				INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
-				cleanupCgi(&(*it));
-				_clients.erase(it);
-			}
+			DEBUG_LOG("Matched config: " + conf.host + " " + conf.serverName + " " + std::to_string(conf.port));
+			_responses[_pfds[i].fd].emplace_back(Response(*it, conf));
+			sendResponse(i);
+		} else if (it->getStatus() == ClientStatus::IdleTimeout
+			|| it->getStatus() == ClientStatus::SendTimeout) {
+			removeClientFromPollFds(i);
+			INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
+			cleanupCgi(&(*it));
+			_clients.erase(it);
 		}
 	}
 }

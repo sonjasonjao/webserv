@@ -27,8 +27,7 @@ void	printToken(Token const &root, int indent)
  */
 std::string	typeToString(TokenType type)
 {
-	switch (type)
-	{
+	switch (type) {
 		case (TokenType::Array):
 			return "Array";
 		case (TokenType::Element):
