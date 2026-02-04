@@ -262,8 +262,8 @@ void	Server::handleClientData(size_t &i)
 		// extracting the CGI path from routes
 		if (auto p = conf.routes.find("cgi-bin"); p != conf.routes.end())
 		{
-			path = p->second.target + it->getTarget();
-		}
+            path = p->second.target + "/" + it->getTarget();
+        }
 		else
 	{
 			ERROR_LOG("CGI functionality not enabled !");
