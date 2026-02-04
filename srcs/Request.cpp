@@ -44,9 +44,8 @@ void	Request::processRequest(std::string const &buf)
 {
 	_buffer += buf;
 
-	if (_buffer.find("\r\n\r\n") == std::string::npos && !_completeHeaders) {
+	if (_buffer.find("\r\n\r\n") == std::string::npos && !_completeHeaders)
 		_status = ClientStatus::WaitingData;
-	}
 	else
 		parseRequest();
 }
@@ -179,6 +178,10 @@ void	Request::parseRequest()
 	if (_status == ClientStatus::Invalid || _status == ClientStatus::Error) {
 		_buffer.clear();
 		return;
+	}
+	if (_contentLen.has_value() && _contentLen.value() == 0 && !_chunked) {
+		_responseCodeBypass = NoContent;
+		_status = ClientStatus::CompleteReq;
 	}
 	if (!_contentLen.has_value() && !_chunked) {
 		// this request should not have body, so buffer should be empty by now

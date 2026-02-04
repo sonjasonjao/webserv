@@ -3,144 +3,160 @@
 @import url('https://fonts.googleapis.com/css2?family=Bitcount+Prop+Double+Ink:wght@400;500;600;700&display=swap');
 
 :root {
-    --deep-space: #2e003e;
-    --star-white: #ffffff;
-    --rocket-orange: #ff9f43;
-    --meteor-pink: #ff4757;
-    --planet-blue: #0abde3;
+	--deep-space: #2e003e;
+	--star-white: #ffffff;
+	--rocket-orange: #ff9f43;
+	--meteor-pink: #ff4757;
+	--planet-blue: #0abde3;
 
-    /* Color and adujusting transparency */
-    --glass-bg: rgba(46, 0, 62, 0.45);
+	/* Color and adujusting transparency */
+	--glass-bg: rgba(46, 0, 62, 0.45);
 }
 
 body {
-    background-color: var(--deep-space);
-    background-image: url('images/background.jpg');
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
-    background-repeat: no-repeat;
-    color: var(--star-white);
-    font-family: 'Nunito', sans-serif;
-    margin: 0;
-    padding: 20px;
-    line-height: 1.6;
+	background-color: var(--deep-space);
+	background-image: url('images/background.jpg');
+	background-size: cover;
+	background-position: center;
+	background-attachment: fixed;
+	background-repeat: no-repeat;
+	color: var(--star-white);
+	font-family: 'Nunito', sans-serif;
+	margin: 0;
+	padding: 20px;
+	line-height: 1.6;
 }
 
 /* --- LOGO STYLING --- */
 .logo-img {
-    display: block;
-    max-width: 150px;
-    margin: 0 auto 20px auto;
-    filter: drop-shadow(0 5px 15px rgba(0,0,0,0.5));
-    transition: transform 0.3s ease;
+	display: block;
+	max-width: 150px;
+	margin: 0 auto 20px auto;
+	filter: drop-shadow(0 5px 15px rgba(0,0,0,0.5));
+	transition: transform 0.3s ease;
 }
 
 nav {
-    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-    padding-bottom: 10px;
-    margin-bottom: 20px;
-    background: rgba(0, 0, 0, 0.2);
-    padding: 15px;
-    border-radius: 15px;
-    text-align: center;
+	border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+	padding-bottom: 10px;
+	margin-bottom: 20px;
+	background: rgba(0, 0, 0, 0.2);
+	padding: 15px;
+	border-radius: 15px;
+	text-align: center;
 }
 
 nav a {
-    color: var(--star-white);
-    margin: 0 15px;
-    text-decoration: none;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    transition: color 0.3s ease;
+	color: var(--star-white);
+	margin: 0 15px;
+	text-decoration: none;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+	transition: color 0.3s ease;
 }
 
 nav a:hover {
-    color: var(--rocket-orange);
-    text-shadow: 0 0 10px rgba(255, 159, 67, 0.6);
+	color: var(--rocket-orange);
+	text-shadow: 0 0 10px rgba(255, 159, 67, 0.6);
 }
 
 .container {
-    max-width: 800px;
-    margin: 0 auto;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    padding: 40px;
-    border-radius: 30px;
-    background: var(--glass-bg);
-    backdrop-filter: blur(12px);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+	max-width: 800px;
+	margin: 0 auto;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	padding: 40px;
+	border-radius: 30px;
+	background: var(--glass-bg);
+	backdrop-filter: blur(12px);
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
 h1, h2, h3 {
-    font-family: 'Bitcount Prop Double Ink', serif;
-    text-align: center;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    background: linear-gradient(to right, var(--rocket-orange), var(--meteor-pink));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 5px rgba(255, 159, 67, 0.3));
+	font-family: 'Bitcount Prop Double Ink', serif;
+	text-align: center;
+	text-transform: uppercase;
+	letter-spacing: 2px;
+	background: linear-gradient(to right, var(--rocket-orange), var(--meteor-pink));
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	filter: drop-shadow(0 0 5px rgba(255, 159, 67, 0.3));
 }
 
 button {
-    background: linear-gradient(135deg, var(--rocket-orange), var(--meteor-pink));
-    color: white;
-    border: none;
-    padding: 12px 30px;
-    cursor: pointer;
-    font-family: inherit;
-    font-weight: 900;
-    font-size: 1.1rem;
-    border-radius: 50px;
-    box-shadow: 0 5px 15px rgba(255, 71, 87, 0.4);
-    transition: transform 0.2s, box-shadow 0.2s;
-    display: block;
-    margin: 20px auto;
+	background: linear-gradient(135deg, var(--rocket-orange), var(--meteor-pink));
+	color: white;
+	border: none;
+	padding: 12px 30px;
+	cursor: pointer;
+	font-family: inherit;
+	font-weight: 900;
+	font-size: 1.1rem;
+	border-radius: 50px;
+	box-shadow: 0 5px 15px rgba(255, 71, 87, 0.4);
+	transition: transform 0.2s, box-shadow 0.2s;
+	display: block;
+	margin: 20px auto;
 }
 
 button:hover {
-    opacity: 1;
-    transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(255, 71, 87, 0.6);
+	opacity: 1;
+	transform: translateY(-3px);
+	box-shadow: 0 8px 20px rgba(255, 71, 87, 0.6);
 }
 
 input, select {
-    background: rgba(0, 0, 0, 0.3);
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-    color: white;
-    padding: 12px;
-    width: 100%;
-    box-sizing: border-box;
-    margin-bottom: 15px;
+	background: rgba(0, 0, 0, 0.3);
+	border: 2px solid rgba(255, 255, 255, 0.1);
+	border-radius: 10px;
+	color: white;
+	padding: 12px;
+	width: 100%;
+	box-sizing: border-box;
+	margin-bottom: 15px;
 }
 
 input:focus, select:focus {
-    outline: none;
-    border-color: var(--planet-blue);
+	outline: none;
+	border-color: var(--planet-blue);
+}
+
+.link {
+	color: white;
+}
+
+.teapot-img {
+	width: 60%;
+}
+
+.teapot-container {
+	width: 100%;
+	display: inline-flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
 }
 
 /* --- MOBILE SPECIFIC TWEAKS --- */
 @media (max-width: 600px) {
-    body {
-        padding: 10px;
-    }
+	body {
+		padding: 10px;
+	}
 
-    nav a {
-        display: block;
-        margin: 10px 0;
-        border-bottom: 1px solid rgba(255,255,255,0.1);
-        padding-bottom: 5px;
-    }
+	nav a {
+		display: block;
+		margin: 10px 0;
+		border-bottom: 1px solid rgba(255,255,255,0.1);
+		padding-bottom: 5px;
+	}
 
-    h1 {
-        font-size: 1.8rem;
-    }
+	h1 {
+		font-size: 1.8rem;
+	}
 
-    .container {
-        width: 100%;
-        padding: 20px;
-        box-sizing: border-box;
-    }
+	.container {
+		width: 100%;
+		padding: 20px;
+		box-sizing: border-box;
+	}
 }

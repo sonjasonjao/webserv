@@ -14,7 +14,7 @@
             "routes" : {
                 "cgi-bin"    : "www",
                 "/"          : "www/site",
-                "secret"     : "/home/jvarila/Documents/minimal.html",
+                "secret"     : "www/site/418.html",
                 "img"        : "www/images",
                 "calculator" : "www/site/calculator.html",
                 "upload"     : "www/site/upload.html"
