@@ -41,6 +41,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	if (bypass != Unassigned) {
 		_statusCode = bypass;
 		formResponse();
+		debugPrintResponseContent();
 
 		return;
 	}
