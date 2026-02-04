@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>500 | System Failure</title>
+    <link rel="stylesheet" href="../style.css">
+    <style>
+        .error-container {
+            text-align: center;
+            margin-top: 100px;
+            border: 2px solid var(--alert-red); /* Red border for critical error */
+            padding: 40px;
+            background: rgba(20, 0, 0, 0.9);
+        }
+        h1 {
+            font-size: 6rem;
+            margin: 0;
+            color: var(--alert-red);
+            text-shadow: 0 0 15px red;
+        }
+        .blink { animation: blinker 1.5s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+    </style>
+</head>
+<body>
+    <div class="container error-container">
+        <h1>500</h1>
+        <p style="font-size: 1.5rem; color: var(--alert-red);" class="blink">CRITICAL HULL BREACH</p>
+        <hr style="border-color: var(--alert-red); margin: 20px 0;">
+        <p>Internal Server Error detected in the main drive.</p>
+        <p>Please check the server logs (std_err) for diagnostics.</p>
+        <br>
+        <a href="/" style="text-decoration: none;">
+            <button style="background-color: var(--alert-red);">Initiate Emergency Reboot</button>
+        </a>
+    </div>
+</body>
+</html>

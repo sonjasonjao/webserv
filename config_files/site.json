@@ -1,0 +1,35 @@
+{
+    "server": [
+        {
+            "host": "127.0.0.1",
+            "server_name": "localhost",
+            "listen": [
+                8081
+            ],
+            "allowed_methods": [
+                "GET",
+                "POST"
+            ],
+            "directory_listing": true,
+            "autoindex": false,
+            "upload_dir": "www/site/uploads",
+            "client_max_body_size": 11048576,
+            "routes": {
+                "cgi-bin": "www/site/cgi-bin",
+                "/": "www/site"
+            },
+            "status_pages": {
+                "200": "www/site/errors/200.html",
+                "207": "www/site/errors/207.html",
+                "400": "www/site/errors/400.html",
+                "403": "www/site/errors/403.html",
+                "404": "www/site/errors/404.html",
+                "413": "www/site/errors/413.html",
+                "500": "www/site/errors/500.html",
+                "502": "www/site/errors/502.html",
+                "504": "www/site/errors/504.html",
+                "508": "www/site/errors/508.html"
+            }
+        }
+    ]
+}
