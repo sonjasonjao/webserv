@@ -1,3 +1,0 @@
-Line number 01: This is a test string to fill up the buffer and test server chunking capabilities.
-Line number 02: This is a test string to fill up the buffer and test server chunking capabilities.
-Line number 03: This is a test string to fill up the buffer and test server chunking capabilities.

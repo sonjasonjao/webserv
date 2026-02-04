@@ -1,6 +1,7 @@
 #include "Server.hpp"
 #include "Log.hpp"
 #include "Pages.hpp"
+#include <iostream>
 
 /**
  * Main loop: instantiating Parser to parse config file, then creating Server object

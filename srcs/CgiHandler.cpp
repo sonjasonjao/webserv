@@ -77,7 +77,7 @@ char	**CgiHandler::mapToEnvp(std::map<std::string, std::string> const &envMap)
 	char	**envp	= new char*[envMap.size() + 1];
 	int		i		= 0;
 
-	for(auto const &[key, value] : envMap) {
+	for (auto const &[key, value] : envMap) {
 		std::string	temp = key + "=" + value;
 		char		*str = new char[temp.size() + 1];
 
