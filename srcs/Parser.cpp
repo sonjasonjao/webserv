@@ -409,7 +409,7 @@ std::vector<std::string>	Parser::getCollectionBykey(Token const &root, std::stri
 	for (auto item : root.children) {
 		std::string	itemKey = getKey(item);
 
-		if (key == itemKey && item.value.size() > 1) {
+		if (key == itemKey && item.children.size() > 1) {
 			for (auto p : item.children.at(1).children)
 				collection.emplace_back(p.value);
 		}
