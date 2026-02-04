@@ -5,7 +5,6 @@
 #include <cstring>
 #include <filesystem>
 #include <stack>
-#include <iostream>
 #include <algorithm>
 
 Parser::Parser(std::string const &fileName)

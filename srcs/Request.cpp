@@ -101,16 +101,14 @@ void	Request::checkReqTimeouts()
 
 	timePoint	init = {};
 
-
-	// time-out check for client Ideling for long time
+	// Time-out check for client idling for long time
 	if (durMs.count() > IDLE_TIMEOUT) {
 		DEBUG_LOG("Idle timeout with client fd " + std::to_string(_fd));
 		_status = ClientStatus::IdleTimeout;
 		return;
 	}
 
-
-	// time-out check for data reciving from the client
+	// Time-out check for receiving data from the client
 	diff = now - _recvStart;
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	if (_recvStart != init && durMs.count() > RECV_TIMEOUT) {
@@ -119,8 +117,7 @@ void	Request::checkReqTimeouts()
 		return;
 	}
 
-
-	// time-out check for data sending to the client
+	// Time-out check for sending data to the client
 	diff = now - _sendStart;
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	if (_sendStart != init && durMs.count() > SEND_TIMEOUT) {
@@ -128,7 +125,7 @@ void	Request::checkReqTimeouts()
 		_status = ClientStatus::SendTimeout;
 	}
 
-	// time-out checkout for CGI handlers
+	// Time-out check for CGI handlers
 	if(_status == ClientStatus::CgiRunning && _cgiRequest.has_value()) {
 		diff = now - _cgiRequest->cgiStartTime;
 
@@ -150,8 +147,7 @@ std::string	extractFromLine(std::string &orig, std::string delim)
 	auto		it	= orig.find(delim);
 	std::string	tmp	= "";
 
-	if (it != std::string::npos)
-	{
+	if (it != std::string::npos) {
 		tmp = orig.substr(0, it);
 		if (orig.size() > it + delim.size())
 			orig = orig.substr(it + delim.size());
@@ -216,9 +212,8 @@ void	Request::parseRequest()
     // set cgiRequest flag to indentify in POLL event loop
     // Check for /cgi-bin/ as a path segment
     if (_request.target.find("/cgi-bin/") != std::string::npos)
-    {
         _cgiRequest.emplace();
-    }
+
 	#if DEBUG_LOGGING
 	printData();
 	#endif
@@ -244,13 +239,11 @@ void	Request::parseRequestLine(std::string &req)
 	}
 	_request.methodString = method;
 
-	for (i = 0; i < methods.size(); i++)
-	{
+	for (i = 0; i < methods.size(); i++) {
 		if (methods[i] == method)
 			break;
 	}
-	switch (i)
-	{
+	switch (i) {
 		case 0:
 			_request.method = RequestMethod::Get;
 			break;
@@ -618,16 +611,14 @@ bool	Request::validateAndAssignTarget(std::string &target)
 		return false;
 
 	size_t	protocolEnd = target.find("://");
-	if (protocolEnd != std::string::npos)
-	{
+	if (protocolEnd != std::string::npos) {
 		std::string protocol = target.substr(0, protocolEnd);
 		if (protocol != "http" && protocol != "https")
 			return false;
 	}
 
 	size_t	queryStart = target.find('?');
-	if (queryStart != std::string::npos)
-	{
+	if (queryStart != std::string::npos) {
 		_request.target = target.substr(0, queryStart);
 		_request.query = target.substr(queryStart + 1);
 	} else
