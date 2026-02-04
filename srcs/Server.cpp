@@ -596,12 +596,12 @@ Server::~Server()
 		close(it->fd);
 }
 
-bool Server::isCgiFd(int fd)
+bool	Server::isCgiFd(int fd)
 {
 	return _cgiFdMap.find(fd) != _cgiFdMap.end();
 }
 
-void Server::handleCgiOutput(size_t &i)
+void	Server::handleCgiOutput(size_t &i)
 {
 	char	buf[CGI_BUF_SIZE];
 	int		cgiFd		= _pfds[i].fd;
@@ -679,7 +679,7 @@ void Server::handleCgiOutput(size_t &i)
 	}
 }
 
-void Server::cleanupCgi(Request *req)
+void	Server::cleanupCgi(Request *req)
 {
 	// Check if the CGI process is still running
 	if (req->getCgiPid() != -1) {

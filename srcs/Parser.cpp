@@ -67,7 +67,7 @@ Parser::~Parser()
  * @param void - class method will have access to all the class attributes
  * @return void - all the tokens will be saved to an internal container
  */
-void Parser::tokenizeFile()
+void	Parser::tokenizeFile()
 {
 	std::string	line;
 	std::string	output;
@@ -92,7 +92,7 @@ void Parser::tokenizeFile()
 	}
 
 	// create Token AST for validation
-	Token root = createToken(output);
+	Token	root = createToken(output);
 
 	/**
 	 * building configuration struct vector to hold all the configuration data
@@ -111,10 +111,10 @@ void Parser::tokenizeFile()
 					for (auto const &block : content.children) {
 
 						// first isolate all the ports related to a server config
-						std::vector<std::string> collection = getCollectionBykey(block, "listen");
+						std::vector<std::string>	collection = getCollectionBykey(block, "listen");
 
 						// retrieve all the other data except ports
-						Config config = convertToServerData(block);
+						Config	config = convertToServerData(block);
 
 						// add port one by one and create a copy of config
 						if (collection.empty()) {
@@ -435,7 +435,7 @@ bool Parser::isValidJSONString(std::string_view sv)
 	char prevChar = '\0';
 
 	for (size_t i = 0; i < sv.size(); ++i) {
-		char c = sv[i];
+		char	c = sv[i];
 
 		/**
 		 * if there is double quotes with out escape character, then will toggle
@@ -535,7 +535,7 @@ bool Parser::isValidJSONString(std::string_view sv)
  * this function will check if a given string is a valid primitive value
  * an integer, a fractional value, IPv4, true or false
  */
-bool Parser::isPrimitiveValue(std::string_view sv)
+bool	Parser::isPrimitiveValue(std::string_view sv)
 {
 	if (sv.empty())
 		return false;

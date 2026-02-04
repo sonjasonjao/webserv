@@ -11,7 +11,7 @@
 #define READ	0
 #define WRITE	1
 
-void freeEnvp(char** envp)
+void	freeEnvp(char** envp)
 {
 	if (!envp)
 		return;
@@ -186,7 +186,7 @@ std::pair<pid_t, int>	CgiHandler::execute(std::string const &scriptPath, Request
 	return { pid, childToParentPipe[READ] };
 }
 
-CgiResponse CgiHandler::parseCgiOutput(std::string const &rawOutput)
+CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 {
 	CgiResponse	response;
 
