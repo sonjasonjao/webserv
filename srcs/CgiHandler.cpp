@@ -110,7 +110,7 @@ std::pair<pid_t, int> CgiHandler::execute(const std::string& scriptPath, const R
     if(pid == 0) {
         // insdie child process
         // Redirect stdin to read from pipe_in
-        if (dup2(pipe_in[0], STDOUT_FILENO) == -1)
+        if (dup2(pipe_in[0], STDIN_FILENO) == -1)
         {
             ERROR_LOG("CGI dup2 input failed: " + std::string(strerror(errno)));
             std::exit(1);
@@ -157,8 +157,6 @@ std::pair<pid_t, int> CgiHandler::execute(const std::string& scriptPath, const R
                 ssize_t written = write(pipe_in[1], data, remaining);
                 if (written == -1)
                 {
-                    if (errno == EINTR)
-                        continue;
                     ERROR_LOG("CGI write failed: " + std::string(strerror(errno)));
                     break;
                 }
