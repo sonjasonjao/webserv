@@ -259,10 +259,16 @@ void	Server::handleClientData(size_t &i)
 
 	if(it->isCgiRequest()) {
 		std::filesystem::path path;
+		std::string extracted_path;
 		// extracting the CGI path from routes
 		if (auto p = conf.routes.find("cgi-bin"); p != conf.routes.end())
 		{
-            path = p->second.target + "/" + it->getTarget();
+			if (size_t pos = p->second.target.find("/cgi-bin");pos != std::string::npos) {
+				extracted_path = p->second.target.substr(0, pos);
+			} else {
+				extracted_path = "";
+			}
+            path = extracted_path + it->getTarget();
         }
 		else
 	{
