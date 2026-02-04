@@ -23,9 +23,12 @@ static std::string			getContentType(std::string sv);
 static void					listify(std::vector<std::string> const &vec, size_t offset, std::stringstream &stream);
 
 /**
- * Main functionality for response forming. Categorizes links information from the source request
+ * Main functionality for response forming. Categorizes and links information from the source request
  * and matching configuration, validates relevant fields, picks the correct response status code,
  * and constructs the matching response content buffer.
+ *
+ * @param req	Request object that the response is an answer for
+ * @param conf	Config object containing data about the server setup
  */
 Response::Response(Request const &req, Config const &conf) : _req(req), _conf(conf)
 {
@@ -50,7 +53,6 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	}
 	if (_statusCode != Unassigned) {
 		formResponse();
-
 		debugPrintResponseContent();
 
 		return;
@@ -76,7 +78,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	// Save original sanitized request target before routing
 	_reqTargetSanitized = _target;
 	if (_reqTargetSanitized.length() > 1 && _reqTargetSanitized[0] == '/')
-		_reqTargetSanitized = _reqTargetSanitized.substr(1);
+		_reqTargetSanitized.erase(0, 1);
 
 	/* --- Route matching --- */
 
