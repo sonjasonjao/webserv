@@ -10,40 +10,40 @@
 Parser::Parser(std::string const &fileName)
 	:	_fileName(fileName), _file()
 {
-	std::error_code ec;
+	std::error_code	ec;
+
 	/**
 	 * Try to locate the file in the current file system, will throw an error
 	 * if file does not exist
 	 */
-	if (!std::filesystem::exists(_fileName, ec) || ec) {
+	if (!std::filesystem::exists(_fileName, ec) || ec)
 		throw ParserException(ERROR_LOG("File does not exist: " + _fileName));
-	}
+
 	/**
 	 * Will compare the file extension with the standard one and will throw
 	 * an error in case of mismatch. Subsequent characters in the file_name after
 	 * the last occurrence of '.'
 	 */
-	size_t pos = _fileName.rfind('.');
-	std::string ext = _fileName.substr(pos + 1);
-	if (ext != EXTENSION) {
+	size_t		pos = _fileName.rfind('.');
+	std::string	ext = _fileName.substr(pos + 1);
+
+	if (ext != EXTENSION)
 		throw ParserException(ERROR_LOG("Wrong extension : " + _fileName));
-	}
 
 	_file.open(_fileName);
 
 	/**
 	 * if the file pointed by the file_name can not open, will throw an error
 	 */
-	if (_file.fail()) {
+	if (_file.fail())
 		throw ParserException(ERROR_LOG("Couldn't open file : " + _fileName + ": " + std::string(strerror(errno))));
-	}
 
 	/**
 	 * If the file pointed by the file_name is empty, will throw an error
 	 */
-	if (std::filesystem::file_size(_fileName) == 0) {
+	if (std::filesystem::file_size(_fileName) == 0)
 		throw ParserException(ERROR_LOG("Empty file : " + _fileName));
-	}
+
 	/**
 	 * Successfully opening the file and tokenizing the content
 	 * all the tokens will be saved into AST tree structure
@@ -56,9 +56,8 @@ Parser::~Parser()
 	/**
 	 * At the end if the file descriptor is still open, it will be closed gracefully
 	 */
-	if (_file.is_open()) {
+	if (_file.is_open())
 		_file.close();
-	}
 }
 
 /**
@@ -87,9 +86,8 @@ void	Parser::tokenizeFile()
 	}
 
 	// JSON string validation
-	if (!isValidJSONString(output)) {
+	if (!isValidJSONString(output))
 		throw ParserException(ERROR_LOG("Output not a valid JSON string"));
-	}
 
 	// create Token AST for validation
 	Token	root = createToken(output);
@@ -117,9 +115,8 @@ void	Parser::tokenizeFile()
 						Config	config = convertToServerData(block);
 
 						// add port one by one and create a copy of config
-						if (collection.empty()) {
+						if (collection.empty())
 							throw ParserException(ERROR_LOG("Missing ports in config files!"));
-						}
 
 						for (auto &item : collection) {
 							if (!isValidPort(item)) {
@@ -410,13 +407,11 @@ std::vector<std::string>	Parser::getCollectionBykey(Token const &root, std::stri
 {
 	std::vector<std::string> collection;
 	for (auto item : root.children) {
-		std::string itemKey = getKey(item);
-		if (key == itemKey) {
-			if (item.children.size() > 1) {
-				for (auto p : item.children.at(1).children) {
-					collection.emplace_back(p.value);
-				}
-			}
+		std::string	itemKey = getKey(item);
+
+		if (key == itemKey && item.value.size() > 1) {
+			for (auto p : item.children.at(1).children)
+				collection.emplace_back(p.value);
 		}
 	}
 	return collection;
