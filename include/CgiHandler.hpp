@@ -8,7 +8,7 @@
 
 struct CgiResponse {
 	std::string	status			= "200 OK";
-    std::string contentType = "text/html";
+    std::string contentType		= "text/html";
     std::string	contentLength	= "0";
 	std::string	body;
 };

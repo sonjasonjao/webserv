@@ -1,4 +1,5 @@
 #include "JSON.hpp"
+#include <iostream>
 
 /**
  * this function will print the AST recursively, pure debugging function
