@@ -59,7 +59,7 @@ class Server
 		ReqIter			getRequestByFd(int fd);
 
 		std::vector<Config> const	&getConfigs() const;
-		
+
 		// CGI handler related methods
 		bool 			isCgiFd(int fd);
 		void 			handleCgiOutput(size_t &i);

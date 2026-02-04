@@ -173,7 +173,7 @@ class Request
 		bool							getKeepAlive() const;
 		int								getFd() const;
 		int								getServerFd() const;
-		
+
 		// class methods directly intercat with CGI handler
 		bool							isCgiRequest() const;
 		void							setCgiResult(std::string str);

@@ -22,5 +22,5 @@ public:
 
 private:
 	static stringMap	getEnv(std::string const &scriptPath, Request const &request);
-	static char			**mapToEnvp(const std::map<std::string, std::string> &envMap);
+	static char			**mapToEnvp(std::map<std::string, std::string> const &envMap);
 };
