@@ -46,7 +46,7 @@ fclean: clean
 re: fclean all
 # ---------------------------------------------------------------------------- #
 run: $(NAME)
-	./$(NAME) ./config_files/test.json
+	./$(NAME) ./config_files/default.json
 
 gdb: $(NAME)
 	gdb -tui $(NAME)
