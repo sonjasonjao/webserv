@@ -9,7 +9,7 @@
 #include <memory>
 #include <fstream>
 
-#define IDLE_TIMEOUT			10000 // timeout values to be decided, and should they be in Server.hpp?
+#define IDLE_TIMEOUT			10000
 #define RECV_TIMEOUT			5000
 #define SEND_TIMEOUT			5000
 #define HEADERS_MAX_SIZE		8000
@@ -18,8 +18,7 @@
 
 enum ResponseCode : int;
 
-enum class RequestMethod
-{
+enum class RequestMethod {
 	Get,
 	Post,
 	Delete,
@@ -31,8 +30,7 @@ enum class RequestMethod
  * formed and ready to be sent from server. Error indicates there is a critical error in the HTTP
  * request, and thus client must be immediately disconnected without sending a response.
  */
-enum class ClientStatus
-{
+enum class ClientStatus {
 	WaitingData,
 	CgiRunning,
 	CompleteReq,
@@ -45,8 +43,7 @@ enum class ClientStatus
 	Error,
 };
 
-struct RequestLine
-{
+struct RequestLine {
 	std::string					target;
 	std::optional<std::string>	query;
 	std::string					httpVersion;
@@ -89,8 +86,8 @@ struct CgiRequest {
 	std::string	cgiResult;
 };
 
-class Request
-{
+class Request {
+
 	using stringMap = std::unordered_map<std::string, std::vector<std::string>>;
 	using timePoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
@@ -174,14 +171,14 @@ class Request
 		int								getFd() const;
 		int								getServerFd() const;
 
-		// class methods directly intercat with CGI handler
-		bool							isCgiRequest() const;
-		void							setCgiResult(std::string str);
-		void        					setCgiPid(pid_t pid);
-		void        					setCgiStartTime();
-		void							printStatus() const;
-		pid_t       					getCgiPid() const;
-		timePoint   					getCgiStartTime() const;
-		std::string						getCgiResult() const;
-		stringMap						const &getHeaders(void) const;
+		// Methods directly interacing with CGI handler
+		bool		isCgiRequest() const;
+		void		setCgiResult(std::string str);
+		void		setCgiPid(pid_t pid);
+		void		setCgiStartTime();
+		void		printStatus() const;
+		pid_t		getCgiPid() const;
+		timePoint	getCgiStartTime() const;
+		std::string	getCgiResult() const;
+		stringMap	const &getHeaders(void) const;
 };

@@ -467,7 +467,7 @@ bool Parser::isValidJSONString(std::string_view sv)
 		 */
 		if (isSeparator && !buffer.empty()) {
 			if (!isPrimitiveValue(buffer)) {
-				std::cerr << "Error: Invalid value format -> " << buffer << "\n";
+				ERROR_LOG("Invalid value format -> " + buffer + "\n");
 				return false;
 			}
 			buffer.clear();
@@ -521,12 +521,12 @@ bool Parser::isValidJSONString(std::string_view sv)
 	}
 
 	if (inQuotes) {
-		std::cerr << "Un-closed double quotations !\n";
+		ERROR_LOG("Un-closed double quotations !\n");
 		return false;
 	}
 
 	if (!brackets.empty()) {
-		std::cerr << "Un-closed brackets " << brackets.top() << "!\n";
+		ERROR_LOG(std::string("Un-closed brackets ") + brackets.top() + "!\n");
 		return false;
 	}
 	return true;

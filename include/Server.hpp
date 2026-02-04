@@ -6,12 +6,12 @@
 #include <list>
 #include <deque>
 #include <unordered_map>
-#include <filesystem>
 #include <unistd.h>
 #include <poll.h>
 
-#define MAX_PENDING		20 // all of these to be decided
+#define MAX_PENDING		20
 #define RECV_BUF_SIZE	4096
+#define CGI_BUF_SIZE	4096
 #define POLL_TIMEOUT	100
 #define MAX_CLIENTS		4096
 
@@ -61,7 +61,7 @@ class Server
 		std::vector<Config> const	&getConfigs() const;
 
 		// CGI handler related methods
-		bool 			isCgiFd(int fd);
-		void 			handleCgiOutput(size_t &i);
-		void			cleanupCgi(Request* req);
+		bool	isCgiFd(int fd);
+		void	handleCgiOutput(size_t &i);
+		void	cleanupCgi(Request *req);
 };
