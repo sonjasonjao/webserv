@@ -35,6 +35,18 @@
             "host"      : "127.0.0.1",
             "server_name" : "www.webserv.com",
             "listen"    : [2025, 2026, 2027, 2028, 2029]
+        },
+        {
+            "host"                  : "localhost",
+            "server_name"           : "www.directorylisting.com",
+            "listen"                : [8082],
+
+            "directory_listing"     : true,
+
+            "routes" : {
+                "/"         : "www/directory_list_testing",
+                "img"       : "www/images"
+            }
         }
     ]
 }
