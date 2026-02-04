@@ -12,12 +12,13 @@
             "client_max_body_size"  : 11048576,
 
             "routes" : {
-                "cgi-bin"    : "www/cgi-bin",
+                "cgi-bin"    : "www/site/cgi-bin",
                 "/"          : "www/site",
                 "secret"     : "www/site/418.html",
                 "img"        : "www/images",
                 "calculator" : "www/site/calculator.html",
-                "upload"     : "www/site/upload.html"
+                "upload"     : "www/site/upload.html",
+                "uploads"    : "www/uploads"
             },
 
             "status_pages" : {
