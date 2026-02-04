@@ -262,9 +262,6 @@ void	Server::handleClientData(size_t &i)
 		std::filesystem::path path;
 		std::string extracted_path;
 		// extracting the CGI path from routes
-		if (auto p = conf.routes.find("cgi-bin"); p != conf.routes.end()) {
-            path = p->second.target + "/" + it->getTarget();
-        } else {
 		if (auto p = conf.routes.find("cgi-bin"); p != conf.routes.end())
 		{
 			if (size_t pos = p->second.target.find("/cgi-bin");pos != std::string::npos) {
@@ -275,7 +272,7 @@ void	Server::handleClientData(size_t &i)
             path = extracted_path + it->getTarget();
         }
 		else
-	{
+		{
 			ERROR_LOG("CGI functionality not enabled !");
 			it->setResponseCodeBypass(Forbidden);
 			it->setStatus(ClientStatus::Invalid);
