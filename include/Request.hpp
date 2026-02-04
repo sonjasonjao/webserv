@@ -63,11 +63,11 @@ struct RequestLine {
  */
 
 struct MultipartPart {
-	std::string	 headers;
-	std::string	 name;
-	std::string	 filename;
-	std::string	 contentType;
-	std::string	 data;
+	std::string	headers;
+	std::string	name;
+	std::string	filename;
+	std::string	contentType;
+	std::string	data;
 };
 
 /**
@@ -172,13 +172,13 @@ class Request {
 		int								getServerFd() const;
 
 		// Methods directly interacing with CGI handler
-		bool		isCgiRequest() const;
-		void		setCgiResult(std::string str);
-		void		setCgiPid(pid_t pid);
-		void		setCgiStartTime();
-		void		printStatus() const;
-		pid_t		getCgiPid() const;
-		timePoint	getCgiStartTime() const;
-		std::string	getCgiResult() const;
-		stringMap	const &getHeaders(void) const;
+		bool			isCgiRequest() const;
+		void			setCgiResult(std::string str);
+		void			setCgiPid(pid_t pid);
+		void			setCgiStartTime();
+		void			printStatus() const;
+		pid_t			getCgiPid() const;
+		timePoint		getCgiStartTime() const;
+		std::string		getCgiResult() const;
+		stringMap const	&getHeaders(void) const;
 };
