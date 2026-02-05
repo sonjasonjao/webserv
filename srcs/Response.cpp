@@ -222,8 +222,8 @@ void	Response::formResponse()
 			_startLine		 = _req.getHttpVersion() + " " + res.status;
 			_contentType	 = res.contentType;
 			_headerSection	+= "Content-Type: " + _contentType + std::string(CRLF);
-			_headerSection	+= "Content-Length: " + res.contentLength + CRLF;
-			_content		 = _startLine + CRLF + _headerSection + CRLF + res.body;
+			_headerSection	+= "Content-Length: " + res.contentLength + std::string(CRLF);
+			_content		 = _startLine + std::string(CRLF) + _headerSection + std::string(CRLF) + std::string(CRLF) + res.body;
 
 			return;
 		}
