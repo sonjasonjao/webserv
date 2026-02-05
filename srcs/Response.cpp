@@ -600,9 +600,6 @@ static void	listify(std::vector<std::string> const &vec,
 					std::string_view route,
 					std::stringstream &stream)
 {
-	if (listedDir.back() == '/')
-		listedDir = listedDir.substr(0, listedDir.length() - 1);
-
 	stream << "<ul>\n";
 	for (auto const &subDir : vec) {
 		std::string_view	uriLastPart = subDir;
@@ -610,8 +607,14 @@ static void	listify(std::vector<std::string> const &vec,
 		uriLastPart = uriLastPart.substr(route.length() + 1);
 
 		stream << "<li>";
-		stream << "<a href=\"./" << uriLastPart << "\">";
-		stream << uriLastPart << " " << listedDir << " " << route << " " << subDir;
+		if (listedDir == "/")
+			stream << "<a href=\"/" << uriLastPart << "\">";
+		else {
+			if (listedDir.back() == '/')
+				listedDir = listedDir.substr(0, listedDir.length() - 1);
+			stream << "<a href=\"/" << listedDir << "/" << uriLastPart << "\">";
+		}
+		stream << uriLastPart;
 		stream << "</a>";
 		stream << "</li>\n";
 	}
