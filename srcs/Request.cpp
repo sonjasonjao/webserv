@@ -279,6 +279,14 @@ void	Request::parseRequestLine(std::string &req)
  */
 void	Request::parseHeaders(std::string &str)
 {
+	// http/1.0 request is valid even without any headers, just trailing CRLF left
+	if (_request.httpVersion == "HTTP/1.0" && str == "\r\n") {
+		_completeHeaders = true;
+		_status = ClientStatus::CompleteReq;
+		_buffer.clear();
+		return;
+	}
+
 	std::string	line;
 	size_t		headEnd = str.find("\r\n\r\n");
 
