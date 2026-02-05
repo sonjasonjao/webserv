@@ -76,7 +76,7 @@ std::map<std::string, std::string>	CgiHandler::getEnv(std::string const &scriptP
 char	**CgiHandler::mapToEnvp(std::map<std::string, std::string> const &envMap)
 {
 	char	**envp	= new char*[envMap.size() + 1];
-	int		i		= 0;
+	size_t	i		= 0;
 
 	for (auto const &[key, value] : envMap) {
 		std::string	temp = key + "=" + value;
@@ -238,22 +238,24 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 			if (key == "Status"){
 				response.statusString = value;
 				try {
-					std::string trimmed = trimWhitespace(value);
-					size_t pos = trimmed.find_first_not_of("0123456789");
+					std::string	trimmed	= trimWhitespace(value);
+					size_t		pos		= trimmed.find_first_not_of("0123456789");
+
 					response.status = std::stoi(trimmed.substr(0, pos));
 				} catch (std::exception &e) {
 					response.status = 500;
+					break;
 				}
 			}
 			else if (key == "Content-Type")
 				response.contentType = value;
 			else if (key == "Content-Length") {
 				try {
-					std::string trimmed = trimWhitespace(value);
-					size_t pos = trimmed.find_first_not_of("0123456789");
+					std::string	trimmed	= trimWhitespace(value);
+					size_t		pos		= trimmed.find_first_not_of("0123456789");
 					response.contentLength = std::stoi(trimmed.substr(0, pos));
 				} catch (std::exception &e) {
-					response.status = 0;
+					response.contentLength = 0;
 				}
 			}
 		}
