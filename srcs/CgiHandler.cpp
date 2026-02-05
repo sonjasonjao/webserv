@@ -36,6 +36,7 @@ std::map<std::string, std::string>	CgiHandler::getEnv(std::string const &scriptP
 	env["SCRIPT_FILENAME"]		= scriptPath;
 	env["GATEWAY_INTERFACE"]	= "CGI/1.1";
 	env["SCRIPT_NAME"]			= request.getTarget();
+	env["REQUEST_URI"]			= request.getTarget();
 	env["SERVER_PROTOCOL"]		= request.getHttpVersion();
 	env["SERVER_SOFTWARE"]		= "Webserv/1.0";
 	env["REDIRECT_STATUS"]		= "200";
