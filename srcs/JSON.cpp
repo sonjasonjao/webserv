@@ -2,7 +2,10 @@
 #include <iostream>
 
 /**
- * this function will print the AST recursively, pure debugging function
+ * Prints the AST recursively, for debugging purposes.
+ *
+ * @param root		Root node of AST to be printed
+ * @param indent	Amount of spaces to indent the output by
  */
 void	printToken(Token const &root, int indent)
 {
@@ -20,10 +23,11 @@ void	printToken(Token const &root, int indent)
 }
 
 /**
- * convert TokenType enum value to a string
- * @param type Token type
- * @return corresponding string value, default or unmatching will result
- * empty string
+ * Converts TokenType enum value to a string
+ *
+ * @param type	Token type enum value
+ *
+ * @return	String matching enum type, empty string if unmatched
  */
 std::string	typeToString(TokenType type)
 {
@@ -47,10 +51,11 @@ std::string	typeToString(TokenType type)
 }
 
 /**
- * remove leading and trailing white speces (\t\n)
- * @param string need to be trimmed
- * @return new copy of the string without leading and trailing
- * white spaces
+ * Removes leading and trailing white space (\t\n)
+ *
+ * @param sv	String view to be trimmed
+ *
+ * @return	String with surrounding white space removed
  */
 std::string	trim(std::string_view sv)
 {
@@ -59,16 +64,20 @@ std::string	trim(std::string_view sv)
 		return "";
 	}
 	size_t const	end = sv.find_last_not_of(" \t\n");
+
 	return std::string(sv.substr(start, end - start + 1));
 }
 
 /**
- * will return the position of a unqoted character, or not surrounded by
- * '"', '{', '[' , '}', ']'
- * usefull to detemine the position of correct position to split
+ * Returns the position of an unqoted character, or one not surrounded by
+ * '"', '{', '[' , '}', ']'.
+ * Used to detemine the correct position to split.
  * {"key1" : "value1"}, {"key2" : "value2", "key3" : "value3"}
- * @param string and the character need to check
- * @return index of the first occuranece of the character in the string
+ *
+ * @param sv	String view to split later
+ * @param c		Delimiting character to search for
+ *
+ * @return	Index of the first unquoted occurrence of the character in the string
  */
 size_t	unquotedDelimiter(std::string_view sv, char const c)
 {
