@@ -80,6 +80,18 @@ R"(<!DOCTYPE html>
 </html>
 )";
 
+constexpr static char const * const	DEFAULT405	= \
+R"(<!DOCTYPE html>
+<html>
+	<head>
+	</head>
+	<body>
+		<h1>405 Not Allowed</h1>
+		<p>Default fallback page</p>
+	</body>
+</html>
+)";
+
 constexpr static char const * const	DEFAULT408	= \
 R"(<!DOCTYPE html>
 <html>
@@ -161,6 +173,7 @@ void	Pages::loadDefaults()
 	defaultPages["default400"] = DEFAULT400;
 	defaultPages["default403"] = DEFAULT403;
 	defaultPages["default404"] = DEFAULT404;
+	defaultPages["default405"] = DEFAULT405;
 	defaultPages["default408"] = DEFAULT408;
 	defaultPages["default409"] = DEFAULT409;
 	defaultPages["default413"] = DEFAULT413;

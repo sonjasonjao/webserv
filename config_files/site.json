@@ -10,8 +10,8 @@
                 "GET",
                 "POST"
             ],
-            "directory_listing": true,
-            "autoindex": false,
+            "directory_listing": false,
+            "autoindex": true,
             "upload_dir": "www/site/uploads",
             "client_max_body_size": 11048576,
             "routes": {
