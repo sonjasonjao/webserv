@@ -218,6 +218,12 @@ void	Request::parseRequest()
         _cgiRequest.emplace();
 	}
 
+	// POST method is only allowed for file upload (-> _boundary needs to have value) or CGI request
+	if (_request.method == RequestMethod::Post && !(_cgiRequest.has_value() || _boundary.has_value())) {
+		_status = ClientStatus::Invalid;
+		_responseCodeBypass = NotAllowed;
+	}
+
 	#if DEBUG_LOGGING
 	printData();
 	#endif
@@ -259,10 +265,12 @@ void	Request::parseRequestLine(std::string &req)
 			break;
 		default:
 			_status = ClientStatus::Invalid;
+			_responseCodeBypass = NotAllowed;
 			return;
 	}
 
-	if (!validateAndAssignTarget(target) || !validateAndAssignHttp(httpVersion))
+	if ((_request.methodString + target + httpVersion).length() > REQLINE_MAX_SIZE
+		|| !validateAndAssignTarget(target) || !validateAndAssignHttp(httpVersion))
 		_status = ClientStatus::Invalid;
 }
 
