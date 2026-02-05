@@ -1,15 +1,17 @@
 #pragma once
 
 #include "Request.hpp"
+#include "Utils.hpp"
 #include <string>
 #include <map>
 #include <utility>
 #include <sys/types.h>
 
 struct CgiResponse {
-	std::string	status			= "200 OK";
+	int	status					= 200;
+	int	contentLength			= 0;
+	std::string	statusString	= "200 OK";
     std::string contentType		= "text/html";
-    std::string	contentLength	= "0";
 	std::string	body;
 };
 

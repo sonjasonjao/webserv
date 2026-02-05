@@ -219,14 +219,14 @@ void	Response::formResponse()
 	if (_req.isCgiRequest() && _statusCode == Unassigned) {
 		CgiResponse	res = CgiHandler::parseCgiOutput(_req.getCgiResult());
 
-		if (res.body.empty() && res.status.empty() && res.contentLength == "0") {
+		if (res.status != 200 || res.contentLength == 0) {
 			ERROR_LOG("Malformed CGI output or script crashed!");
 			_statusCode = InternalServerError;
 		} else {
-			_startLine		 = _req.getHttpVersion() + " " + res.status + CRLF;
+			_startLine		 = _req.getHttpVersion() + " " + res.statusString + CRLF;
 			_contentType	 = res.contentType;
 			_headerSection	+= "Content-Type: " + _contentType + std::string(CRLF);
-			_headerSection	+= "Content-Length: " + res.contentLength + std::string(CRLF);
+			_headerSection	+= "Content-Length: " + std::to_string(res.contentLength) + std::string(CRLF);
 			if(_req.getKeepAlive())
 				_headerSection	+= "Connection: keep-alive" + std::string(CRLF);
 			else
