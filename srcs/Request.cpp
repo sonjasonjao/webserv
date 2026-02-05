@@ -854,7 +854,7 @@ void	Request::handleFileUpload()
 			break;
 		}
 		if (_buffer.compare(partStart, endDelimiter.length(), endDelimiter) == 0) { // End delimiter of form data found
-			_buffer.erase(0, partStart + endDelimiter.length());
+			_buffer.clear();
 			_responseCodeBypass = Created;
 			_status = ClientStatus::CompleteReq;
 			break;

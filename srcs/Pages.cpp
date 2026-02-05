@@ -74,7 +74,7 @@ R"(<!DOCTYPE html>
 	<head>
 	</head>
 	<body>
-		<h1>404 Resource Not Found</h1>
+		<h1>404 Not Found</h1>
 		<p>Default fallback page</p>
 	</body>
 </html>
