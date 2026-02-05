@@ -203,7 +203,7 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 	// Handle case where no header/body separator is found
 	if (bodyPos == std::string::npos) {
 		response.body = rawOutput;
-		response.contentLength = std::to_string(response.body.length());
+		response.contentLength = response.body.length();
 
 		return response;
 	}
@@ -235,19 +235,34 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 				value = value.substr(first, (last - first + 1));
 
 			// Mapping fields
-			if (key == "Status")
-				response.status = value;
+			if (key == "Status"){
+				response.statusString = value;
+				try {
+					std::string trimmed = trimWhitespace(value);
+					size_t pos = trimmed.find_first_not_of("0123456789");
+					response.status = std::stoi(trimmed.substr(0, pos));
+				} catch (std::exception &e) {
+					response.status = 500;
+				}
+			}
 			else if (key == "Content-Type")
 				response.contentType = value;
-			else if (key == "Content-Length")
-				response.contentLength = value;
+			else if (key == "Content-Length") {
+				try {
+					std::string trimmed = trimWhitespace(value);
+					size_t pos = trimmed.find_first_not_of("0123456789");
+					response.contentLength = std::stoi(trimmed.substr(0, pos));
+				} catch (std::exception &e) {
+					response.status = 0;
+				}
+			}
 		}
 		start = end + 1;
 	}
 
-	// Content-Length, set it based on body size
-	if (response.contentLength == "0" && !response.body.empty())
-		response.contentLength = std::to_string(response.body.length());
+	// Content-Length, re-adjust based on body size
+	if (response.contentLength == 0 && !response.body.empty())
+		response.contentLength = response.body.length();
 
 	return response;
 }

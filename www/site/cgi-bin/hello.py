@@ -4,6 +4,9 @@ import os
 
 # The HTML Content
 print(f"""
+Status: 200 OK\r\n
+Content-Type: text/html\r\n
+Content-Length: 0\r\n\r\n
 <!DOCTYPE html>
 <html lang="en">
 <head>
