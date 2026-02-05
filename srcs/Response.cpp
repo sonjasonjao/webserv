@@ -219,7 +219,7 @@ void	Response::formResponse()
 			ERROR_LOG("Malformed CGI output or script crashed!");
 			_statusCode = InternalServerError;
 		} else {
-			_startLine		 = _req.getHttpVersion() + " " + res.status;
+			_startLine		 = _req.getHttpVersion() + " " + res.status + std::string(CRLF);
 			_contentType	 = res.contentType;
 			_headerSection	+= "Content-Type: " + _contentType + std::string(CRLF);
 			_headerSection	+= "Content-Length: " + res.contentLength + std::string(CRLF);
