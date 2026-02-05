@@ -195,8 +195,8 @@ bool	Response::sendIsComplete() const
  */
 void	Response::formResponse()
 {
-	_headerSection  = std::string("Server: ") + _conf.serverName + CRLF;
-	_headerSection += "Date: " + getImfFixdate() + CRLF;
+	_headerSection	= std::string("Server: ") + _conf.serverName + CRLF;
+	_headerSection	+= "Date: " + getImfFixdate() + CRLF;
 
 	if (_directoryListing) {
 		_body = getDirectoryList(_reqTargetSanitized, _target);
@@ -204,8 +204,12 @@ void	Response::formResponse()
 		if (_statusCode != InternalServerError) {
 			_startLine		 = _req.getHttpVersion() + " 200 OK";
 			_contentType	 = "text/html";
-			_headerSection	+= "Content-Type: " + _contentType + std::string(CRLF);
+			_headerSection	+= "Content-Type: " + _contentType + CRLF;
 			_headerSection	+= "Content-Length: " + std::to_string(_body.length()) + CRLF;
+			if (_statusCode / 100 != 2)
+				_headerSection	+= "Connection: close" + std::string(CRLF);
+			else
+				_headerSection	+= "Connection: keep-alive" + std::string(CRLF);
 			_content		 = _startLine + CRLF + _headerSection + CRLF + _body;
 
 			return;
@@ -219,7 +223,7 @@ void	Response::formResponse()
 			ERROR_LOG("Malformed CGI output or script crashed!");
 			_statusCode = InternalServerError;
 		} else {
-			_startLine		 = _req.getHttpVersion() + " " + res.status + std::string(CRLF);
+			_startLine		 = _req.getHttpVersion() + " " + res.status + CRLF;
 			_contentType	 = res.contentType;
 			_headerSection	+= "Content-Type: " + _contentType + std::string(CRLF);
 			_headerSection	+= "Content-Length: " + res.contentLength + std::string(CRLF);
@@ -238,7 +242,7 @@ void	Response::formResponse()
 	else
 		_contentType = "text/html";
 
-	_headerSection += "Content-Type: " + _contentType + std::string(CRLF);
+	_headerSection += "Content-Type: " + _contentType + CRLF;
 
 	switch (_statusCode) {
 		case 200:
@@ -269,6 +273,10 @@ void	Response::formResponse()
 		case 404:
 			_startLine	= _req.getHttpVersion() + " 404 Not Found";
 			_body		= getResponsePageContent("404", _conf);
+		break;
+		case 405:
+			_startLine	= _req.getHttpVersion() + " 405 Not Allowed";
+			_body		= getResponsePageContent("405", _conf);
 		break;
 		case 408:
 			_startLine	= _req.getHttpVersion() + " 408 Request Timeout";
@@ -304,6 +312,10 @@ void	Response::formResponse()
 	}
 
 	_headerSection += "Content-Length: " + std::to_string(_body.length()) + CRLF;
+	if (_statusCode / 100 != 2)
+		_headerSection	+= "Connection: close" + std::string(CRLF);
+	else
+		_headerSection	+= "Connection: keep-alive" + std::string(CRLF);
 
 	_content = _startLine + CRLF + _headerSection + CRLF + _body;
 }

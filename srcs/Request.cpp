@@ -217,6 +217,12 @@ void	Request::parseRequest()
 	if (_request.target.find("/cgi-bin/") != std::string::npos)
 		_cgiRequest.emplace();
 
+	// POST method is only allowed for file upload (-> _boundary needs to have value) or CGI request
+	if (_request.method == RequestMethod::Post && !(_cgiRequest.has_value() || _boundary.has_value())) {
+		_status = ClientStatus::Invalid;
+		_responseCodeBypass = NotAllowed;
+	}
+
 	#if DEBUG_LOGGING
 	printData();
 	#endif
