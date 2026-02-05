@@ -15,6 +15,7 @@ struct CgiResponse {
 };
 
 class CgiHandler {
+
 	using stringMap = std::map<std::string, std::string>;
 
 public:

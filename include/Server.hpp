@@ -15,15 +15,15 @@
 #define POLL_TIMEOUT	100
 #define MAX_CLIENTS		4096
 
-struct ServerGroup
-{
+struct ServerGroup {
+
 	int					fd;
 	std::vector<Config>	configs;
 	Config const		*defaultConf;
 };
 
-class Server
-{
+class Server {
+
 	using ReqIter = std::list<Request>::iterator;
 
 private:
