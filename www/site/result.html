@@ -1,45 +1,49 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cosmos Server | Mission Result</title>
-    <link rel="stylesheet" href="/style.css">
-</head>
-<body>
-    <div class="container">
-        <nav>
-            <a href="/index.html">Home</a>
-            <a href="/about.html">Mission</a>
-            <a href="/upload.html">Upload Logs</a>
-            <a href="/calculator.html">Gravity Calc</a>
-        </nav>
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Cosmos Server | Mission Result</title>
+		<link rel="stylesheet" href="/style.css">
+	</head>
+	<body>
+		<div class="container">
+			<nav>
+				<a href="index.html">Home</a>
+				<a href="about.html">Mission</a>
+				<a href="upload.html">Upload Logs</a>
+				<a href="delete.html">Delete Logs</a>
+				<a href="calculator.html">Gravity Calc</a>
+			</nav>
 
-        <h1>Calculation Complete</h1>
-        
-        <div style="text-align: center; margin: 40px 0; padding: 20px; border: 2px dashed var(--planet-blue); border-radius: 15px; background: rgba(0,0,0,0.3);">
-            <h2 style="color: var(--rocket-orange); font-size: 2.5rem; margin-bottom: 10px;">
-                {{FINAL_WEIGHT}} kg
-            </h2>
-            <p style="font-size: 1.2rem; letter-spacing: 1px;">
-                WEIGHT ON {{PLANET_NAME}}
-            </p>
-            <p style="color: #aaa; font-size: 0.9rem;">
-                (Based on Earth mass: {{EARTH_WEIGHT}} kg)
-            </p>
-        </div>
+			<h1>Calculation Complete</h1>
 
-        <hr style="border-color: rgba(255,255,255,0.1); margin: 30px 0;">
+			<div style="text-align: center; margin: 40px 0; padding: 20px; border: 2px dashed var(--planet-blue); border-radius: 15px; background: rgba(0,0,0,0.3);">
+				<h2 style="color: var(--rocket-orange); font-size: 2.5rem; margin-bottom: 10px;">
+					{{FINAL_WEIGHT}} kg
+				</h2>
+				<p style="font-size: 1.2rem; letter-spacing: 1px;">
+					WEIGHT ON {{PLANET_NAME}}
+				</p>
+				<p style="color: #aaa; font-size: 0.9rem;">
+					(Based on Earth mass: {{EARTH_WEIGHT}} kg)
+				</p>
+			</div>
 
-        <div style="text-align: center;">
-            <a href="/calculator.html" style="text-decoration: none;">
-                <button type="button">Calculate Another</button>
-            </a>
-            <br>
-            <a href="/index.html" style="color: var(--planet-blue); text-decoration: none; font-size: 0.9rem;">
-                &larr; Return to Main Terminal
-            </a>
-        </div>
-    </div>
-</body>
+			<hr style="border-color: rgba(255,255,255,0.1); margin: 30px 0;">
+
+			<div style="text-align: center;">
+				<a href="/calculator.html" style="text-decoration: none;">
+					<button type="button">Calculate Another</button>
+				</a>
+				<br>
+				<a href="/index.html" style="color: var(--planet-blue); text-decoration: none; font-size: 0.9rem;">
+					&larr; Return to Main Terminal
+				</a>
+			</div>
+		</div>
+		<p class="footer">
+			© Johnny, Sonja, and Thiwanka 2026. Built for the 42 project Webserv.
+		</p>
+	</body>
 </html>

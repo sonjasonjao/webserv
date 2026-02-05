@@ -137,6 +137,14 @@ input:focus, select:focus {
 	text-align: center;
 }
 
+.footer {
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	text-align: center;
+}
+
 /* --- MOBILE SPECIFIC TWEAKS --- */
 @media (max-width: 600px) {
 	body {

@@ -44,6 +44,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	if (bypass != Unassigned) {
 		_statusCode = bypass;
 		formResponse();
+		debugPrintResponseContent();
 
 		return;
 	}
@@ -221,11 +222,12 @@ void	Response::formResponse()
 			ERROR_LOG("Malformed CGI output or script crashed!");
 			_statusCode = InternalServerError;
 		} else {
-			_startLine		 = _req.getHttpVersion() + " " + res.status;
+			_startLine		 = _req.getHttpVersion() + " " + res.status + std::string(CRLF);
 			_contentType	 = res.contentType;
 			_headerSection	+= "Content-Type: " + _contentType + std::string(CRLF);
-			_headerSection	+= "Content-Length: " + res.contentLength + CRLF;
-			_content		 = _startLine + CRLF + _headerSection + CRLF + res.body;
+			_headerSection	+= "Content-Length: " + res.contentLength + std::string(CRLF);
+			_headerSection	+= "Connextion: keep-alive" + std::string(CRLF);
+			_content		 = _startLine + _headerSection + std::string(CRLF) + res.body;
 
 			return;
 		}

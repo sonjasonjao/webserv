@@ -25,5 +25,7 @@ function calculateClientSide() {
     }
 
     const finalWeight = (weight * multiplier).toFixed(2);
-    document.getElementById('result').innerHTML = `<strong>Result:</strong> A ${weight}kg object weighs <strong>${finalWeight}kg</strong> on ${planetName}.`;
+    let result = document.getElementById('result');
+    result.innerHTML = `<strong>Result:</strong> A ${weight}kg object weighs <strong>${finalWeight}kg</strong> on ${planetName}.`;
+    result.style.display = 'block';
 }

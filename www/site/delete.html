@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en-US">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Cosmos Server | Delete</title>
+		<link rel="stylesheet" href="style.css">
+	</head>
+	<body>
+		<div class="container">
+			<nav>
+				<a href="index.html">Home</a>
+				<a href="about.html">Mission</a>
+				<a href="upload.html">Upload Logs</a>
+				<a href="delete.html">Delete Logs</a>
+				<a href="calculator.html">Gravity Calc</a>
+			</nav>
+			<h1>Delete files</h1>
+			<p>
+				Here you can delete previously uploaded files.
+			</p>
+			<button type="button" class="link" onclick="location.href='/uploads'">View uploaded files</button>
+			<form id="filedelete">
+				<label for="delfile">Type the name of the file to delete</label>
+				<input type="text" id="delfile" name="delfile" required>
+				<button type="submit" id="delete">Delete</button>
+			</form>
+			<button type="button" class="link" onclick="location.href='/index.html'">Back to main page</button>
+		</div>
+		<p class="footer">
+			© Johnny, Sonja, and Thiwanka 2026. Built for the 42 project Webserv.
+		</p>
+		<script src="./delete.js"></script>
+	</body>
+</html>
