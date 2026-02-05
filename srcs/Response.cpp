@@ -206,7 +206,7 @@ void	Response::formResponse()
 			_contentType	 = "text/html";
 			_headerSection	+= "Content-Type: " + _contentType + CRLF;
 			_headerSection	+= "Content-Length: " + std::to_string(_body.length()) + CRLF;
-			if (_statusCode / 100 != 2)
+			if (_statusCode / 100 != 2 || !_req.getKeepAlive())
 				_headerSection	+= "Connection: close" + std::string(CRLF);
 			else
 				_headerSection	+= "Connection: keep-alive" + std::string(CRLF);
@@ -312,7 +312,7 @@ void	Response::formResponse()
 	}
 
 	_headerSection += "Content-Length: " + std::to_string(_body.length()) + CRLF;
-	if (_statusCode / 100 != 2)
+	if (_statusCode / 100 != 2 || !_req.getKeepAlive())
 		_headerSection	+= "Connection: close" + std::string(CRLF);
 	else
 		_headerSection	+= "Connection: keep-alive" + std::string(CRLF);
