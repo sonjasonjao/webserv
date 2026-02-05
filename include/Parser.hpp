@@ -49,9 +49,9 @@ struct Config {
 
 class Parser {
 private:
-	std::string const	_fileName;			// File name of the configuration file
-	std::ifstream		_file;				// ifstream instance to read the configuration file
-	std::vector<Config>	_serverConfigs;		// List of fully parsed server configurations built from the token list
+	std::string const	_fileName;		// File name of the configuration file
+	std::ifstream		_file;			// ifstream instance to read the configuration file
+	std::vector<Config>	_serverConfigs;	// List of fully parsed server configurations built from the token list
 
 public:
 	Parser(std::string const &fileName);
@@ -75,6 +75,6 @@ public:
 
 	Config	convertToServerData(Token const &server);
 
-	bool	isValidJSONString(std::string_view sv);
+	bool	isValidJsonString(std::string_view sv);
 	bool	isPrimitiveValue(std::string_view sv);
 };
