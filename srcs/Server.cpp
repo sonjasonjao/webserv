@@ -258,8 +258,9 @@ void	Server::handleClientData(size_t &i)
 	Config const	&conf = matchConfig(*it);
 
 	if (it->isCgiRequest()) {
-		std::filesystem::path path;
-		std::string extracted_path;
+		std::filesystem::path	path;
+		std::string				extracted_path;
+
 		// extracting the CGI path from routes
 		if (auto p = conf.routes.find("cgi-bin"); p != conf.routes.end())
 		{
@@ -301,7 +302,7 @@ void	Server::handleClientData(size_t &i)
 		}
 
 		// execute the CGI script
-		std::pair<pid_t, int> cgiInfo = CgiHandler::execute(path.string(), *it);
+		std::pair<pid_t, int> cgiInfo = CgiHandler::execute(path.string(), *it, conf);
 
 		// Error occured
 		if (cgiInfo.first == -1 || cgiInfo.second == -1) {

@@ -1,4 +1,5 @@
 #include "CgiHandler.hpp"
+#include "Utils.hpp"
 #include "Log.hpp"
 #include <cstring>
 #include <cstdlib>
@@ -19,7 +20,7 @@ void	freeEnvp(char** envp)
 	delete[] envp;
 }
 
-std::map<std::string, std::string>	CgiHandler::getEnv(std::string const &scriptPath, Request const &request)
+std::map<std::string, std::string>	CgiHandler::getEnv(std::string const &scriptPath, Request const &request, Config const &conf)
 {
 	stringMap	env;
 
@@ -46,7 +47,7 @@ std::map<std::string, std::string>	CgiHandler::getEnv(std::string const &scriptP
 		env["CONTENT_TYPE"] = ct->front();
 
 	// SERVER_DATA required by the RFC 3875
-	std::string	host	= request.getHost();
+	std::string	host	= conf.host;
 	size_t		colon	= host.find(':');
 
 	if (colon != std::string::npos) {
@@ -54,7 +55,7 @@ std::map<std::string, std::string>	CgiHandler::getEnv(std::string const &scriptP
 		env["SERVER_PORT"] = host.substr(colon + 1);
 	} else {
 		env["SERVER_NAME"] = host;
-		env["SERVER_PORT"] = "8080"; // NOTE: Need to fetch context from matching configuration file
+		env["SERVER_PORT"] = conf.port;
 	}
 
 	// SCHEME_DATA required by RFC 3875
@@ -89,7 +90,7 @@ char	**CgiHandler::mapToEnvp(std::map<std::string, std::string> const &envMap)
 	return (envp);
 }
 
-std::pair<pid_t, int>	CgiHandler::execute(std::string const &scriptPath, Request const &request)
+std::pair<pid_t, int>	CgiHandler::execute(std::string const &scriptPath, Request const &request, Config const &conf)
 {
 	int	parentToChildPipe[2];
 	int	childToParentPipe[2];
@@ -104,7 +105,7 @@ std::pair<pid_t, int>	CgiHandler::execute(std::string const &scriptPath, Request
 		return {-1, -1};
 	}
 
-	stringMap	envMap	= getEnv(scriptPath, request);
+	stringMap	envMap	= getEnv(scriptPath, request, conf);
 	std::string path	= scriptPath; // Making copy for persisting existence
 
 	char	**envp	= mapToEnvp(envMap);
