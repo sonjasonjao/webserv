@@ -2,9 +2,6 @@
 import datetime
 import os
 
-# Required Header
-print("Content-type: text/html\n")
-
 # The HTML Content
 print(f"""
 <!DOCTYPE html>
