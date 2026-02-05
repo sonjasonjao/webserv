@@ -7,6 +7,12 @@
 #include <stack>
 #include <algorithm>
 
+/**
+ * proper-way of creating Parser instance
+ * @param std::string file_name - file name need to parse
+ * @return void - content of the file will be tokenize and save to a internal
+ * container, type std::vector
+ */
 Parser::Parser(std::string const &fileName)
 	:	_fileName(fileName), _file()
 {
@@ -151,7 +157,7 @@ void	Parser::tokenizeFile()
  * config struct data
  * @return const reference to the requested data structure
  */
-const Config	&Parser::getServerConfig(size_t index)
+Config const	&Parser::getServerConfig(size_t index) const
 {
 	return _serverConfigs.at(index);
 }
@@ -159,7 +165,7 @@ const Config	&Parser::getServerConfig(size_t index)
 /**
  * will return the whole configs vector for server construction.
  */
-const std::vector<Config>	&Parser::getServerConfigs() const
+std::vector<Config> const	&Parser::getServerConfigs() const
 {
 	return _serverConfigs;
 }
