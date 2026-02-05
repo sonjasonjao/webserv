@@ -1,6 +1,5 @@
 #include "CgiHandler.hpp"
 #include "Log.hpp"
-#include "Request.hpp"
 #include <cstring>
 #include <cstdlib>
 #include <fcntl.h>

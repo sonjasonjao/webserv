@@ -26,42 +26,42 @@ class Server
 {
 	using ReqIter = std::list<Request>::iterator;
 
-	private:
-		std::vector<Config>								_configs;
-		std::vector<pollfd>								_pfds;
-		std::vector<ServerGroup>						_serverGroups;
-		std::list<Request>								_clients;
-		std::unordered_map<int, std::deque<Response>>	_responses;
-		std::map<int, Request*>							_cgiFdMap;
+private:
+	std::vector<Config>								_configs;
+	std::vector<pollfd>								_pfds;
+	std::vector<ServerGroup>						_serverGroups;
+	std::list<Request>								_clients;
+	std::unordered_map<int, std::deque<Response>>	_responses;
+	std::map<int, Request*>							_cgiFdMap;
 
-	public:
-		Server() = delete;
-		Server(Parser &parser);
-		Server(Server const &obj) = delete;
-		~Server();
+	// CGI handler related methods
+	bool	isCgiFd(int fd);
+	void	handleCgiOutput(size_t &i);
+	void	cleanupCgi(Request *req);
 
-		Server const	&operator=(Server const &other) = delete;
+public:
+	Server() = delete;
+	Server(Parser &parser);
+	Server(Server const &obj) = delete;
+	~Server();
 
-		void			createServerSockets();
-		int				createSingleServerSocket(Config conf);
-		void			run();
-		void			handleNewClient(int listener);
-		void			handleClientData(size_t &i);
-		void			prepareResponse(Request &req, Config const &conf);
-		void			removeClientFromPollFds(size_t &i);
-		void			sendResponse(size_t &i);
-		void			checkTimeouts();
-		void			handleConnections();
-		void			groupConfigs();
-		bool			isGroupMember(Config &conf);
-		bool			isServerFd(int fd);
-		Config const	&matchConfig(Request const &req);
-		ReqIter			getRequestByFd(int fd);
+	Server const	&operator=(Server const &other) = delete;
 
-		std::vector<Config> const	&getConfigs() const;
+	void			createServerSockets();
+	int				createSingleServerSocket(Config conf);
+	void			run();
+	void			handleNewClient(int listener);
+	void			handleClientData(size_t &i);
+	void			prepareResponse(Request &req, Config const &conf);
+	void			removeClientFromPollFds(size_t &i);
+	void			sendResponse(size_t &i);
+	void			checkTimeouts();
+	void			handleConnections();
+	void			groupConfigs();
+	bool			isGroupMember(Config &conf);
+	bool			isServerFd(int fd);
+	Config const	&matchConfig(Request const &req);
+	ReqIter			getRequestByFd(int fd);
 
-		// CGI handler related methods
-		bool	isCgiFd(int fd);
-		void	handleCgiOutput(size_t &i);
-		void	cleanupCgi(Request *req);
+	std::vector<Config> const	&getConfigs() const;
 };

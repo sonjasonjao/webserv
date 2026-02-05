@@ -220,7 +220,7 @@ void	Request::parseRequest()
 	// POST method is only allowed for file upload (-> _boundary needs to have value) or CGI request
 	if (_request.method == RequestMethod::Post && !(_cgiRequest.has_value() || _boundary.has_value())) {
 		_status = ClientStatus::Invalid;
-		_responseCodeBypass = NotAllowed;
+		_responseCodeBypass = MethodNotAllowed;
 	}
 
 	#if DEBUG_LOGGING
@@ -264,7 +264,7 @@ void	Request::parseRequestLine(std::string &req)
 			break;
 		default:
 			_status = ClientStatus::Invalid;
-			_responseCodeBypass = NotAllowed;
+			_responseCodeBypass = MethodNotAllowed;
 			return;
 	}
 
@@ -984,7 +984,7 @@ bool	Request::initialSaveToDisk(MultipartPart const &part)
 }
 
 // since this is already processed and availabe data
-std::unordered_map<std::string, std::vector<std::string>> const &Request::getHeaders(void) const
+std::unordered_map<std::string, std::vector<std::string>> const &Request::getHeaders() const
 {
 	return _headers;
 }
