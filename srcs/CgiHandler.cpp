@@ -15,8 +15,8 @@ void	freeEnvp(char** envp)
 	if (!envp)
 		return;
 	for (int i = 0; envp[i] != nullptr; i++)
-		delete[] envp[i]; // Delete individual strings
-	delete[] envp; // Delete the array of pointers
+		delete[] envp[i];
+	delete[] envp;
 }
 
 std::map<std::string, std::string>	CgiHandler::getEnv(std::string const &scriptPath, Request const &request)
@@ -30,7 +30,7 @@ std::map<std::string, std::string>	CgiHandler::getEnv(std::string const &scriptP
 		default:					env["REQUEST_METHOD"] = "UNKNOWN";	break;
 	}
 	env["QUERY_STRING"]			= request.getQuery().has_value() ? request.getQuery().value() : "";
-	env["CONTENT_LENGTH"]		= std::to_string(request.getBody().size());
+	env["CONTENT_LENGTH"]		= std::to_string(request.getBody().length());
 	env["PATH_INFO"]			= request.getTarget();
 	env["SCRIPT_FILENAME"]		= scriptPath;
 	env["GATEWAY_INTERFACE"]	= "CGI/1.1";
@@ -42,7 +42,7 @@ std::map<std::string, std::string>	CgiHandler::getEnv(std::string const &scriptP
 
 	auto	ct = request.getHeader("content-type");
 
-	if(ct && !ct->empty())
+	if (ct && !ct->empty())
 		env["CONTENT_TYPE"] = ct->front();
 
 	// SERVER_DATA required by the RFC 3875

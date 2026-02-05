@@ -125,7 +125,7 @@ void	Request::checkReqTimeouts()
 	}
 
 	// Timeout check for CGI handlers
-	if(_status == ClientStatus::CgiRunning && _cgiRequest.has_value()) {
+	if (_status == ClientStatus::CgiRunning && _cgiRequest.has_value()) {
 		diff = now - _cgiRequest->cgiStartTime;
 
 		durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
@@ -930,7 +930,7 @@ bool	Request::saveToDisk(MultipartPart const &part)
 bool	Request::initialSaveToDisk(MultipartPart const &part)
 {
 	// if the upload directory has not set in the config file upload operation is forbidden
-	if(!_uploadDir.has_value()) {
+	if (!_uploadDir.has_value()) {
 		ERROR_LOG("Upload directory has not set in the config file");
 		_responseCodeBypass = Forbidden;
 		_status = ClientStatus::Invalid;
