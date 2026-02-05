@@ -47,16 +47,8 @@ std::map<std::string, std::string>	CgiHandler::getEnv(std::string const &scriptP
 		env["CONTENT_TYPE"] = ct->front();
 
 	// SERVER_DATA required by the RFC 3875
-	std::string	host	= conf.host;
-	size_t		colon	= host.find(':');
-
-	if (colon != std::string::npos) {
-		env["SERVER_NAME"] = host.substr(0, colon);
-		env["SERVER_PORT"] = host.substr(colon + 1);
-	} else {
-		env["SERVER_NAME"] = host;
-		env["SERVER_PORT"] = conf.port;
-	}
+	env["SERVER_NAME"] = conf.host;
+	env["SERVER_PORT"] = conf.port;
 
 	// SCHEME_DATA required by RFC 3875
 	for (auto const &[key, values] : request.getHeaders()) {
