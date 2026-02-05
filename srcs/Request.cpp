@@ -264,10 +264,12 @@ void	Request::parseRequestLine(std::string &req)
 			break;
 		default:
 			_status = ClientStatus::Invalid;
+			_responseCodeBypass = NotAllowed;
 			return;
 	}
 
-	if (!validateAndAssignTarget(target) || !validateAndAssignHttp(httpVersion))
+	if ((_request.methodString + target + httpVersion).length() > REQLINE_MAX_SIZE
+		|| !validateAndAssignTarget(target) || !validateAndAssignHttp(httpVersion))
 		_status = ClientStatus::Invalid;
 }
 
