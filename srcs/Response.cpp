@@ -223,7 +223,7 @@ void	Response::formResponse()
 			_contentType	 = res.contentType;
 			_headerSection	+= "Content-Type: " + _contentType + std::string(CRLF);
 			_headerSection	+= "Content-Length: " + res.contentLength + std::string(CRLF);
-			_content		 = _startLine + std::string(CRLF) + _headerSection + std::string(CRLF) + std::string(CRLF) + res.body;
+			_content		 = _startLine + _headerSection + std::string(CRLF) + res.body;
 
 			return;
 		}
