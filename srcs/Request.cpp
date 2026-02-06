@@ -58,6 +58,7 @@ void	Request::reset()
 {
 	_request.target.clear();
 	_request.method = RequestMethod::Unknown;
+	_request.methodString.clear();
 	_request.httpVersion = "HTTP/1.1";
 	_request.query.reset();
 	_headers.clear();
