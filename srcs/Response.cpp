@@ -107,13 +107,18 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		}
 	}
 
+	/* --- Delete requests --- */
+
 	if (req.getRequestMethod() == RequestMethod::Delete) {
 		handleDelete();
 		formResponse();
 		debugPrintResponseContent();
+
 		return;
 	}
-	else if (!_route.original.empty())
+	/* ----------------------- */
+
+	if (!_route.original.empty())
 		INFO_LOG("Routing " + _reqTargetSanitized + " to " + _target);
 
 	/* --- Directory targets --- */
@@ -126,8 +131,8 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 
 		return;
 	}
+	/* ------------------------- */
 
-	// if request is not a CGI request, then try to locate the resource on the disk
 	if (!req.isCgiRequest())
 		locateTargetAndSetStatusCode();
 
