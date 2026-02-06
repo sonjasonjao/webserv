@@ -73,7 +73,6 @@ void	Request::reset()
 	}
 	_boundary.reset();
 	_responseCodeBypass = Unassigned;
-	// reset and clearing CGI request data fields
 	_cgiRequest.reset();
 }
 
@@ -94,9 +93,9 @@ void	Request::resetKeepAlive()
  */
 void	Request::checkReqTimeouts()
 {
-	auto now   = std::chrono::high_resolution_clock::now();
-	auto diff  = now - _idleStart;
-	auto durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
+	auto	now		= std::chrono::high_resolution_clock::now();
+	auto	diff	= now - _idleStart;
+	auto	durMs	= std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 
 	timePoint	init = {};
 
@@ -107,7 +106,7 @@ void	Request::checkReqTimeouts()
 		return;
 	}
 
-	// Timeout check for data receiving from the client
+	// Timeout check for receiving data from the client
 	diff = now - _recvStart;
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	if (_recvStart != init && durMs.count() > RECV_TIMEOUT) {
@@ -116,7 +115,7 @@ void	Request::checkReqTimeouts()
 		return;
 	}
 
-	// Timeout check for data sending to the client
+	// Timeout check for sending data to the client
 	diff = now - _sendStart;
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	if (_sendStart != init && durMs.count() > SEND_TIMEOUT) {
@@ -127,10 +126,9 @@ void	Request::checkReqTimeouts()
 	// Timeout check for CGI handlers
 	if (_status == ClientStatus::CgiRunning && _cgiRequest.has_value()) {
 		diff = now - _cgiRequest->cgiStartTime;
-
 		durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 		if (durMs.count() > CGI_TIMEOUT) {
-			_status = ClientStatus::GatewayTimeout; // Treat as receive timeout for 504 handling
+			_status = ClientStatus::GatewayTimeout;
 			DEBUG_LOG("CGI timeout with client fd " + std::to_string(_fd));
 			_keepAlive = false;
 		}
@@ -138,18 +136,23 @@ void	Request::checkReqTimeouts()
 }
 
 /**
- * Helper to extract a string until delimiter from buffer. Returns the extracted string
- * and updates _buffer by removing that extracted string.
+ * Helper to extract a string until delimiter from buffer, returns the extracted part
+ * and removes it from the original.
+ *
+ * @param orig	Reference to string buffer to look for delimited string in
+ * @param delim	Delimiter to mark extractable part
+ *
+ * @return	Extracted string
  */
-std::string	extractFromLine(std::string &orig, std::string delim)
+static std::string	extractFromLine(std::string &orig, std::string_view delim)
 {
-	auto		it	= orig.find(delim);
+	size_t		pos	= orig.find(delim);
 	std::string	tmp	= "";
 
-	if (it != std::string::npos) {
-		tmp = orig.substr(0, it);
-		if (orig.size() > it + delim.size())
-			orig = orig.substr(it + delim.size());
+	if (pos != std::string::npos) {
+		tmp = orig.substr(0, pos);
+		if (orig.size() > pos + delim.size())
+			orig = orig.substr(pos + delim.size());
 		else
 			orig.erase();
 	}
