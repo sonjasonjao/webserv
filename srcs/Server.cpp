@@ -393,25 +393,25 @@ void	Server::prepareResponse(Request &req, Config const &conf)
  */
 Config const	&Server::matchConfig(Request const &req)
 {
-	int			fd		= req.getServerFd();
-	ServerGroup	*tmp	= nullptr;
+	int			fd				= req.getServerFd();
+	ServerGroup	*serverGroup	= nullptr;
 
 	for (auto it = _serverGroups.begin(); it != _serverGroups.end(); it++) {
 		if (it->fd == fd) {
-			tmp = &(*it);
+			serverGroup = &(*it);
 			break;
 		}
 	}
-	if (tmp == nullptr)
+	if (serverGroup == nullptr)
 		throw std::runtime_error(ERROR_LOG("Unexpected error in matching request with server config"));
-	for (auto it = tmp->configs.begin(); it != tmp->configs.end(); it++) {
+	for (auto it = serverGroup->configs.begin(); it != serverGroup->configs.end(); it++) {
 		if (it->serverName == req.getHost()) {
 			DEBUG_LOG("Matched configuration: " + it->serverName);
 			return *it;
 		}
 	}
-	DEBUG_LOG("No matching config, using default: " + tmp->defaultConf->serverName);
-	return *(tmp->defaultConf);
+	DEBUG_LOG("No matching config, using default: " + serverGroup->defaultConf->serverName);
+	return *(serverGroup->defaultConf);
 }
 
 /**

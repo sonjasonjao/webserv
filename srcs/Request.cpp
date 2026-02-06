@@ -146,17 +146,17 @@ void	Request::checkReqTimeouts()
  */
 static std::string	extractFromLine(std::string &orig, std::string_view delim)
 {
-	size_t		pos	= orig.find(delim);
-	std::string	tmp	= "";
+	size_t		pos		= orig.find(delim);
+	std::string	part	= "";
 
 	if (pos != std::string::npos) {
-		tmp = orig.substr(0, pos);
+		part = orig.substr(0, pos);
 		if (orig.size() > pos + delim.size())
 			orig = orig.substr(pos + delim.size());
 		else
 			orig.erase();
 	}
-	return tmp;
+	return part;
 }
 
 /**
@@ -215,10 +215,9 @@ void	Request::parseRequest()
 	} else if (_chunked)
 		parseChunked();
 
-	// set cgiRequest flag to indentify in POLL event loop
 	// Check for /cgi-bin/ as a path segment
 	if (_request.target.find("/cgi-bin/") != std::string::npos)
-		_cgiRequest.emplace();
+		_cgiRequest.emplace(); // Emplace _cgiRequest to indentify in poll event loop
 
 	// POST method is only allowed for file upload (-> _boundary needs to have value) or CGI request
 	if (_request.method == RequestMethod::Post && !(_cgiRequest.has_value() || _boundary.has_value())) {
@@ -251,20 +250,14 @@ void	Request::parseRequestLine(std::string &req)
 	}
 	_request.methodString = method;
 
-	for (i = 0; i < methods.size(); i++) {
+	for (i = 0; i < methods.size(); i++)
 		if (methods[i] == method)
 			break;
-	}
+
 	switch (i) {
-		case 0:
-			_request.method = RequestMethod::Get;
-			break;
-		case 1:
-			_request.method = RequestMethod::Post;
-			break;
-		case 2:
-			_request.method = RequestMethod::Delete;
-			break;
+		case 0:	_request.method = RequestMethod::Get;		break;
+		case 1:	_request.method = RequestMethod::Post;		break;
+		case 2:	_request.method = RequestMethod::Delete;	break;
 		default:
 			_status = ClientStatus::Invalid;
 			_responseCodeBypass = MethodNotAllowed;
@@ -408,12 +401,14 @@ void	Request::parseChunked()
 			return;
 		}
 		_buffer = _buffer.substr(crlfPos + 2);
-		std::string	tmp = extractFromLine(_buffer, CRLF);
-		if (tmp.size() != len) {
+
+		std::string	part = extractFromLine(_buffer, CRLF);
+
+		if (part.size() != len) {
 			_status = ClientStatus::Invalid;
 			return;
 		}
-		_body += tmp;
+		_body += part;
 		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
 			_responseCodeBypass = ContentTooLarge;
 			_status = ClientStatus::Invalid;
