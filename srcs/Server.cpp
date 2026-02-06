@@ -159,8 +159,7 @@ void	Server::run()
 
 	while (endSignal == false) {
 		int	pollCount = poll(_pfds.data(), _pfds.size(), POLL_TIMEOUT);
-		if (pollCount < 0)
-		{
+		if (pollCount < 0) {
 			if (errno == EINTR)
 				continue;
 			throw std::runtime_error(ERROR_LOG("poll: " + std::string(strerror(errno))));
@@ -262,17 +261,13 @@ void	Server::handleClientData(size_t &i)
 		std::string				extracted_path;
 
 		// Extracting the CGI path from routes
-		if (auto p = conf.routes.find("cgi-bin"); p != conf.routes.end())
-		{
-			if (size_t pos = p->second.target.find("/cgi-bin");pos != std::string::npos) {
+		if (auto p = conf.routes.find("cgi-bin"); p != conf.routes.end()) {
+			if (size_t pos = p->second.target.find("/cgi-bin");pos != std::string::npos)
 				extracted_path = p->second.target.substr(0, pos);
-			} else {
+			else
 				extracted_path = "";
-			}
 			path = extracted_path + it->getTarget();
-		}
-		else
-		{
+		} else {
 			ERROR_LOG("CGI functionality not enabled !");
 			it->setResponseCodeBypass(Forbidden);
 			it->setStatus(ClientStatus::Invalid);
@@ -280,6 +275,7 @@ void	Server::handleClientData(size_t &i)
 			_pfds[i].events |= POLLOUT;
 			it->setIdleStart();
 			it->setSendStart();
+
 			return;
 		}
 
@@ -292,6 +288,7 @@ void	Server::handleClientData(size_t &i)
 			_pfds[i].events |= POLLOUT;
 			it->setIdleStart();
 			it->setSendStart();
+
 			return;
 		}
 
@@ -304,6 +301,7 @@ void	Server::handleClientData(size_t &i)
 			_pfds[i].events |= POLLOUT;
 			it->setIdleStart();
 			it->setSendStart();
+
 			return;
 		}
 
@@ -320,9 +318,9 @@ void	Server::handleClientData(size_t &i)
 			it->setCgiStartTime();
 			it->setStatus(ClientStatus::CgiRunning);
 
-			// Adding CGI read fd to poll list
-			_pfds.push_back({ cgiInfo.second, POLLIN, 0 });
+			_pfds.push_back({ cgiInfo.second, POLLIN, 0 }); // Adding CGI read fd to poll list
 			_cgiFdMap[cgiInfo.second] = &(*it);
+
 			return;
 		}
 	}
@@ -340,19 +338,19 @@ void	Server::handleClientData(size_t &i)
 	}
 
 	if (it->isHeadersCompleted()) {
-		if (conf.clientMaxBodySize.has_value()) {
-			// If there is user defined value for clientMaxBodySize, check against the value
+		if (conf.clientMaxBodySize.has_value()) { // If there is user defined value for clientMaxBodySize, check against the value
 			if (it->getContentLength() > conf.clientMaxBodySize.value()) {
 				it->setResponseCodeBypass(ContentTooLarge);
 				it->setStatus(ClientStatus::Invalid);
-				ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit " + std::to_string(conf.clientMaxBodySize.value()));
+				ERROR_LOG("Client body size " + std::to_string(it->getContentLength())
+					+ " exceeds the limit " + std::to_string(conf.clientMaxBodySize.value()));
 			}
-		} else {
-			// Check against the default clientMaxBodySize value
+		} else { // Check against the default clientMaxBodySize value
 			if (it->getContentLength() > CLIENT_MAX_BODY_SIZE) {
 				it->setResponseCodeBypass(ContentTooLarge);
 				it->setStatus(ClientStatus::Invalid);
-				ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit " + std::to_string(CLIENT_MAX_BODY_SIZE));
+				ERROR_LOG("Client body size " + std::to_string(it->getContentLength())
+					+ " exceeds the limit " + std::to_string(CLIENT_MAX_BODY_SIZE));
 			}
 		}
 	}
@@ -360,11 +358,11 @@ void	Server::handleClientData(size_t &i)
 	if (it->getStatus() == ClientStatus::Error) {
 		ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
 			+ " connection dropped: suspicious request");
-
 		removeClientFromPollFds(i);
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 		cleanupCgi(&(*it));
 		_clients.erase(it);
+
 		return;
 	}
 
@@ -437,6 +435,7 @@ void	Server::removeClientFromPollFds(size_t &i)
 		_pfds[i] = _pfds[_pfds.size() - 1];
 		_pfds.pop_back();
 		i--;
+
 		return;
 	}
 
@@ -489,10 +488,10 @@ void	Server::sendResponse(size_t &i)
 	DEBUG_LOG("Keep alive status: " + std::to_string(it->getKeepAlive()));
 	if (it->getStatus() == ClientStatus::Invalid || !it->getKeepAlive()) {
 		removeClientFromPollFds(i);
-
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 		cleanupCgi(&(*it));
 		_clients.erase(it);
+
 		return;
 	}
 
