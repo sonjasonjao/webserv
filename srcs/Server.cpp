@@ -261,7 +261,7 @@ void	Server::handleClientData(size_t &i)
 		std::filesystem::path	path;
 		std::string				extracted_path;
 
-		// extracting the CGI path from routes
+		// Extracting the CGI path from routes
 		if (auto p = conf.routes.find("cgi-bin"); p != conf.routes.end())
 		{
 			if (size_t pos = p->second.target.find("/cgi-bin");pos != std::string::npos) {
@@ -269,8 +269,8 @@ void	Server::handleClientData(size_t &i)
 			} else {
 				extracted_path = "";
 			}
-            path = extracted_path + it->getTarget();
-        }
+			path = extracted_path + it->getTarget();
+		}
 		else
 		{
 			ERROR_LOG("CGI functionality not enabled !");
@@ -278,30 +278,36 @@ void	Server::handleClientData(size_t &i)
 			it->setStatus(ClientStatus::Invalid);
 			prepareResponse(*it, conf);
 			_pfds[i].events |= POLLOUT;
+			it->setIdleStart();
+			it->setSendStart();
 			return;
 		}
 
-		// check if the script is exist
+		// Check if the script exists
 		if (!std::filesystem::exists(path)) {
 			ERROR_LOG("CGI script not exists : " + path.string());
 			it->setResponseCodeBypass(NotFound);
 			it->setStatus(ClientStatus::Invalid);
 			prepareResponse(*it, conf);
 			_pfds[i].events |= POLLOUT;
+			it->setIdleStart();
+			it->setSendStart();
 			return;
 		}
 
-		// check if the script has execution permission
+		// Check if the script has execution permission
 		if (access(path.c_str(), X_OK) == -1) {
 			ERROR_LOG("CGI script can not execute : " + path.string());
 			it->setResponseCodeBypass(Forbidden);
 			it->setStatus(ClientStatus::Invalid);
 			prepareResponse(*it, conf);
 			_pfds[i].events |= POLLOUT;
+			it->setIdleStart();
+			it->setSendStart();
 			return;
 		}
 
-		// execute the CGI script
+		// Execute the CGI script
 		std::pair<pid_t, int> cgiInfo = CgiHandler::execute(path.string(), *it, conf);
 
 		// Error occured
@@ -335,14 +341,14 @@ void	Server::handleClientData(size_t &i)
 
 	if (it->isHeadersCompleted()) {
 		if (conf.clientMaxBodySize.has_value()) {
-			// if there is user defined value for clientMaxBodySize check against the value
+			// If there is user defined value for clientMaxBodySize, check against the value
 			if (it->getContentLength() > conf.clientMaxBodySize.value()) {
 				it->setResponseCodeBypass(ContentTooLarge);
 				it->setStatus(ClientStatus::Invalid);
 				ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit " + std::to_string(conf.clientMaxBodySize.value()));
 			}
 		} else {
-			// check against the default clientMaxBodySize value
+			// Check against the default clientMaxBodySize value
 			if (it->getContentLength() > CLIENT_MAX_BODY_SIZE) {
 				it->setResponseCodeBypass(ContentTooLarge);
 				it->setStatus(ClientStatus::Invalid);
@@ -516,10 +522,8 @@ void	Server::checkTimeouts()
 {
 	for (size_t i = 0; i < _pfds.size(); i++) {
 
-		if (isCgiFd(_pfds[i].fd)) // Not applying time-out logic for CGI Client FD, skipping
-			continue;
-
-		if (isServerFd(_pfds[i].fd)) // Not applying time-out logic for Server FDs, skipping
+		// Not applying time-out logic for CGI Client FDs or Server FDs, skipping
+		if (isCgiFd(_pfds[i].fd) || isServerFd(_pfds[i].fd))
 			continue;
 
 		auto	it = getRequestByFd(_pfds[i].fd);
