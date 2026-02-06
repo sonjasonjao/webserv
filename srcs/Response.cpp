@@ -317,6 +317,7 @@ void	Response::formResponse()
 	}
 
 	_headerSection += "Content-Length: " + std::to_string(_body.length()) + CRLF;
+
 	if (_statusCode / 100 != 2 || !_req.getKeepAlive())
 		_headerSection	+= "Connection: close" + std::string(CRLF);
 	else
