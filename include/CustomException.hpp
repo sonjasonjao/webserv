@@ -4,6 +4,7 @@
 #include <string>
 
 class CustomException : public std::exception {
+
 protected:
 	std::string _error_message;
 

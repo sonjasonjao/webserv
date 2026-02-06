@@ -5,44 +5,45 @@
 #include <cstring>
 #include <filesystem>
 #include <stack>
+#include <algorithm>
 
 Parser::Parser(std::string const &fileName)
 	:	_fileName(fileName), _file()
 {
-	std::error_code ec;
+	std::error_code	ec;
+
 	/**
 	 * Try to locate the file in the current file system, will throw an error
 	 * if file does not exist
 	 */
-	if (!std::filesystem::exists(_fileName, ec) || ec) {
+	if (!std::filesystem::exists(_fileName, ec) || ec)
 		throw ParserException(ERROR_LOG("File does not exist: " + _fileName));
-	}
+
 	/**
 	 * Will compare the file extension with the standard one and will throw
 	 * an error in case of mismatch. Subsequent characters in the file_name after
 	 * the last occurrence of '.'
 	 */
-	size_t pos = _fileName.rfind('.');
-	std::string ext = _fileName.substr(pos + 1);
-	if (ext != EXTENSION) {
+	size_t		pos = _fileName.rfind('.');
+	std::string	ext = _fileName.substr(pos + 1);
+
+	if (ext != EXTENSION)
 		throw ParserException(ERROR_LOG("Wrong extension : " + _fileName));
-	}
 
 	_file.open(_fileName);
 
 	/**
 	 * if the file pointed by the file_name can not open, will throw an error
 	 */
-	if (_file.fail()) {
+	if (_file.fail())
 		throw ParserException(ERROR_LOG("Couldn't open file : " + _fileName + ": " + std::string(strerror(errno))));
-	}
 
 	/**
 	 * If the file pointed by the file_name is empty, will throw an error
 	 */
-	if (std::filesystem::file_size(_fileName) == 0) {
+	if (std::filesystem::file_size(_fileName) == 0)
 		throw ParserException(ERROR_LOG("Empty file : " + _fileName));
-	}
+
 	/**
 	 * Successfully opening the file and tokenizing the content
 	 * all the tokens will be saved into AST tree structure
@@ -55,9 +56,8 @@ Parser::~Parser()
 	/**
 	 * At the end if the file descriptor is still open, it will be closed gracefully
 	 */
-	if (_file.is_open()) {
+	if (_file.is_open())
 		_file.close();
-	}
 }
 
 /**
@@ -66,7 +66,7 @@ Parser::~Parser()
  * @param void - class method will have access to all the class attributes
  * @return void - all the tokens will be saved to an internal container
  */
-void Parser::tokenizeFile()
+void	Parser::tokenizeFile()
 {
 	std::string	line;
 	std::string	output;
@@ -86,12 +86,11 @@ void Parser::tokenizeFile()
 	}
 
 	// JSON string validation
-	if (!isValidJSONString(output)) {
+	if (!isValidJSONString(output))
 		throw ParserException(ERROR_LOG("Output not a valid JSON string"));
-	}
 
 	// create Token AST for validation
-	Token root = createToken(output);
+	Token	root = createToken(output);
 
 	/**
 	 * building configuration struct vector to hold all the configuration data
@@ -110,15 +109,14 @@ void Parser::tokenizeFile()
 					for (auto const &block : content.children) {
 
 						// first isolate all the ports related to a server config
-						std::vector<std::string> collection = getCollectionBykey(block, "listen");
+						std::vector<std::string>	collection = getCollectionBykey(block, "listen");
 
 						// retrieve all the other data except ports
-						Config config = convertToServerData(block);
+						Config	config = convertToServerData(block);
 
 						// add port one by one and create a copy of config
-						if (collection.empty()) {
+						if (collection.empty())
 							throw ParserException(ERROR_LOG("Missing ports in config files!"));
-						}
 
 						for (auto &item : collection) {
 							if (!isValidPort(item)) {
@@ -153,7 +151,7 @@ void Parser::tokenizeFile()
  * config struct data
  * @return const reference to the requested data structure
  */
-const Config	&Parser::getServerConfig(size_t index)
+Config const	&Parser::getServerConfig(size_t index)
 {
 	return _serverConfigs.at(index);
 }
@@ -161,7 +159,7 @@ const Config	&Parser::getServerConfig(size_t index)
 /**
  * will return the whole configs vector for server construction.
  */
-const std::vector<Config>	&Parser::getServerConfigs() const
+std::vector<Config> const	&Parser::getServerConfigs() const
 {
 	return _serverConfigs;
 }
@@ -409,13 +407,11 @@ std::vector<std::string>	Parser::getCollectionBykey(Token const &root, std::stri
 {
 	std::vector<std::string> collection;
 	for (auto item : root.children) {
-		std::string itemKey = getKey(item);
-		if (key == itemKey) {
-			if (item.children.size() > 1) {
-				for (auto p : item.children.at(1).children) {
-					collection.emplace_back(p.value);
-				}
-			}
+		std::string	itemKey = getKey(item);
+
+		if (key == itemKey && item.children.size() > 1) {
+			for (auto p : item.children.at(1).children)
+				collection.emplace_back(p.value);
 		}
 	}
 	return collection;
@@ -434,7 +430,7 @@ bool Parser::isValidJSONString(std::string_view sv)
 	char prevChar = '\0';
 
 	for (size_t i = 0; i < sv.size(); ++i) {
-		char c = sv[i];
+		char	c = sv[i];
 
 		/**
 		 * if there is double quotes with out escape character, then will toggle
@@ -465,7 +461,7 @@ bool Parser::isValidJSONString(std::string_view sv)
 		 */
 		if (isSeparator && !buffer.empty()) {
 			if (!isPrimitiveValue(buffer)) {
-				std::cerr << "Error: Invalid value format -> " << buffer << "\n";
+				ERROR_LOG("Invalid value format -> " + buffer + "\n");
 				return false;
 			}
 			buffer.clear();
@@ -519,12 +515,12 @@ bool Parser::isValidJSONString(std::string_view sv)
 	}
 
 	if (inQuotes) {
-		std::cerr << "Un-closed double quotations !\n";
+		ERROR_LOG("Un-closed double quotations !\n");
 		return false;
 	}
 
 	if (!brackets.empty()) {
-		std::cerr << "Un-closed brackets " << brackets.top() << "!\n";
+		ERROR_LOG(std::string("Un-closed brackets ") + brackets.top() + "!\n");
 		return false;
 	}
 	return true;
@@ -534,7 +530,7 @@ bool Parser::isValidJSONString(std::string_view sv)
  * this function will check if a given string is a valid primitive value
  * an integer, a fractional value, IPv4, true or false
  */
-bool Parser::isPrimitiveValue(std::string_view sv)
+bool	Parser::isPrimitiveValue(std::string_view sv)
 {
 	if (sv.empty())
 		return false;

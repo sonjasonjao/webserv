@@ -1,6 +1,7 @@
 #include "Server.hpp"
 #include "Log.hpp"
 #include "Pages.hpp"
+#include <iostream>
 
 /**
  * Main loop: instantiating Parser to parse config file, then creating Server object
@@ -15,7 +16,7 @@ int	main(int argc, char **argv)
 		return EXIT_SUCCESS;
 	}
 
-	std::string	confFile = "./config_files/test.json"; // default configuration file
+	std::string	confFile = "./config_files/default.json"; // default configuration file
 
 	// Handling one or two user inputs
 	if (argc == 1)

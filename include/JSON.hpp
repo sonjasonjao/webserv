@@ -1,15 +1,9 @@
 #pragma once
 
-#include <iostream>
-#include <fstream>
 #include <string>
 #include <string_view>
-#include <algorithm>
 #include <vector>
 
-/**
- * Pascal case to follow the modern c++ standards
- */
 enum class TokenType {
 	Object,
 	Array,

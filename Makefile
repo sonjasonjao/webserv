@@ -18,7 +18,8 @@ SRC	:=	$(SRC_DIR)/main.cpp				\
 		$(SRC_DIR)/Request.cpp			\
 		$(SRC_DIR)/Response.cpp			\
 		$(SRC_DIR)/Pages.cpp			\
-		$(SRC_DIR)/Utils.cpp
+		$(SRC_DIR)/Utils.cpp			\
+		$(SRC_DIR)/CgiHandler.cpp
 
 OBJ	:=	$(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRC))
 DEP	:=	$(OBJ:.o=.d)
@@ -45,7 +46,7 @@ fclean: clean
 re: fclean all
 # ---------------------------------------------------------------------------- #
 run: $(NAME)
-	./$(NAME) ./config_files/test.json
+	./$(NAME) ./config_files/default.json
 
 gdb: $(NAME)
 	gdb -tui $(NAME)
