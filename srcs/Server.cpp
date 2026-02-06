@@ -260,48 +260,38 @@ void	Server::handleClientData(size_t &i)
 		std::filesystem::path	path;
 		std::string				extracted_path;
 
+		// Lambda function to avoid duplicate code in the error cases below
+		auto	applySettingsAndPrepareResponse = [it, i, conf, this](std::string msg, ResponseCode resCode) {
+				ERROR_LOG(msg);
+				it->setResponseCodeBypass(resCode);
+				it->setStatus(ClientStatus::Invalid);
+				prepareResponse(*it, conf);
+				_pfds[i].events |= POLLOUT;
+				it->setIdleStart();
+				it->setSendStart();
+		};
+
 		// Extracting the CGI path from routes
-		if (auto p = conf.routes.find("cgi-bin"); p != conf.routes.end()) {
-			if (size_t pos = p->second.target.find("/cgi-bin");pos != std::string::npos)
-				extracted_path = p->second.target.substr(0, pos);
+		auto	routeIt = conf.routes.find("cgi-bin");
+
+		if (routeIt != conf.routes.end()) {
+			size_t	pos = routeIt->second.target.find("/cgi-bin");
+
+			if (pos != std::string::npos)
+				extracted_path = routeIt->second.target.substr(0, pos);
 			else
 				extracted_path = "";
 			path = extracted_path + it->getTarget();
 		} else {
-			ERROR_LOG("CGI functionality not enabled !");
-			it->setResponseCodeBypass(Forbidden);
-			it->setStatus(ClientStatus::Invalid);
-			prepareResponse(*it, conf);
-			_pfds[i].events |= POLLOUT;
-			it->setIdleStart();
-			it->setSendStart();
-
+			applySettingsAndPrepareResponse("CGI functionality not enabled!", Forbidden);
 			return;
 		}
 
-		// Check if the script exists
 		if (!std::filesystem::exists(path)) {
-			ERROR_LOG("CGI script not exists : " + path.string());
-			it->setResponseCodeBypass(NotFound);
-			it->setStatus(ClientStatus::Invalid);
-			prepareResponse(*it, conf);
-			_pfds[i].events |= POLLOUT;
-			it->setIdleStart();
-			it->setSendStart();
-
+			applySettingsAndPrepareResponse("CGI script '" + path.string() + "' does not exist", NotFound);
 			return;
-		}
-
-		// Check if the script has execution permission
-		if (access(path.c_str(), X_OK) == -1) {
-			ERROR_LOG("CGI script can not execute : " + path.string());
-			it->setResponseCodeBypass(Forbidden);
-			it->setStatus(ClientStatus::Invalid);
-			prepareResponse(*it, conf);
-			_pfds[i].events |= POLLOUT;
-			it->setIdleStart();
-			it->setSendStart();
-
+		} else if (access(path.c_str(), X_OK) == -1) {
+			applySettingsAndPrepareResponse("CGI script '" + path.string() + "' can't be executed", Forbidden);
 			return;
 		}
 
@@ -310,6 +300,7 @@ void	Server::handleClientData(size_t &i)
 
 		// Error occured
 		if (cgiInfo.first == -1 || cgiInfo.second == -1) {
+			ERROR_LOG("Error executing CGI script '" + path.string() + "'");
 			it->setResponseCodeBypass(InternalServerError);
 			it->setStatus(ClientStatus::Invalid);
 		} else {
@@ -616,7 +607,7 @@ void	Server::handleCgiOutput(size_t &i)
 	int		cgiFd		= _pfds[i].fd;
 	ssize_t	bytesRead	= read(cgiFd, buf, sizeof(buf));
 
-	// if the corresonding FD is not in the CGI map, will remove it from POLL
+	// If the corresonding FD is not in the CGI map, will remove it from poll fds
 	if (_cgiFdMap.find(cgiFd) == _cgiFdMap.end()) {
 		ERROR_LOG("CGI fd " + std::to_string(cgiFd) + " not found in map");
 		removeClientFromPollFds(i);
@@ -628,14 +619,14 @@ void	Server::handleCgiOutput(size_t &i)
 
 	// Reading data from the CGI client FD
 	if (bytesRead > 0) {
-		// append data to the existing data
+		// Append data to the existing data
 		req->setCgiResult(req->getCgiResult().append(buf, bytesRead));
 		// Can be either ERROR or finished script execution
 
 		return;
 	}
 
-	// script sucessfully executed
+	// Script sucessfully executed
 	if (bytesRead == 0)
 		INFO_LOG("CGI finished execution for fd " + std::to_string(cgiFd));
 	else {
