@@ -128,18 +128,6 @@ R"(<!DOCTYPE html>
 </html>
 )";
 
-constexpr static char const * const	DEFAULT422	= \
-R"(<!DOCTYPE html>
-<html>
-	<head>
-	</head>
-	<body>
-		<h1>422 Unprocessable content</h1>
-		<p>Default fallback page</p>
-	</body>
-</html>
-)";
-
 constexpr static char const * const	DEFAULT500	= \
 R"(<!DOCTYPE html>
 <html>
@@ -177,7 +165,6 @@ void	Pages::loadDefaults()
 	defaultPages["default408"] = DEFAULT408;
 	defaultPages["default409"] = DEFAULT409;
 	defaultPages["default413"] = DEFAULT413;
-	defaultPages["default422"] = DEFAULT422;
 	defaultPages["default500"] = DEFAULT500;
 	defaultPages["default504"] = DEFAULT504;
 }

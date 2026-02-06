@@ -29,7 +29,6 @@
                 "408" : "www/status_pages/408.html",
                 "409" : "www/status_pages/409.html",
                 "413" : "www/status_pages/413.html",
-                "422" : "www/status_pages/422.html",
                 "500" : "www/status_pages/500.html",
                 "504" : "www/status_pages/504.html"
             }

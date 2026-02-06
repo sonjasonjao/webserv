@@ -200,8 +200,8 @@ bool	Response::sendIsComplete() const
  */
 void	Response::formResponse()
 {
-	_headerSection	= std::string("Server: ") + _conf.serverName + CRLF;
-	_headerSection	+= "Date: " + getImfFixdate() + CRLF;
+	_headerSection  = std::string("Server: ") + _conf.serverName + CRLF;
+	_headerSection += "Date: " + getImfFixdate() + CRLF;
 
 	if (_directoryListing) {
 		_body = getDirectoryList(_reqTargetSanitized, _target);
@@ -211,11 +211,13 @@ void	Response::formResponse()
 			_contentType	 = "text/html";
 			_headerSection	+= "Content-Type: " + _contentType + CRLF;
 			_headerSection	+= "Content-Length: " + std::to_string(_body.length()) + CRLF;
+
 			if (_statusCode / 100 != 2 || !_req.getKeepAlive())
-				_headerSection	+= "Connection: close" + std::string(CRLF);
+				_headerSection += "Connection: close" + std::string(CRLF);
 			else
-				_headerSection	+= "Connection: keep-alive" + std::string(CRLF);
-			_content		 = _startLine + CRLF + _headerSection + CRLF + _body;
+				_headerSection += "Connection: keep-alive" + std::string(CRLF);
+
+			_content = _startLine + CRLF + _headerSection + CRLF + _body;
 
 			return;
 		}
@@ -225,18 +227,20 @@ void	Response::formResponse()
 		CgiResponse	res = CgiHandler::parseCgiOutput(_req.getCgiResult());
 
 		if (res.status != 200 || res.contentLength == 0) {
-			ERROR_LOG("Malformed CGI output or script crashed!");
+			ERROR_LOG(_diagnosticMessage = "Malformed CGI output or script crashed!");
 			_statusCode = InternalServerError;
 		} else {
 			_startLine		 = _req.getHttpVersion() + " " + res.statusString + CRLF;
 			_contentType	 = res.contentType;
-			_headerSection	+= "Content-Type: " + _contentType + std::string(CRLF);
-			_headerSection	+= "Content-Length: " + std::to_string(res.contentLength) + std::string(CRLF);
+			_headerSection	+= "Content-Type: " + _contentType + CRLF;
+			_headerSection	+= "Content-Length: " + std::to_string(res.contentLength) + CRLF;
+
 			if (_req.getKeepAlive())
 				_headerSection	+= "Connection: keep-alive" + std::string(CRLF);
 			else
 				_headerSection	+= "Connection: close" + std::string(CRLF);
-			_content		 = _startLine + _headerSection + std::string(CRLF) + res.body;
+
+			_content = _startLine + _headerSection + std::string(CRLF) + res.body;
 
 			return;
 		}
@@ -295,10 +299,6 @@ void	Response::formResponse()
 			_startLine	= _req.getHttpVersion() + " 413 Content Too Large";
 			_body		= getResponsePageContent("413", _conf);
 		break;
-		case 422:
-			_startLine	= _req.getHttpVersion() + " 422 Unprocessable content";
-			_body		= getResponsePageContent("422", _conf);
-		break;
 		case 504:
 			_startLine	= _req.getHttpVersion() + " 504 Loop Detected";
 			_body		= getResponsePageContent("504", _conf);
@@ -306,14 +306,14 @@ void	Response::formResponse()
 		default:
 			_startLine	= _req.getHttpVersion() + " 500 Internal Server Error";
 			_body		= getResponsePageContent("500", _conf);
-
-			if (!_diagnosticMessage.empty()) {
-				auto	pos = _body.find("</body>");
-
-				if (pos != std::string::npos)
-					_body.insert(pos, "<p>" + _diagnosticMessage + "</p>");
-			}
 		break;
+	}
+
+	if (!_diagnosticMessage.empty()) {
+		auto	pos = _body.find("</body>");
+
+		if (pos != std::string::npos)
+			_body.insert(pos, "<p>" + _diagnosticMessage + "</p>");
 	}
 
 	_headerSection += "Content-Length: " + std::to_string(_body.length()) + CRLF;
