@@ -989,47 +989,53 @@ bool	Request::initialSaveToDisk(MultipartPart const &part)
 	}
 }
 
-// since this is already processed and availabe data
-std::unordered_map<std::string, std::vector<std::string>> const &Request::getHeaders() const
+std::unordered_map<std::string, std::vector<std::string>> const	&Request::getHeaders() const
 {
 	return _headers;
 }
 
-bool	Request::isCgiRequest() const{
+bool	Request::isCgiRequest() const
+{
 	return _cgiRequest.has_value();
 }
 
-void	Request::setCgiResult(std::string str) {
+void	Request::setCgiResult(std::string str)
+{
 	if (!_cgiRequest.has_value())
 		return;
 	_cgiRequest->cgiResult = str;
 }
 
-void	Request::setCgiPid(pid_t pid) {
+void	Request::setCgiPid(pid_t pid)
+{
 	if (!_cgiRequest.has_value())
 		return;
 	_cgiRequest->cgiPid = pid;
 }
 
-void	Request::setCgiStartTime() {
+void	Request::setCgiStartTime()
+{
 	if (!_cgiRequest.has_value())
 		return;
 	_cgiRequest->cgiStartTime = std::chrono::high_resolution_clock::now();
 }
 
-pid_t  	Request::getCgiPid() const {
+pid_t  	Request::getCgiPid() const
+{
 	if (!_cgiRequest.has_value())
 		return -1;
 	return _cgiRequest->cgiPid;
 }
 
-std::string	Request::getCgiResult() const {
+std::string	Request::getCgiResult() const
+{
 	if (!_cgiRequest.has_value())
 		return "";
 	return _cgiRequest->cgiResult;
 }
 
-CgiRequest::timePoint	Request::getCgiStartTime() const {
+CgiRequest::timePoint	Request::getCgiStartTime() const
+{
 	if (!_cgiRequest.has_value())
 		return {};
 	return _cgiRequest->cgiStartTime;
