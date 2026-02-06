@@ -338,20 +338,16 @@ void	Server::handleClientData(size_t &i)
 	}
 
 	if (it->isHeadersCompleted()) {
-		if (conf.clientMaxBodySize.has_value()) { // If there is user defined value for clientMaxBodySize, check against the value
-			if (it->getContentLength() > conf.clientMaxBodySize.value()) {
-				it->setResponseCodeBypass(ContentTooLarge);
-				it->setStatus(ClientStatus::Invalid);
-				ERROR_LOG("Client body size " + std::to_string(it->getContentLength())
-					+ " exceeds the limit " + std::to_string(conf.clientMaxBodySize.value()));
-			}
-		} else { // Check against the default clientMaxBodySize value
-			if (it->getContentLength() > CLIENT_MAX_BODY_SIZE) {
-				it->setResponseCodeBypass(ContentTooLarge);
-				it->setStatus(ClientStatus::Invalid);
-				ERROR_LOG("Client body size " + std::to_string(it->getContentLength())
-					+ " exceeds the limit " + std::to_string(CLIENT_MAX_BODY_SIZE));
-			}
+		size_t	maxBodySize;
+		if (conf.clientMaxBodySize.has_value()) // If there is user defined value for clientMaxBodySize, check against the value
+			maxBodySize = conf.clientMaxBodySize.value();
+		else // Check against the default clientMaxBodySize value
+			maxBodySize = CLIENT_MAX_BODY_SIZE;
+		if (it->getContentLength() > maxBodySize) {
+			it->setResponseCodeBypass(ContentTooLarge);
+			it->setStatus(ClientStatus::Invalid);
+			ERROR_LOG("Client body size " + std::to_string(it->getContentLength())
+				+ " exceeds the limit " + std::to_string(maxBodySize));
 		}
 	}
 
