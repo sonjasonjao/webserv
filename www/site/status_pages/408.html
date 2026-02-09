@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>504 | Gateway Timeout</title>
+    <title>408 | Request Timeout</title>
     <link rel="stylesheet" href="../style.css">
     <style>
         /* specific overrides for error pages */
@@ -20,11 +20,11 @@
 </head>
 <body>
     <div class="container error-container">
-        <h1>504</h1>
-        <p class="code-desc">Gateway Timeout</p>
+        <h1>408</h1>
+        <p class="code-desc">Request Timeout</p>
         <hr style="border-color: #333; margin: 20px 0;">
-        <p>The upstream satellite failed to respond within the mission window.</p>
-        <p>We waited for a signal, but it faded into the deep space void.</p>
+        <p>Signal lost while awaiting transmission.</p>
+        <p>The request exceeded safe communication limits.</p>
         <br>
         <a href="/" style="text-decoration: none;">
             <button>Return to Mission Control</button>

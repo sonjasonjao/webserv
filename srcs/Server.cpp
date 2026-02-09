@@ -183,6 +183,8 @@ void	Server::handleNewClient(int listener)
 	socklen_t				addrLen = sizeof(newClient);
 	int						clientFd;
 
+	INFO_LOG("Handling new client connecting on fd " + std::to_string(listener));
+
 	clientFd = accept(listener, (struct sockaddr*)&newClient, &addrLen);
 
 	if (clientFd < 0)
@@ -224,6 +226,8 @@ void	Server::handleClientData(size_t &i)
 	if (it->getStatus() != ClientStatus::WaitingData
 		&& it->getStatus() != ClientStatus::CgiRunning)
 		return;
+
+	INFO_LOG("Handling client data from fd " + std::to_string(_pfds[i].fd));
 
 	char	buf[RECV_BUF_SIZE + 1];
 
@@ -576,16 +580,12 @@ void	Server::handleConnections()
 {
 	for (size_t i = 0; i < _pfds.size(); i++) {
 		if (_pfds[i].revents & (POLLIN | POLLHUP)) {
-			if (isServerFd(_pfds[i].fd)) {
-				INFO_LOG("Handling new client connecting on fd " + std::to_string(_pfds[i].fd));
+			if (isServerFd(_pfds[i].fd))
 				handleNewClient(_pfds[i].fd);
-			} else if (isCgiFd(_pfds[i].fd)) {
-				INFO_LOG("Handling cgi from fd " + std::to_string(_pfds[i].fd));
+			else if (isCgiFd(_pfds[i].fd))
 				handleCgiOutput(i);
-			} else {
-				INFO_LOG("Handling client data from fd " + std::to_string(_pfds[i].fd));
+			else
 				handleClientData(i);
-			}
 		}
 		if (_pfds[i].revents & POLLOUT)
 			sendResponse(i);
@@ -623,6 +623,8 @@ void	Server::handleCgiOutput(size_t &i)
 		removeClientFromPollFds(i);
 		return;
 	}
+
+	INFO_LOG("Handling cgi from fd " + std::to_string(_pfds[i].fd));
 
 	ssize_t	bytesRead = read(cgiFd, buf, sizeof(buf)); // Reading data from the CGI client FD
 	Request	*req = _cgiFdMap[cgiFd];
