@@ -630,36 +630,31 @@ bool	Server::isCgiFd(int fd)
 void	Server::handleCgiOutput(size_t &i)
 {
 	char	buf[CGI_BUF_SIZE];
-	int cgiFd = _pfds[i].fd;
+	int		cgiFd = _pfds[i].fd;
 
 	// If the corresonding FD is not in the CGI map, will remove it from poll fds
 	if (_cgiFdMap.find(cgiFd) == _cgiFdMap.end()) {
 		ERROR_LOG("CGI fd " + std::to_string(cgiFd) + " not found in map");
 		removeClientFromPollFds(i);
-
 		return;
 	}
 
-	ssize_t bytesRead = read(cgiFd, buf, sizeof(buf)); // Reading data from the CGI client FD
-
+	ssize_t	bytesRead = read(cgiFd, buf, sizeof(buf)); // Reading data from the CGI client FD
 	Request	*req = _cgiFdMap[cgiFd];
-	// data ready and suucessfull read, wait for more data
-	if (bytesRead > 0) {
-		req->setCgiResult(req->getCgiResult().append(buf, bytesRead)); // Append data to the existing data
-		INFO_LOG("Read " + std::to_string(bytesRead) + " bytes from CGI (PID: " + std::to_string(req->getCgiPid()) + ")");
-		// move to the nex POLL cycle
-		return;
+
+	if (bytesRead > 0) { // Successful read, wait for more data
+		req->setCgiResult(req->getCgiResult().append(buf, bytesRead)); // Append read buffer to result buffer
+		DEBUG_LOG("Read " + std::to_string(bytesRead) + " bytes from CGI (PID: " + std::to_string(req->getCgiPid()) + ")");
+		return; // Move to the next poll cycle
 	}
 
-	if (bytesRead < 0)
-	{
-		// an error occured but due to the limitaion handing over POLL loop to
-		DEBUG_LOG("CGI read returned -1, deferring to next poll for PID: " + std::to_string(req->getCgiPid()));
-		// move to the nex POLL cycle
+	if (bytesRead < 0) { // An error occured, go to next poll cycle (can't use errno)
+		ERROR_LOG("CGI read returned -1, deferring to next poll for PID: " + std::to_string(req->getCgiPid()));
 		return;
 	}
 
 	INFO_LOG("CGI finished execution for fd " + std::to_string(cgiFd));
+
 	int		status;
 	pid_t	result = waitpid(req->getCgiPid(), &status, WNOHANG); // Wait for the specific child process
 
