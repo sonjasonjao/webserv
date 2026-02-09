@@ -300,7 +300,7 @@ void	Response::formResponse()
 			_body		= getResponsePageContent("413", _conf);
 		break;
 		case 504:
-			_startLine	= _req.getHttpVersion() + " 504 Loop Detected";
+			_startLine	= _req.getHttpVersion() + " 504 Gateway Timeout";
 			_body		= getResponsePageContent("504", _conf);
 		break;
 		default:
