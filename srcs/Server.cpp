@@ -257,8 +257,8 @@ void	Server::handleClientData(size_t &i)
 	Config const	&conf = matchConfig(*it);
 
 	if (it->isCgiRequest()) {
-		std::filesystem::path	path;
-		std::string				extracted_path;
+		std::filesystem::path path;
+		std::string key = "cgi-bin"; // this is the required key to be set in the config
 
 		// Lambda function to avoid duplicate code in the error cases below
 		auto	applySettingsAndPrepareResponse = [it, i, conf, this](std::string msg, ResponseCode resCode) {
@@ -272,18 +272,44 @@ void	Server::handleClientData(size_t &i)
 		};
 
 		// Extracting the CGI path from routes
-		auto	routeIt = conf.routes.find("cgi-bin");
-
-		if (routeIt != conf.routes.end()) {
-			size_t	pos = routeIt->second.target.find("/cgi-bin");
-
-			if (pos != std::string::npos)
-				extracted_path = routeIt->second.target.substr(0, pos);
-			else
-				extracted_path = "";
-			path = extracted_path + it->getTarget();
-		} else {
+		// check cgi-bin has set in the config file
+		auto routeIt = conf.routes.find(key);
+		// if cgi-bin not set in the config immidiatly return
+		if (routeIt == conf.routes.end())
+		{
 			applySettingsAndPrepareResponse("CGI functionality not enabled!", Forbidden);
+			return;
+		}
+		// extract the cgi-bin directory path on the physical disk
+		std::filesystem::path cgiDir = routeIt->second.target;
+		// target requested by the client
+		std::string requestedTarget = it->getTarget();
+		// buidling the prefix for more clarity
+		std::string cgiPrefix = "/" + key;
+
+		// check traget contains /cgi-bin at the begining
+		if (requestedTarget.compare(0, cgiPrefix.length(), cgiPrefix) == 0)
+		{
+			// extract complete path after cgi-bin form the requested path
+			std::string relativePath = requestedTarget.substr(0 + cgiPrefix.length());
+			if (!relativePath.empty() && relativePath[0] == '/')
+			{
+				// remove leading forward slash from the relative path
+				relativePath.erase(0, 1);
+				// buidling the final CGI path correctly
+				path = cgiDir / relativePath;
+			}
+			else
+			{
+				// any mismatch in the requested file path will treated as an error and forbidden
+				applySettingsAndPrepareResponse("Incorrect CGI path", Forbidden);
+				return;
+			}
+		}
+		else
+		{
+			// any mismatch in the requested file path will treated as an error and forbidden
+			applySettingsAndPrepareResponse("Incorrect CGI path", Forbidden);
 			return;
 		}
 
