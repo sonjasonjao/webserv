@@ -14,7 +14,7 @@
             "routes" : {
                 "cgi-bin"    : "www/site/cgi-bin",
                 "/"          : "www/site",
-                "secret"     : "www/site/418.html",
+                "secret"     : "www/site/status_pages/418.html",
                 "img"        : "www/images",
                 "calculator" : "www/site/calculator.html",
                 "upload"     : "www/site/upload.html",
