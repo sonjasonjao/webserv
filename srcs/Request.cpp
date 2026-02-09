@@ -187,6 +187,11 @@ void	Request::parseRequest()
 		_status = ClientStatus::CompleteReq;
 		_responseCodeBypass = NoContent;
 	}
+	if (_contentLen.value() > CLIENT_MAX_BODY_SIZE) {
+		_responseCodeBypass = ContentTooLarge;
+		_status = ClientStatus::Invalid;
+		return;
+	}
 	if (!_contentLen.has_value() && !_chunked) {
 		// this request should not have body, so buffer should be empty by now
 		if (_buffer.empty())
@@ -222,8 +227,8 @@ void	Request::parseRequest()
 
 	// POST method is only allowed for file upload (-> _boundary needs to have value) or CGI request
 	if (_request.method == RequestMethod::Post && !(_cgiRequest.has_value() || _boundary.has_value())) {
-		_status = ClientStatus::Invalid;
 		_responseCodeBypass = MethodNotAllowed;
+		_status = ClientStatus::Invalid;
 	}
 
 	#if DEBUG_LOGGING
