@@ -8,7 +8,8 @@
             ],
             "allowed_methods": [
                 "GET",
-                "POST"
+                "POST",
+                "DELETE"
             ],
             "directory_listing": false,
             "autoindex": true,
