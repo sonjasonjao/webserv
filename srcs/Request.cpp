@@ -216,8 +216,8 @@ void	Request::parseRequest()
 	} else if (_chunked)
 		parseChunked();
 
-	// Check for /cgi-bin/ as a path segment
-	if (_request.target.find("/cgi-bin/") != std::string::npos)
+	// Check for /cgi-bin/ as starting path segment
+	if (_request.target.find("/cgi-bin/") == 0)
 		_cgiRequest.emplace(); // Emplace _cgiRequest to indentify in poll event loop
 
 	// POST method is only allowed for file upload (-> _boundary needs to have value) or CGI request

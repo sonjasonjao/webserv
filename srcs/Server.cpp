@@ -278,24 +278,16 @@ void	Server::handleClientData(size_t &i)
 
 		std::filesystem::path	cgiDir = routeIt->second.target; // Extract cgi-bin directory path on the physical disk
 		std::string				requestedTarget = it->getTarget();
-		std::string				cgiPrefix = "/cgi-bin"; // Buidling the prefix for more clarity
-
-		if (requestedTarget.compare(0, cgiPrefix.length(), cgiPrefix) != 0) { // Check if target contains /cgi-bin at the begining
-			applySettingsAndPrepareResponse("Incorrect CGI path", Forbidden);
-			return;
-		}
-
-		// Extract complete path after cgi-bin from the requested path
+		std::string				cgiPrefix = "/cgi-bin/";
 		std::string				relativePath = requestedTarget.substr(0 + cgiPrefix.length());
 		std::filesystem::path	path;
 
-		if (relativePath.empty() || relativePath[0] != '/') {
-			applySettingsAndPrepareResponse("Incorrect CGI path", Forbidden);
+		if (relativePath.empty()) {
+			applySettingsAndPrepareResponse("Empty CGI path", Forbidden);
 			return;
 		}
-		relativePath.erase(0, 1); // Remove leading forward slash from the relative path
-		path = cgiDir / relativePath; // Buidling the final CGI path
 
+		path = cgiDir / relativePath; // Buidling the final CGI path
 		if (!std::filesystem::exists(path)) {
 			applySettingsAndPrepareResponse("CGI script '" + path.string() + "' does not exist", NotFound);
 			return;
