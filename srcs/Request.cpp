@@ -187,7 +187,7 @@ void	Request::parseRequest()
 		_status = ClientStatus::CompleteReq;
 		_responseCodeBypass = NoContent;
 	}
-	if (_contentLen.value() > CLIENT_MAX_BODY_SIZE) {
+	if (_contentLen.has_value() && _contentLen.value() > CLIENT_MAX_BODY_SIZE) {
 		_responseCodeBypass = ContentTooLarge;
 		_status = ClientStatus::Invalid;
 		return;
