@@ -49,3 +49,4 @@ tests/googletest
 webserv
 siege.[0-9]*
 srcs/client.cpp
+compile_commands.json
