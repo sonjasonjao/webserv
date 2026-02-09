@@ -256,6 +256,31 @@ void	Server::handleClientData(size_t &i)
 
 	Config const	&conf = matchConfig(*it);
 
+	if (it->getStatus() == ClientStatus::Error) {
+		ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
+			+ " connection dropped: suspicious request");
+		removeClientFromPollFds(i);
+		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
+		cleanupCgi(&(*it));
+		_clients.erase(it);
+
+		return;
+	}
+
+	if (it->isHeadersCompleted()) {
+		size_t	maxBodySize;
+		if (conf.clientMaxBodySize.has_value()) // If there is user defined value for clientMaxBodySize, check against the value
+			maxBodySize = conf.clientMaxBodySize.value();
+		else // Check against the default clientMaxBodySize value
+			maxBodySize = CLIENT_MAX_BODY_SIZE;
+		if (it->getContentLength() > maxBodySize) {
+			it->setResponseCodeBypass(ContentTooLarge);
+			it->setStatus(ClientStatus::Invalid);
+			ERROR_LOG("Client body size " + std::to_string(it->getContentLength())
+				+ " exceeds the limit " + std::to_string(maxBodySize));
+		}
+	}
+
 	if (it->isCgiRequest()) {
 
 		// Lambda function to avoid duplicate code in the error cases below
@@ -322,36 +347,21 @@ void	Server::handleClientData(size_t &i)
 			DEBUG_LOG("Handling file upload for client fd " + std::to_string(_pfds[i].fd));
 			it->setUploadDir(conf.uploadDir.value());
 			it->handleFileUpload();
+			if (it->getStatus() == ClientStatus::Error) {
+				ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
+					+ " connection dropped: suspicious request");
+				removeClientFromPollFds(i);
+				INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
+				cleanupCgi(&(*it));
+				_clients.erase(it);
+
+				return;
+			}
 		} else {
 			DEBUG_LOG("File uploading is forbidden");
 			it->setResponseCodeBypass(Forbidden);
 			it->setStatus(ClientStatus::Invalid);
 		}
-	}
-
-	if (it->isHeadersCompleted()) {
-		size_t	maxBodySize;
-		if (conf.clientMaxBodySize.has_value()) // If there is user defined value for clientMaxBodySize, check against the value
-			maxBodySize = conf.clientMaxBodySize.value();
-		else // Check against the default clientMaxBodySize value
-			maxBodySize = CLIENT_MAX_BODY_SIZE;
-		if (it->getContentLength() > maxBodySize) {
-			it->setResponseCodeBypass(ContentTooLarge);
-			it->setStatus(ClientStatus::Invalid);
-			ERROR_LOG("Client body size " + std::to_string(it->getContentLength())
-				+ " exceeds the limit " + std::to_string(maxBodySize));
-		}
-	}
-
-	if (it->getStatus() == ClientStatus::Error) {
-		ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
-			+ " connection dropped: suspicious request");
-		removeClientFromPollFds(i);
-		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
-		cleanupCgi(&(*it));
-		_clients.erase(it);
-
-		return;
 	}
 
 	if (it->getStatus() == ClientStatus::WaitingData) {
