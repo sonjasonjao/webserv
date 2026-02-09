@@ -10,8 +10,8 @@ def main():
 
     status = "200 OK"
     try:
-        a = int(params.get("a", [0])[0])
-        b = int(params.get("b", [0])[0])
+        a = int(params.get("a", 0))
+        b = int(params.get("b", 0))
         body = str(a + b)
     except ValueError:
         body = "Error: Invalid numbers"
@@ -20,10 +20,6 @@ def main():
     sys.stdout.write("Content-Type: text/plain\r\n")
     sys.stdout.write(f"Content-Length: {len(body)}\r\n\r\n")
 
-    # 3. THE MANDATORY BLANK LINE
-    sys.stdout.write("\r\n")
-
-    # 4. The Body (Result only)
     sys.stdout.write(body)
     sys.stdout.flush()
 
