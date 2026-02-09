@@ -452,8 +452,8 @@ void	Server::sendResponse(size_t &i)
 
 	try {
 		auto	&res = _responses.at(_pfds[i].fd).front();
-		INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
 
+		INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
 		res.sendToClient();
 		if (!res.sendIsComplete()) {
 			INFO_LOG("Response partially sent, waiting for server to complete response sending");

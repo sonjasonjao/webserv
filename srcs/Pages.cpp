@@ -1,11 +1,12 @@
 #include "Pages.hpp"
 #include "Utils.hpp"
 #include "Log.hpp"
-#include <stdexcept>
 
 std::unordered_map<std::string, std::string>			Pages::defaultPages;
 std::list<std::pair<std::string, std::string>>			Pages::cacheQueue;
 std::unordered_map<std::string, std::string const *>	Pages::cacheMap;
+std::string												Pages::bigFileName;
+std::string												Pages::bigFile;
 size_t													Pages::cacheSize = 0;
 
 constexpr static char const * const	DEFAULT200	= \
@@ -197,7 +198,7 @@ bool	Pages::isCached(std::string const &key)
  * NOTE:	Page validation has to have happened before this step, assumes
  *			an absolute path for non default pages
  *
- * @return	string containing page content
+ * @return	String containing page content
  */
 std::string const	&Pages::getPageContent(std::string const &key)
 {
@@ -207,11 +208,17 @@ std::string const	&Pages::getPageContent(std::string const &key)
 		return defaultPages.at(key);
 	if (cacheMap.find(key) != cacheMap.end())
 		return *cacheMap.at(key);
+	if (key == bigFileName)
+		return bigFile;
 
-	std::string	page = getFileAsString(key, "/");	// Force absolute filepath for unique identifiers for resources
+	std::string	page = getFileAsString(key, "/"); // Force absolute filepath for unique identifiers for resources
 
-	if (page.length() > CACHE_SIZE_MAX)
-		throw std::runtime_error(ERROR_LOG("File '" + key + "' is too large for cache"));
+	if (page.length() > CACHE_SIZE_MAX) {
+		DEBUG_LOG("File '" + key + "' is too large for cache");
+		bigFile = page;
+		bigFileName = key;
+		return bigFile;
+	}
 
 	while (cacheSize > 0 && cacheSize > CACHE_SIZE_MAX - page.length()) {
 		DEBUG_LOG("Removing " + cacheQueue.front().first + " from cache to make space for " + key);

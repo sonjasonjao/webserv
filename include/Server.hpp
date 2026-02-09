@@ -5,7 +5,7 @@
 #include <vector>
 #include <list>
 #include <deque>
-#include <unordered_map>
+#include <map>
 #include <unistd.h>
 #include <poll.h>
 
@@ -27,12 +27,12 @@ class Server {
 	using ReqIter = std::list<Request>::iterator;
 
 private:
-	std::vector<Config>								_configs;
-	std::vector<pollfd>								_pfds;
-	std::vector<ServerGroup>						_serverGroups;
-	std::list<Request>								_clients;
-	std::unordered_map<int, std::deque<Response>>	_responses;
-	std::map<int, Request*>							_cgiFdMap;
+	std::vector<Config>					_configs;
+	std::vector<pollfd>					_pfds;
+	std::vector<ServerGroup>			_serverGroups;
+	std::list<Request>					_clients;
+	std::map<int, std::deque<Response>>	_responses;
+	std::map<int, Request*>				_cgiFdMap;
 
 	// CGI handler related methods
 	bool	isCgiFd(int fd);
