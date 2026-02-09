@@ -18,7 +18,7 @@ def main():
 
     sys.stdout.write(f"Status: {status}\r\n")
     sys.stdout.write("Content-Type: text/plain\r\n")
-    sys.stdout.write(f"Content-Length: {len(body)}\r\n\r\n")
+    sys.stdout.write(f"Content-Length: {str(len(body))}\r\n\r\n")
 
     sys.stdout.write(body)
     sys.stdout.flush()
