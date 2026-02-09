@@ -57,7 +57,7 @@ std::map<std::string, std::string>	CgiHandler::getEnv(std::string const &scriptP
 
 		std::string	envKey = "HTTP_";
 
-		for (char c : key)
+		for (unsigned char const c : key)
 			envKey += (c == '-' ? '_' : std::toupper(c));
 		env[envKey] = values.front();
 	}

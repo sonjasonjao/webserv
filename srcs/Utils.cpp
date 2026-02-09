@@ -190,7 +190,7 @@ bool	uriFormatOk(std::string_view uri)
 	for (std::string const &s : split) {
 		if (s.empty())
 			return false;
-		for (char const &c : s)
+		for (unsigned char const c : s)
 			if (!std::isalnum(c) && allowedCharacters.find(c) == std::string::npos)
 				return false;
 	}
