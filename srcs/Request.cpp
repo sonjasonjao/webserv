@@ -183,16 +183,12 @@ void	Request::parseRequest()
 		_buffer.clear();
 		return;
 	}
-	if (_contentLen.has_value() && _contentLen.value() == 0 && !_chunked) {
-		_status = ClientStatus::CompleteReq;
-		_responseCodeBypass = NoContent;
-	}
 	if (_contentLen.has_value() && _contentLen.value() > CLIENT_MAX_BODY_SIZE) {
 		_responseCodeBypass = ContentTooLarge;
 		_status = ClientStatus::Invalid;
-		return;
-	}
-	if (!_contentLen.has_value() && !_chunked) {
+	} else if ((!_contentLen.has_value()
+		|| (_contentLen.has_value() && _contentLen.value() == 0))
+		 && !_chunked) {
 		// this request should not have body, so buffer should be empty by now
 		if (_buffer.empty())
 			_status = ClientStatus::CompleteReq;
