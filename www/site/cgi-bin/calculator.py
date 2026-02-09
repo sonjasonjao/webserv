@@ -4,7 +4,6 @@ import sys
 from urllib.parse import parse_qs
 
 def main():
-    # 1. Logic for processing parameters
     query_string = os.environ.get("QUERY_STRING", "")
     params = parse_qs(query_string)
 
@@ -17,6 +16,7 @@ def main():
         body = "Error: Invalid numbers"
         status = "400 Bad Request"
 
+    sys.stdout.write(f"Status: {status}\r\n")
     sys.stdout.write("Content-Type: text/plain\r\n")
     sys.stdout.write(f"Content-Length: {len(body)}\r\n\r\n")
 
