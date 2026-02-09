@@ -257,8 +257,6 @@ void	Server::handleClientData(size_t &i)
 	Config const	&conf = matchConfig(*it);
 
 	if (it->isCgiRequest()) {
-		std::filesystem::path path;
-		std::string key = "cgi-bin"; // this is the required key to be set in the config
 
 		// Lambda function to avoid duplicate code in the error cases below
 		auto	applySettingsAndPrepareResponse = [it, i, conf, this](std::string msg, ResponseCode resCode) {
@@ -271,47 +269,32 @@ void	Server::handleClientData(size_t &i)
 				it->setSendStart();
 		};
 
-		// Extracting the CGI path from routes
-		// check cgi-bin has set in the config file
-		auto routeIt = conf.routes.find(key);
-		// if cgi-bin not set in the config immidiatly return
-		if (routeIt == conf.routes.end())
-		{
+		auto	routeIt = conf.routes.find("cgi-bin"); // Check if cgi-bin has been routed
+
+		if (routeIt == conf.routes.end()) { // If cgi-bin isn't set, return
 			applySettingsAndPrepareResponse("CGI functionality not enabled!", Forbidden);
 			return;
 		}
-		// extract the cgi-bin directory path on the physical disk
-		std::filesystem::path cgiDir = routeIt->second.target;
-		// target requested by the client
-		std::string requestedTarget = it->getTarget();
-		// buidling the prefix for more clarity
-		std::string cgiPrefix = "/" + key;
 
-		// check traget contains /cgi-bin at the begining
-		if (requestedTarget.compare(0, cgiPrefix.length(), cgiPrefix) == 0)
-		{
-			// extract complete path after cgi-bin form the requested path
-			std::string relativePath = requestedTarget.substr(0 + cgiPrefix.length());
-			if (!relativePath.empty() && relativePath[0] == '/')
-			{
-				// remove leading forward slash from the relative path
-				relativePath.erase(0, 1);
-				// buidling the final CGI path correctly
-				path = cgiDir / relativePath;
-			}
-			else
-			{
-				// any mismatch in the requested file path will treated as an error and forbidden
-				applySettingsAndPrepareResponse("Incorrect CGI path", Forbidden);
-				return;
-			}
-		}
-		else
-		{
-			// any mismatch in the requested file path will treated as an error and forbidden
+		std::filesystem::path	cgiDir = routeIt->second.target; // Extract cgi-bin directory path on the physical disk
+		std::string				requestedTarget = it->getTarget();
+		std::string				cgiPrefix = "/cgi-bin"; // Buidling the prefix for more clarity
+
+		if (requestedTarget.compare(0, cgiPrefix.length(), cgiPrefix) != 0) { // Check if target contains /cgi-bin at the begining
 			applySettingsAndPrepareResponse("Incorrect CGI path", Forbidden);
 			return;
 		}
+
+		// Extract complete path after cgi-bin from the requested path
+		std::string				relativePath = requestedTarget.substr(0 + cgiPrefix.length());
+		std::filesystem::path	path;
+
+		if (relativePath.empty() || relativePath[0] != '/') {
+			applySettingsAndPrepareResponse("Incorrect CGI path", Forbidden);
+			return;
+		}
+		relativePath.erase(0, 1); // Remove leading forward slash from the relative path
+		path = cgiDir / relativePath; // Buidling the final CGI path
 
 		if (!std::filesystem::exists(path)) {
 			applySettingsAndPrepareResponse("CGI script '" + path.string() + "' does not exist", NotFound);
@@ -324,7 +307,7 @@ void	Server::handleClientData(size_t &i)
 		// Execute the CGI script
 		std::pair<pid_t, int> cgiInfo = CgiHandler::execute(path.string(), *it, conf);
 
-		// Error occured
+		// Error occurred
 		if (cgiInfo.first == -1 || cgiInfo.second == -1) {
 			ERROR_LOG("Error executing CGI script '" + path.string() + "'");
 			it->setResponseCodeBypass(InternalServerError);
