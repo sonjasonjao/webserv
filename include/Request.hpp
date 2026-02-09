@@ -8,6 +8,7 @@
 #include <chrono>
 #include <memory>
 #include <fstream>
+#include <unistd.h>
 
 #define IDLE_TIMEOUT			10000
 #define RECV_TIMEOUT			5000
