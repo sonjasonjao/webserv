@@ -3,11 +3,8 @@ import datetime
 import os
 
 # The HTML Content
-print(f"""
-Status: 200 OK\r\n
-Content-Type: text/html\r\n
-Content-Length: 0\r\n\r\n
-<!DOCTYPE html>
+content = f"""\
+<!docstype html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -24,15 +21,19 @@ Content-Length: 0\r\n\r\n
     <div class="card">
         <h1>🐍 Hello from Python CGI!</h1>
         <p>This page was generated dynamically by a Python script running inside your Nginx Docker container.</p>
-        
         <ul>
             <li><strong>Server Time:</strong> {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</li>
             <li><strong>Requested URL:</strong> {os.environ.get('REQUEST_URI', 'N/A')}</li>
             <li><strong>User Agent:</strong> {os.environ.get('HTTP_USER_AGENT', 'Unknown')}</li>
         </ul>
-
         <p><a href="/">← Back to Home</a></p>
     </div>
 </body>
-</html>
+</html>"""
+
+print(f"""\
+Status: 200 OK\r\n\
+Content-Type: text/html\r\n\
+Content-Length: {str(len(content))}\r\n\r\n\
+{content}\
 """)
