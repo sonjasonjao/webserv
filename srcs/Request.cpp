@@ -187,7 +187,7 @@ void	Request::parseRequest()
 		_responseCodeBypass = ContentTooLarge;
 		_status = ClientStatus::Invalid;
 	} else if ((!_contentLen.has_value()
-		|| (_contentLen.has_value() && _contentLen.value() == 0))
+		|| _contentLen.value() == 0)
 		 && !_chunked) {
 		// this request should not have body, so buffer should be empty by now
 		if (_buffer.empty())
