@@ -225,25 +225,17 @@ void	Response::formResponse()
 
 	if (_req.isCgiRequest() && _statusCode == Unassigned) {
 		CgiResponse	res = CgiHandler::parseCgiOutput(_req.getCgiResult());
+		
+		_startLine		 = _req.getHttpVersion() + " " + std::to_string(res.status) + CRLF;
+		_headerSection	+= "Content-Type: " + res.contentType + CRLF;
+		_headerSection	+= "Content-Length: " + std::to_string(res.contentLength) + CRLF;
 
-		if (res.status != 200 || res.contentLength == 0) {
-			ERROR_LOG(_diagnosticMessage = "Malformed CGI output or script crashed!");
-			_statusCode = InternalServerError;
-		} else {
-			_startLine		 = _req.getHttpVersion() + " " + res.statusString + CRLF;
-			_contentType	 = res.contentType;
-			_headerSection	+= "Content-Type: " + _contentType + CRLF;
-			_headerSection	+= "Content-Length: " + std::to_string(res.contentLength) + CRLF;
-
-			if (_req.getKeepAlive())
-				_headerSection	+= "Connection: keep-alive" + std::string(CRLF);
-			else
-				_headerSection	+= "Connection: close" + std::string(CRLF);
-
-			_content = _startLine + _headerSection + std::string(CRLF) + res.body;
-
-			return;
-		}
+		if (_req.getKeepAlive())
+			_headerSection	+= "Connection: keep-alive" + std::string(CRLF);
+		else
+			_headerSection	+= "Connection: close" + std::string(CRLF);
+		_content = _startLine + _headerSection + CRLF + res.body;
+		return;
 	}
 
 	if (_statusCode == 200)
