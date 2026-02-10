@@ -10,7 +10,7 @@
 /**
  * The content of the configuration file will be tokenized and saved.
  *
- * @param file_name	Name of file to be parsed
+ * @param fileName	Name of file to be parsed
  */
 Parser::Parser(std::string const &fileName)
 	:	_fileName(fileName), _file()
