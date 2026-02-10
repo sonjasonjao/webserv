@@ -69,9 +69,9 @@ std::string	trim(std::string_view sv)
 }
 
 /**
- * Returns the position of an unqoted character, or one not surrounded by
+ * Returns the position of an unquoted character, or one not surrounded by
  * '"', '{', '[' , '}', ']'.
- * Used to detemine the correct position to split.
+ * Used to determine the correct position to split.
  * {"key1" : "value1"}, {"key2" : "value2", "key3" : "value3"}
  *
  * @param sv	String view to split later
