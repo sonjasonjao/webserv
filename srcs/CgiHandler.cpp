@@ -183,8 +183,7 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 {
 	CgiResponse	response;
 
-	if(rawOutput.empty()) {
-		ERROR_LOG("Ahhhhh... here is the error");
+	if (rawOutput.empty()) {
 		response.isSucceeded = false;
 		response.status = 400;
 		response.contentType = "text/html";
@@ -193,9 +192,9 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 	}
 
 	// Separate header section from body section
-	if(!rawOutput.empty()) {
+	if (!rawOutput.empty()) {
 			size_t	bodyPos			= rawOutput.find("\r\n\r\n");
-		size_t	headerEndLen	= 4;
+			size_t	headerEndLen	= 4;
 
 		if (bodyPos == std::string::npos) {
 			bodyPos = rawOutput.find("\r\n");
@@ -270,11 +269,9 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 	}
 
 	// this will be the error case, where 
-	// 1. the sciprt it self will not execute so there is no result at all
-	// 2. script out put is not following the expected format
-	if(rawOutput.empty() || (response.status == 0 && response.contentType == "default")) {
-		DEBUG_LOG("Chechking the info : ");
-		ERROR_LOG("status" + std::to_string(response.status)); 
+	// 1. the script it self will not execute so there is no result at all
+	// 2. script output is not following the expected format
+	if (response.status == 0 && response.contentType == "default") {
 		response.isSucceeded = false;
 		response.status = 400;
 		response.contentType = "text/html";
