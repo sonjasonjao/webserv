@@ -18,6 +18,6 @@ CustomException&	CustomException::operator=(CustomException const &other) noexce
 
 CustomException::~CustomException() noexcept {}
 
-const char*	CustomException::what() const noexcept {
+char const	*CustomException::what() const noexcept {
 	return _error_message.c_str();
 }

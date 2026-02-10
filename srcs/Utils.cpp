@@ -169,16 +169,13 @@ bool	resourceExists(std::string_view uri, std::string searchDir)
 }
 
 /**
- * Validation is still very minimal, empty URIs and empty fields in URIs
- * currently invalidate the format, no invalid characters yet.
- *
- * @param uri	String view of URI whose formatting is being evaluated
+ * @param uri	URI whose format is being evaluated
  *
  * @return	true if the URI is valid, false if not
  */
 bool	uriFormatOk(std::string_view uri)
 {
-	auto	split = splitStringView(uri, "/");
+	std::vector<std::string>	split = splitStringView(uri, "/");
 
 	if (split.empty())
 		return false;
@@ -190,10 +187,10 @@ bool	uriFormatOk(std::string_view uri)
 
 	static std::string const	allowedCharacters = ":/?#[]@!$&'()*+,;=-._~%";
 
-	for (auto const &s : split) {
+	for (std::string const &s : split) {
 		if (s.empty())
 			return false;
-		for (auto const &c : s)
+		for (unsigned char const c : s)
 			if (!std::isalnum(c) && allowedCharacters.find(c) == std::string::npos)
 				return false;
 	}

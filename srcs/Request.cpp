@@ -44,9 +44,8 @@ void	Request::processRequest(std::string const &buf)
 {
 	_buffer += buf;
 
-	if (_buffer.find("\r\n\r\n") == std::string::npos && !_completeHeaders) {
+	if (_buffer.find("\r\n\r\n") == std::string::npos && !_completeHeaders)
 		_status = ClientStatus::WaitingData;
-	}
 	else
 		parseRequest();
 }
@@ -59,7 +58,8 @@ void	Request::reset()
 {
 	_request.target.clear();
 	_request.method = RequestMethod::Unknown;
-	_request.httpVersion.clear();
+	_request.methodString.clear();
+	_request.httpVersion = "HTTP/1.1";
 	_request.query.reset();
 	_headers.clear();
 	_headerSize = 0;
@@ -74,6 +74,7 @@ void	Request::reset()
 	}
 	_boundary.reset();
 	_responseCodeBypass = Unassigned;
+	_cgiRequest.reset();
 }
 
 /**
@@ -93,17 +94,20 @@ void	Request::resetKeepAlive()
  */
 void	Request::checkReqTimeouts()
 {
-	auto		now = std::chrono::high_resolution_clock::now();
-	auto		diff = now - _idleStart;
-	auto		durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
+	auto	now		= std::chrono::high_resolution_clock::now();
+	auto	diff	= now - _idleStart;
+	auto	durMs	= std::chrono::duration_cast<std::chrono::milliseconds>(diff);
+
 	timePoint	init = {};
 
+	// Timeout check for client idling for a long time
 	if (durMs.count() > IDLE_TIMEOUT) {
 		DEBUG_LOG("Idle timeout with client fd " + std::to_string(_fd));
 		_status = ClientStatus::IdleTimeout;
 		return;
 	}
 
+	// Timeout check for receiving data from the client
 	diff = now - _recvStart;
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	if (_recvStart != init && durMs.count() > RECV_TIMEOUT) {
@@ -112,32 +116,48 @@ void	Request::checkReqTimeouts()
 		return;
 	}
 
+	// Timeout check for sending data to the client
 	diff = now - _sendStart;
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	if (_sendStart != init && durMs.count() > SEND_TIMEOUT) {
 		DEBUG_LOG("Send timeout with client fd " + std::to_string(_fd));
 		_status = ClientStatus::SendTimeout;
 	}
+
+	// Timeout check for CGI handlers
+	if (_status == ClientStatus::CgiRunning && _cgiRequest.has_value()) {
+		diff = now - _cgiRequest->cgiStartTime;
+		durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
+		if (durMs.count() > CGI_TIMEOUT) {
+			_status = ClientStatus::GatewayTimeout;
+			DEBUG_LOG("CGI timeout with client fd " + std::to_string(_fd));
+			_keepAlive = false;
+		}
+	}
 }
 
 /**
- * Helper to extract a string until delimiter from buffer. Returns the extracted string
- * and updates _buffer by removing that extracted string.
+ * Helper to extract a string until delimiter from buffer, returns the extracted part
+ * and removes it from the original.
+ *
+ * @param orig	Reference to string buffer to look for delimited string in
+ * @param delim	Delimiter to mark extractable part
+ *
+ * @return	Extracted string
  */
-std::string	extractFromLine(std::string &orig, std::string delim)
+static std::string	extractFromLine(std::string &orig, std::string_view delim)
 {
-	auto		it	= orig.find(delim);
-	std::string	tmp	= "";
+	size_t		pos		= orig.find(delim);
+	std::string	part	= "";
 
-	if (it != std::string::npos)
-	{
-		tmp = orig.substr(0, it);
-		if (orig.size() > it + delim.size())
-			orig = orig.substr(it + delim.size());
+	if (pos != std::string::npos) {
+		part = orig.substr(0, pos);
+		if (orig.size() > pos + delim.size())
+			orig = orig.substr(pos + delim.size());
 		else
 			orig.erase();
 	}
-	return tmp;
+	return part;
 }
 
 /**
@@ -163,7 +183,12 @@ void	Request::parseRequest()
 		_buffer.clear();
 		return;
 	}
-	if (!_contentLen.has_value() && !_chunked) {
+	if (_contentLen.has_value() && _contentLen.value() > CLIENT_MAX_BODY_SIZE) {
+		_responseCodeBypass = ContentTooLarge;
+		_status = ClientStatus::Invalid;
+	} else if ((!_contentLen.has_value()
+		|| _contentLen.value() == 0)
+		 && !_chunked) {
 		// this request should not have body, so buffer should be empty by now
 		if (_buffer.empty())
 			_status = ClientStatus::CompleteReq;
@@ -192,6 +217,16 @@ void	Request::parseRequest()
 	} else if (_chunked)
 		parseChunked();
 
+	// Check for /cgi-bin/ as starting path segment
+	if (_request.target.find("/cgi-bin/") == 0)
+		_cgiRequest.emplace(); // Emplace _cgiRequest to indentify in poll event loop
+
+	// POST method is only allowed for file upload (-> _boundary needs to have value) or CGI request
+	if (_request.method == RequestMethod::Post && !(_cgiRequest.has_value() || _boundary.has_value())) {
+		_responseCodeBypass = MethodNotAllowed;
+		_status = ClientStatus::Invalid;
+	}
+
 	#if DEBUG_LOGGING
 	printData();
 	#endif
@@ -218,27 +253,21 @@ void	Request::parseRequestLine(std::string &req)
 	_request.methodString = method;
 
 	for (i = 0; i < methods.size(); i++)
-	{
 		if (methods[i] == method)
 			break;
-	}
-	switch (i)
-	{
-		case 0:
-			_request.method = RequestMethod::Get;
-			break;
-		case 1:
-			_request.method = RequestMethod::Post;
-			break;
-		case 2:
-			_request.method = RequestMethod::Delete;
-			break;
+
+	switch (i) {
+		case 0:	_request.method = RequestMethod::Get;		break;
+		case 1:	_request.method = RequestMethod::Post;		break;
+		case 2:	_request.method = RequestMethod::Delete;	break;
 		default:
 			_status = ClientStatus::Invalid;
+			_responseCodeBypass = MethodNotAllowed;
 			return;
 	}
 
-	if (!validateAndAssignTarget(target) || !validateAndAssignHttp(httpVersion))
+	if ((_request.methodString + target + httpVersion).length() > REQLINE_MAX_SIZE
+		|| !validateAndAssignTarget(target) || !validateAndAssignHttp(httpVersion))
 		_status = ClientStatus::Invalid;
 }
 
@@ -248,6 +277,14 @@ void	Request::parseRequestLine(std::string &req)
  */
 void	Request::parseHeaders(std::string &str)
 {
+	// http/1.0 request is valid even without any headers, just trailing CRLF left
+	if (_request.httpVersion == "HTTP/1.0" && str == "\r\n") {
+		_completeHeaders = true;
+		_status = ClientStatus::CompleteReq;
+		_buffer.clear();
+		return;
+	}
+
 	std::string	line;
 	size_t		headEnd = str.find("\r\n\r\n");
 
@@ -342,7 +379,8 @@ void	Request::parseHeaders(std::string &str)
 
 /**
  * In the case of a chunked request, attempts to check the size of each chunk and split the
- * string accordingly to store that chunk into body.
+ * string accordingly to store that chunk into body. Body is parsed only after receiving the
+ * final 0\r\n\r\n chunk, as single chunks can be split across multiple recv() calls.
  */
 void	Request::parseChunked()
 {
@@ -351,76 +389,50 @@ void	Request::parseChunked()
 	auto	crlfPos = _buffer.find(CRLF);
 	auto	headerEnd = _buffer.find("0\r\n\r\n");
 
-	// If buffer doesn't include the final chunk
-	if (headerEnd == std::string::npos && crlfPos != std::string::npos) {
-		while (crlfPos != std::string::npos) {
-			try {
-				len = std::stoi(_buffer.substr(0, crlfPos), 0, 16);
-			} catch (std::exception const &e) {
-				_status = ClientStatus::Invalid;
-				return;
-			}
-			_buffer = _buffer.substr(crlfPos + 2);
-			std::string	tmp = extractFromLine(_buffer, CRLF);
-			if (tmp.size() != len) {
-				_status = ClientStatus::Invalid;
-				return;
-			}
-			_body += tmp;
-			// after appending another chunk to body, checks for max body size
-			if (_body.size() > CLIENT_MAX_BODY_SIZE) {
-				_responseCodeBypass = ContentTooLarge;
-				_status = ClientStatus::Invalid;
-				return;
-			}
-			crlfPos = _buffer.find(CRLF);
-		}
+	if (headerEnd == std::string::npos) {
 		_status = ClientStatus::WaitingData;
+		return;
+	}
 
-	// If buffer includes the final chunk
-	} else if (headerEnd != std::string::npos) {
-		while (crlfPos != std::string::npos && crlfPos > 0
-			&& _buffer.substr(crlfPos - 1, 5) != "0\r\n\r\n") {
-			try {
-				len = std::stoi(_buffer.substr(0, crlfPos), 0, 16);
-			} catch (std::exception const &e) {
-				_status = ClientStatus::Invalid;
-				return;
-			}
-			_buffer = _buffer.substr(crlfPos + 2);
-			std::string	tmp = extractFromLine(_buffer, CRLF);
-			if (tmp.size() != len) {
-				_status = ClientStatus::Invalid;
-				return;
-			}
-			_body += tmp;
-			if (_body.size() > CLIENT_MAX_BODY_SIZE) {
-				_responseCodeBypass = ContentTooLarge;
-				_status = ClientStatus::Invalid;
-				return;
-			}
-			crlfPos = _buffer.find(CRLF);
-		}
-		if (extractFromLine(_buffer, "0\r\n\r\n") != "") {
+	while (crlfPos != std::string::npos && crlfPos > 0
+		&& _buffer.substr(crlfPos - 1, 5) != "0\r\n\r\n") {
+		try {
+			len = std::stoi(_buffer.substr(0, crlfPos), 0, 16);
+		} catch (std::exception const &e) {
 			_status = ClientStatus::Invalid;
 			return;
 		}
+		_buffer = _buffer.substr(crlfPos + 2);
+
+		std::string	part = extractFromLine(_buffer, CRLF);
+
+		if (part.size() != len) {
+			_status = ClientStatus::Invalid;
+			return;
+		}
+		_body += part;
 		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
 			_responseCodeBypass = ContentTooLarge;
 			_status = ClientStatus::Invalid;
 			return;
 		}
-		_status = ClientStatus::CompleteReq;
+		crlfPos = _buffer.find(CRLF);
+	}
 
-	// If a chunked request does not have any CRLF, it's invalid
-	} else if (headerEnd == std::string::npos && crlfPos == std::string::npos) {
+	if (extractFromLine(_buffer, "0\r\n\r\n") != "") {
 		_status = ClientStatus::Invalid;
 		return;
 	}
-
+	if (_body.size() > CLIENT_MAX_BODY_SIZE) {
+		_responseCodeBypass = ContentTooLarge;
+		_status = ClientStatus::Invalid;
+		return;
+	}
 	// If buffer has data after the final chunk
 	if (!_buffer.empty())
 		_status = ClientStatus::Invalid;
+	else
+		_status = ClientStatus::CompleteReq;
 }
 
 /**
@@ -591,16 +603,14 @@ bool	Request::validateAndAssignTarget(std::string &target)
 		return false;
 
 	size_t	protocolEnd = target.find("://");
-	if (protocolEnd != std::string::npos)
-	{
+	if (protocolEnd != std::string::npos) {
 		std::string protocol = target.substr(0, protocolEnd);
 		if (protocol != "http" && protocol != "https")
 			return false;
 	}
 
 	size_t	queryStart = target.find('?');
-	if (queryStart != std::string::npos)
-	{
+	if (queryStart != std::string::npos) {
 		_request.target = target.substr(0, queryStart);
 		_request.query = target.substr(queryStart + 1);
 	} else
@@ -620,28 +630,39 @@ bool	Request::validateAndAssignHttp(std::string &httpVersion)
 	return true;
 }
 
-/**
- * Helper function to print ClientStatus value.
- */
-static void	printStatus(ClientStatus status)
+void	Request::printStatus() const
 {
-	switch (status)
-	{
+	switch (_status) {
 		case ClientStatus::WaitingData:
 			std::cout << "Waiting for more data\n";
-			break;
+		break;
+		case ClientStatus::CgiRunning:
+			std::cout << "CGI running\n";
+		break;
 		case ClientStatus::CompleteReq:
 			std::cout << "Complete and valid request received\n";
-			break;
+		break;
 		case ClientStatus::Error:
 			std::cout << "Critical error found, client to be disconnected\n";
-			break;
+		break;
 		case ClientStatus::Invalid:
 			std::cout << "Invalid HTTP request\n";
-			break;
+		break;
 		case ClientStatus::ReadyForResponse:
 			std::cout << "Ready to receive response\n";
-			break;
+		break;
+		case ClientStatus::RecvTimeout:
+			std::cout << "Receive timed out\n";
+		break;
+		case ClientStatus::SendTimeout:
+			std::cout << "Send timed out\n";
+		break;
+		case ClientStatus::IdleTimeout:
+			std::cout << "Idle timed out\n";
+		break;
+		case ClientStatus::GatewayTimeout:
+			std::cout << "Server timed out waiting for CGI\n";
+		break;
 		default:
 			std::cout << "Unknown\n";
 	}
@@ -688,7 +709,7 @@ void	Request::printData() const
 	std::cout << "	Keep alive?		" << _keepAlive << '\n';
 	std::cout << "	Complete headers?	" << _completeHeaders << '\n';
 	std::cout << "	Status?			";
-	printStatus(_status);
+	printStatus();
 	std::cout << "	Chunked?		" << _chunked << "\n";
 	if (_boundary.has_value())
 		std::cout << "	Boundary:		'" << _boundary.value() << "'\n";
@@ -823,6 +844,11 @@ void	Request::setUploadDir(std::string path)
 	_uploadDir = path;
 }
 
+std::optional<std::string>	Request::getQuery() const
+{
+	return _request.query;
+}
+
 void	Request::handleFileUpload()
 {
 	std::string const	partDelimiter	= "--" + _boundary.value();
@@ -836,7 +862,7 @@ void	Request::handleFileUpload()
 			break;
 		}
 		if (_buffer.compare(partStart, endDelimiter.length(), endDelimiter) == 0) { // End delimiter of form data found
-			_buffer.erase(0, partStart + endDelimiter.length());
+			_buffer.clear();
 			_responseCodeBypass = Created;
 			_status = ClientStatus::CompleteReq;
 			break;
@@ -912,7 +938,7 @@ bool	Request::saveToDisk(MultipartPart const &part)
 bool	Request::initialSaveToDisk(MultipartPart const &part)
 {
 	// if the upload directory has not set in the config file upload operation is forbidden
-	if(!_uploadDir.has_value()) {
+	if (!_uploadDir.has_value()) {
 		ERROR_LOG("Upload directory has not set in the config file");
 		_responseCodeBypass = Forbidden;
 		_status = ClientStatus::Invalid;
@@ -963,4 +989,56 @@ bool	Request::initialSaveToDisk(MultipartPart const &part)
 		_status = ClientStatus::Invalid;
 		return false;
 	}
+}
+
+std::unordered_map<std::string, std::vector<std::string>> const	&Request::getHeaders() const
+{
+	return _headers;
+}
+
+bool	Request::isCgiRequest() const
+{
+	return _cgiRequest.has_value();
+}
+
+void	Request::setCgiResult(std::string str)
+{
+	if (!_cgiRequest.has_value())
+		return;
+	_cgiRequest->cgiResult = str;
+}
+
+void	Request::setCgiPid(pid_t pid)
+{
+	if (!_cgiRequest.has_value())
+		return;
+	_cgiRequest->cgiPid = pid;
+}
+
+void	Request::setCgiStartTime()
+{
+	if (!_cgiRequest.has_value())
+		return;
+	_cgiRequest->cgiStartTime = std::chrono::high_resolution_clock::now();
+}
+
+pid_t  	Request::getCgiPid() const
+{
+	if (!_cgiRequest.has_value())
+		return -1;
+	return _cgiRequest->cgiPid;
+}
+
+std::string	Request::getCgiResult() const
+{
+	if (!_cgiRequest.has_value())
+		return "";
+	return _cgiRequest->cgiResult;
+}
+
+CgiRequest::timePoint	Request::getCgiStartTime() const
+{
+	if (!_cgiRequest.has_value())
+		return {};
+	return _cgiRequest->cgiStartTime;
 }

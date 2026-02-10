@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>413 | Content Too Large</title>
+    <link rel="stylesheet" href="../style.css">
+    <style>
+        .error-container {
+            text-align: center;
+            margin-top: 100px;
+            border: 2px solid var(--rocket-orange);
+            padding: 40px;
+            background: rgba(0, 0, 0, 0.8);
+        }
+        h1 { font-size: 6rem; margin: 0; color: var(--rocket-orange); text-shadow: 0 0 10px orange; }
+        .code-desc { font-size: 1.5rem; letter-spacing: 2px; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+    <div class="container error-container">
+        <h1>413</h1>
+        <p class="code-desc">Content Too Large</p>
+        <hr style="border-color: #333; margin: 20px 0;">
+        <p>The data transmission is too heavy for our receiving dock.</p>
+        <p>Please reduce payload size and attempt re-entry.</p>
+        <br>
+        <a href="/" style="text-decoration: none;">
+            <button>Return to Mission Control</button>
+        </a>
+    </div>
+</body>
+</html>

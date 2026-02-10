@@ -19,5 +19,7 @@ private:
 	static std::unordered_map<std::string, std::string>			defaultPages;
 	static std::list<std::pair<std::string, std::string>>		cacheQueue;
 	static std::unordered_map<std::string, std::string const *>	cacheMap;
+	static std::string											bigFileName;
+	static std::string											bigFile;
 	static size_t												cacheSize;
 };

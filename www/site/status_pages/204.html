@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>204 | No Content</title>
+    <link rel="stylesheet" href="../style.css">
+    <style>
+        /* specific overrides for error pages */
+        .error-container {
+            text-align: center;
+            margin-top: 100px;
+            border: 2px dashed var(--nebula-purple);
+            padding: 40px;
+            background: rgba(0, 0, 0, 0.8);
+        }
+        h1 { font-size: 6rem; margin: 0; text-shadow: 0 0 10px var(--nebula-purple); }
+        .code-desc { font-size: 1.5rem; letter-spacing: 2px; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+    <div class="container error-container">
+        <h1>204</h1>
+        <p class="code-desc">No Content</p>
+        <hr style="border-color: #333; margin: 20px 0;">
+        <p>Mission Control successfully processed your request!</p>
+        <br>
+        <a href="/" style="text-decoration: none;">
+            <button>Return to Mission Control</button>
+        </a>
+    </div>
+</body>
+</html>

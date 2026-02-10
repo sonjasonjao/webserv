@@ -14,11 +14,12 @@ enum ResponseCode : int {
 	BadRequest				= 400,
 	Forbidden				= 403,
 	NotFound				= 404,
+	MethodNotAllowed		= 405,
 	RequestTimeout			= 408,
 	Conflict				= 409,
 	ContentTooLarge			= 413,
-	UnprocessableContent	= 422,
-	InternalServerError 	= 500
+	InternalServerError 	= 500,
+	GatewayTimeout			= 504
 };
 
 class Response {
