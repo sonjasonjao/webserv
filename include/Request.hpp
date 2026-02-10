@@ -28,15 +28,15 @@ enum class RequestMethod {
 };
 
 /**
- * WaitingData is set for a new client by default, and ReadyForResponse whenever a response is
+ * WaitingForData is set for a new client by default, and ResponseReady whenever a response is
  * formed and ready to be sent from server. Error indicates there is a critical error in the HTTP
  * request, and thus client must be immediately disconnected without sending a response.
  */
 enum class ClientStatus {
-	WaitingData,
+	WaitingForData,
 	CgiRunning,
 	CompleteReq,
-	ReadyForResponse,
+	ResponseReady,
 	IdleTimeout,
 	RecvTimeout,
 	SendTimeout,
@@ -60,7 +60,7 @@ struct RequestLine {
  * - headers:      The raw HTTP header string for this part.
  * - name:         The form-field name (from Content-Disposition 'name').
  * - filename:     The client-side name of the file (from 'filename'), if provided.
- * - content_type: The MIME type of the data (e.g., "text/plain" or "image/png").
+ * - contenType:   The MIME type of the data (e.g., "text/plain" or "image/png").
  * - data:         The raw content or binary body of the part.
  */
 
@@ -175,7 +175,7 @@ public:
 	int								getFd() const;
 	int								getServerFd() const;
 
-	// Methods directly interacing with CGI handler
+	// Methods directly interacting with CGI handler
 	bool			isCgiRequest() const;
 	void			setCgiResult(std::string str);
 	void			setCgiPid(pid_t pid);
