@@ -17,8 +17,7 @@ CustomException	&CustomException::operator=(CustomException const &other) noexce
 	return *this;
 }
 
-CustomException::~CustomException() noexcept {}
-
-char const	*CustomException::what() const noexcept {
+char const	*CustomException::what() const noexcept
+{
 	return _error_message.c_str();
 }
