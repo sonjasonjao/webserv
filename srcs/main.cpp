@@ -18,7 +18,7 @@ int	main(int argc, char *argv[])
 {
 	if (argc > 3) {
 		std::cout << "Usage: ./webserv [configuration file] [output log file]\n";
-		return EXIT_SUCCESS;
+		return EXIT_FAILURE;
 	}
 
 	std::string	confFile = "./config_files/default.json";
