@@ -65,7 +65,7 @@ static void	debugPrintActiveServers(Parser const &parser, size_t configCount)
 	std::cout << "\n--- Active servers ---\n\n";
 	std::cout << "Number of active servers: " << configCount << "\n";
 	for (size_t i = 0; i < configCount; ++i) {
-		Config	config = parser.getServerConfig(i);
+		Config const	&config = parser.getServerConfig(i);
 
 		std::cout << "Host		: " << config.host << "\n";
 		std::cout << "Server Name	: " << config.serverName << "\n";

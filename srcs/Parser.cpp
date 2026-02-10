@@ -395,7 +395,7 @@ bool	Parser::isValidJsonString(std::string_view sv)
 	char				prevChar = '\0';
 
 	for (size_t i = 0; i < sv.size(); ++i) {
-		char	c = sv[i];
+		unsigned char	c = sv[i];
 
 		// Double quotes without leading escape character toggles inQuotes
 		if (c == '"' && prevChar != '\\') {
