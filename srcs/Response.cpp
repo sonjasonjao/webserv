@@ -1,6 +1,7 @@
 #include "Response.hpp"
 #include "Request.hpp"
 #include "Utils.hpp"
+#include "CgiHandler.hpp"
 #include "Log.hpp"
 #include "Pages.hpp"
 #include <algorithm>
@@ -22,9 +23,12 @@ static std::string			getContentType(std::string sv);
 static void					listify(std::vector<std::string> const &vec, size_t offset, std::stringstream &stream);
 
 /**
- * Main functionality for response forming. Categorizes links information from the source request
+ * Main functionality for response forming. Categorizes and links information from the source request
  * and matching configuration, validates relevant fields, picks the correct response status code,
  * and constructs the matching response content buffer.
+ *
+ * @param req	Request object that the response is an answer for
+ * @param conf	Config object containing data about the server setup
  */
 Response::Response(Request const &req, Config const &conf) : _req(req), _conf(conf)
 {
@@ -37,6 +41,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	if (bypass != Unassigned) {
 		_statusCode = bypass;
 		formResponse();
+		debugPrintResponseContent();
 
 		return;
 	}
@@ -44,11 +49,11 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	switch (_req.getStatus()) {
 		case ClientStatus::Invalid:			_statusCode = BadRequest;		break;
 		case ClientStatus::RecvTimeout:		_statusCode = RequestTimeout;	break;
+		case ClientStatus::GatewayTimeout:	_statusCode = GatewayTimeout;	break;
 		default: break;
 	}
 	if (_statusCode != Unassigned) {
 		formResponse();
-
 		debugPrintResponseContent();
 
 		return;
@@ -74,7 +79,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	// Save original sanitized request target before routing
 	_reqTargetSanitized = _target;
 	if (_reqTargetSanitized.length() > 1 && _reqTargetSanitized[0] == '/')
-		_reqTargetSanitized = _reqTargetSanitized.substr(1);
+		_reqTargetSanitized.erase(0, 1);
 
 	/* --- Route matching --- */
 
@@ -102,13 +107,18 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		}
 	}
 
+	/* --- Delete requests --- */
+
 	if (req.getRequestMethod() == RequestMethod::Delete) {
 		handleDelete();
 		formResponse();
 		debugPrintResponseContent();
+
 		return;
 	}
-	else if (!_route.original.empty())
+	/* ----------------------- */
+
+	if (!_route.original.empty())
 		INFO_LOG("Routing " + _reqTargetSanitized + " to " + _target);
 
 	/* --- Directory targets --- */
@@ -121,10 +131,12 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 
 		return;
 	}
+	/* ------------------------- */
 
-	locateTargetAndSetStatusCode();
+	if (!req.isCgiRequest())
+		locateTargetAndSetStatusCode();
 
-	formResponse(); /* ---------- Forming the contents of the response buffer */
+	formResponse();
 
 	debugPrintResponseContent();
 }
@@ -195,14 +207,37 @@ void	Response::formResponse()
 		_body = getDirectoryList(_reqTargetSanitized, _target);
 
 		if (_statusCode != InternalServerError) {
-			_startLine		 = _req.getHttpVersion() + " 200 OK";
+			_startLine		 = _req.getHttpVersion() + " 200 OK" + CRLF;
 			_contentType	 = "text/html";
-			_headerSection	+= "Content-Type: " + _contentType + std::string(CRLF);
+			_headerSection	+= "Content-Type: " + _contentType + CRLF;
 			_headerSection	+= "Content-Length: " + std::to_string(_body.length()) + CRLF;
-			_content		 = _startLine + CRLF + _headerSection + CRLF + _body;
+
+			if (_statusCode / 100 != 2 || !_req.getKeepAlive())
+				_headerSection += "Connection: close" + std::string(CRLF);
+			else
+				_headerSection += "Connection: keep-alive" + std::string(CRLF);
+
+			_content = _startLine + _headerSection + CRLF + _body;
 
 			return;
 		}
+	}
+
+	if (_req.isCgiRequest() && _statusCode == Unassigned) {
+		CgiResponse	res = CgiHandler::parseCgiOutput(_req.getCgiResult());
+		
+		_startLine		 = _req.getHttpVersion() + " " + std::to_string(res.status) + CRLF;
+		_headerSection	+= "Content-Type: " + res.contentType + CRLF;
+		_headerSection	+= "Content-Length: " + std::to_string(res.contentLength) + CRLF;
+
+		if (_req.getKeepAlive())
+			_headerSection += "Connection: keep-alive" + std::string(CRLF);
+		else
+			_headerSection += "Connection: close" + std::string(CRLF);
+
+		_content = _startLine + _headerSection + CRLF + res.body;
+
+		return;
 	}
 
 	if (_statusCode == 200)
@@ -210,7 +245,7 @@ void	Response::formResponse()
 	else
 		_contentType = "text/html";
 
-	_headerSection += "Content-Type: " + _contentType + std::string(CRLF);
+	_headerSection += "Content-Type: " + _contentType + CRLF;
 
 	switch (_statusCode) {
 		case 200:
@@ -242,6 +277,10 @@ void	Response::formResponse()
 			_startLine	= _req.getHttpVersion() + " 404 Not Found";
 			_body		= getResponsePageContent("404", _conf);
 		break;
+		case 405:
+			_startLine	= _req.getHttpVersion() + " 405 Not Allowed";
+			_body		= getResponsePageContent("405", _conf);
+		break;
 		case 408:
 			_startLine	= _req.getHttpVersion() + " 408 Request Timeout";
 			_body		= getResponsePageContent("408", _conf);
@@ -254,24 +293,29 @@ void	Response::formResponse()
 			_startLine	= _req.getHttpVersion() + " 413 Content Too Large";
 			_body		= getResponsePageContent("413", _conf);
 		break;
-		case 422:
-			_startLine	= _req.getHttpVersion() + " 422 Unprocessable content";
-			_body		= getResponsePageContent("422", _conf);
+		case 504:
+			_startLine	= _req.getHttpVersion() + " 504 Gateway Timeout";
+			_body		= getResponsePageContent("504", _conf);
 		break;
 		default:
 			_startLine	= _req.getHttpVersion() + " 500 Internal Server Error";
 			_body		= getResponsePageContent("500", _conf);
-
-			if (!_diagnosticMessage.empty()) {
-				auto	pos = _body.find("</body>");
-
-				if (pos != std::string::npos)
-					_body.insert(pos, "<p>" + _diagnosticMessage + "</p>");
-			}
 		break;
 	}
 
+	if (!_diagnosticMessage.empty()) {
+		auto	pos = _body.find("</body>");
+
+		if (pos != std::string::npos)
+			_body.insert(pos, "<p>" + _diagnosticMessage + "</p>");
+	}
+
 	_headerSection += "Content-Length: " + std::to_string(_body.length()) + CRLF;
+
+	if (_statusCode / 100 != 2 || !_req.getKeepAlive())
+		_headerSection	+= "Connection: close" + std::string(CRLF);
+	else
+		_headerSection	+= "Connection: keep-alive" + std::string(CRLF);
 
 	_content = _startLine + CRLF + _headerSection + CRLF + _body;
 }
