@@ -58,6 +58,7 @@ void	Request::reset()
 {
 	_request.target.clear();
 	_request.method = RequestMethod::Unknown;
+	_request.methodString.clear();
 	_request.httpVersion = "HTTP/1.1";
 	_request.query.reset();
 	_headers.clear();
@@ -73,7 +74,6 @@ void	Request::reset()
 	}
 	_boundary.reset();
 	_responseCodeBypass = Unassigned;
-	// reset and clearing CGI request data fields
 	_cgiRequest.reset();
 }
 
@@ -94,9 +94,9 @@ void	Request::resetKeepAlive()
  */
 void	Request::checkReqTimeouts()
 {
-	auto now   = std::chrono::high_resolution_clock::now();
-	auto diff  = now - _idleStart;
-	auto durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
+	auto	now		= std::chrono::high_resolution_clock::now();
+	auto	diff	= now - _idleStart;
+	auto	durMs	= std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 
 	timePoint	init = {};
 
@@ -107,7 +107,7 @@ void	Request::checkReqTimeouts()
 		return;
 	}
 
-	// Timeout check for data receiving from the client
+	// Timeout check for receiving data from the client
 	diff = now - _recvStart;
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	if (_recvStart != init && durMs.count() > RECV_TIMEOUT) {
@@ -116,7 +116,7 @@ void	Request::checkReqTimeouts()
 		return;
 	}
 
-	// Timeout check for data sending to the client
+	// Timeout check for sending data to the client
 	diff = now - _sendStart;
 	durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 	if (_sendStart != init && durMs.count() > SEND_TIMEOUT) {
@@ -125,12 +125,11 @@ void	Request::checkReqTimeouts()
 	}
 
 	// Timeout check for CGI handlers
-	if(_status == ClientStatus::CgiRunning && _cgiRequest.has_value()) {
+	if (_status == ClientStatus::CgiRunning && _cgiRequest.has_value()) {
 		diff = now - _cgiRequest->cgiStartTime;
-
 		durMs = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
 		if (durMs.count() > CGI_TIMEOUT) {
-			_status = ClientStatus::GatewayTimeout; // Treat as receive timeout for 504 handling
+			_status = ClientStatus::GatewayTimeout;
 			DEBUG_LOG("CGI timeout with client fd " + std::to_string(_fd));
 			_keepAlive = false;
 		}
@@ -138,22 +137,27 @@ void	Request::checkReqTimeouts()
 }
 
 /**
- * Helper to extract a string until delimiter from buffer. Returns the extracted string
- * and updates _buffer by removing that extracted string.
+ * Helper to extract a string until delimiter from buffer, returns the extracted part
+ * and removes it from the original.
+ *
+ * @param orig	Reference to string buffer to look for delimited string in
+ * @param delim	Delimiter to mark extractable part
+ *
+ * @return	Extracted string
  */
-std::string	extractFromLine(std::string &orig, std::string delim)
+static std::string	extractFromLine(std::string &orig, std::string_view delim)
 {
-	auto		it	= orig.find(delim);
-	std::string	tmp	= "";
+	size_t		pos		= orig.find(delim);
+	std::string	part	= "";
 
-	if (it != std::string::npos) {
-		tmp = orig.substr(0, it);
-		if (orig.size() > it + delim.size())
-			orig = orig.substr(it + delim.size());
+	if (pos != std::string::npos) {
+		part = orig.substr(0, pos);
+		if (orig.size() > pos + delim.size())
+			orig = orig.substr(pos + delim.size());
 		else
 			orig.erase();
 	}
-	return tmp;
+	return part;
 }
 
 /**
@@ -179,11 +183,12 @@ void	Request::parseRequest()
 		_buffer.clear();
 		return;
 	}
-	if (_contentLen.has_value() && _contentLen.value() == 0 && !_chunked) {
-		_status = ClientStatus::CompleteReq;
-		_responseCodeBypass = NoContent;
-	}
-	if (!_contentLen.has_value() && !_chunked) {
+	if (_contentLen.has_value() && _contentLen.value() > CLIENT_MAX_BODY_SIZE) {
+		_responseCodeBypass = ContentTooLarge;
+		_status = ClientStatus::Invalid;
+	} else if ((!_contentLen.has_value()
+		|| _contentLen.value() == 0)
+		 && !_chunked) {
 		// this request should not have body, so buffer should be empty by now
 		if (_buffer.empty())
 			_status = ClientStatus::CompleteReq;
@@ -212,16 +217,14 @@ void	Request::parseRequest()
 	} else if (_chunked)
 		parseChunked();
 
-    // set cgiRequest flag to indentify in POLL event loop
-    // Check for /cgi-bin/ as a path segment
-    if (_request.target.find("/cgi-bin/") != std::string::npos) {
-        _cgiRequest.emplace();
-	}
+	// Check for /cgi-bin/ as starting path segment
+	if (_request.target.find("/cgi-bin/") == 0)
+		_cgiRequest.emplace(); // Emplace _cgiRequest to indentify in poll event loop
 
 	// POST method is only allowed for file upload (-> _boundary needs to have value) or CGI request
 	if (_request.method == RequestMethod::Post && !(_cgiRequest.has_value() || _boundary.has_value())) {
+		_responseCodeBypass = MethodNotAllowed;
 		_status = ClientStatus::Invalid;
-		_responseCodeBypass = NotAllowed;
 	}
 
 	#if DEBUG_LOGGING
@@ -249,23 +252,17 @@ void	Request::parseRequestLine(std::string &req)
 	}
 	_request.methodString = method;
 
-	for (i = 0; i < methods.size(); i++) {
+	for (i = 0; i < methods.size(); i++)
 		if (methods[i] == method)
 			break;
-	}
+
 	switch (i) {
-		case 0:
-			_request.method = RequestMethod::Get;
-			break;
-		case 1:
-			_request.method = RequestMethod::Post;
-			break;
-		case 2:
-			_request.method = RequestMethod::Delete;
-			break;
+		case 0:	_request.method = RequestMethod::Get;		break;
+		case 1:	_request.method = RequestMethod::Post;		break;
+		case 2:	_request.method = RequestMethod::Delete;	break;
 		default:
 			_status = ClientStatus::Invalid;
-			_responseCodeBypass = NotAllowed;
+			_responseCodeBypass = MethodNotAllowed;
 			return;
 	}
 
@@ -280,6 +277,14 @@ void	Request::parseRequestLine(std::string &req)
  */
 void	Request::parseHeaders(std::string &str)
 {
+	// http/1.0 request is valid even without any headers, just trailing CRLF left
+	if (_request.httpVersion == "HTTP/1.0" && str == "\r\n") {
+		_completeHeaders = true;
+		_status = ClientStatus::CompleteReq;
+		_buffer.clear();
+		return;
+	}
+
 	std::string	line;
 	size_t		headEnd = str.find("\r\n\r\n");
 
@@ -398,12 +403,14 @@ void	Request::parseChunked()
 			return;
 		}
 		_buffer = _buffer.substr(crlfPos + 2);
-		std::string	tmp = extractFromLine(_buffer, CRLF);
-		if (tmp.size() != len) {
+
+		std::string	part = extractFromLine(_buffer, CRLF);
+
+		if (part.size() != len) {
 			_status = ClientStatus::Invalid;
 			return;
 		}
-		_body += tmp;
+		_body += part;
 		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
 			_responseCodeBypass = ContentTooLarge;
 			_status = ClientStatus::Invalid;
@@ -855,7 +862,7 @@ void	Request::handleFileUpload()
 			break;
 		}
 		if (_buffer.compare(partStart, endDelimiter.length(), endDelimiter) == 0) { // End delimiter of form data found
-			_buffer.erase(0, partStart + endDelimiter.length());
+			_buffer.clear();
 			_responseCodeBypass = Created;
 			_status = ClientStatus::CompleteReq;
 			break;
@@ -931,7 +938,7 @@ bool	Request::saveToDisk(MultipartPart const &part)
 bool	Request::initialSaveToDisk(MultipartPart const &part)
 {
 	// if the upload directory has not set in the config file upload operation is forbidden
-	if(!_uploadDir.has_value()) {
+	if (!_uploadDir.has_value()) {
 		ERROR_LOG("Upload directory has not set in the config file");
 		_responseCodeBypass = Forbidden;
 		_status = ClientStatus::Invalid;
@@ -984,47 +991,53 @@ bool	Request::initialSaveToDisk(MultipartPart const &part)
 	}
 }
 
-// since this is already processed and availabe data
-std::unordered_map<std::string, std::vector<std::string>> const &Request::getHeaders(void) const
+std::unordered_map<std::string, std::vector<std::string>> const	&Request::getHeaders() const
 {
 	return _headers;
 }
 
-bool	Request::isCgiRequest() const{
+bool	Request::isCgiRequest() const
+{
 	return _cgiRequest.has_value();
 }
 
-void	Request::setCgiResult(std::string str) {
+void	Request::setCgiResult(std::string str)
+{
 	if (!_cgiRequest.has_value())
 		return;
 	_cgiRequest->cgiResult = str;
 }
 
-void	Request::setCgiPid(pid_t pid) {
+void	Request::setCgiPid(pid_t pid)
+{
 	if (!_cgiRequest.has_value())
 		return;
 	_cgiRequest->cgiPid = pid;
 }
 
-void	Request::setCgiStartTime() {
+void	Request::setCgiStartTime()
+{
 	if (!_cgiRequest.has_value())
 		return;
 	_cgiRequest->cgiStartTime = std::chrono::high_resolution_clock::now();
 }
 
-pid_t  	Request::getCgiPid() const {
+pid_t  	Request::getCgiPid() const
+{
 	if (!_cgiRequest.has_value())
 		return -1;
 	return _cgiRequest->cgiPid;
 }
 
-std::string	Request::getCgiResult() const {
+std::string	Request::getCgiResult() const
+{
 	if (!_cgiRequest.has_value())
 		return "";
 	return _cgiRequest->cgiResult;
 }
 
-CgiRequest::timePoint	Request::getCgiStartTime() const {
+CgiRequest::timePoint	Request::getCgiStartTime() const
+{
 	if (!_cgiRequest.has_value())
 		return {};
 	return _cgiRequest->cgiStartTime;

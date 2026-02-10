@@ -3,28 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>404 | Signal Lost</title>
+    <title>408 | Request Timeout</title>
     <link rel="stylesheet" href="../style.css">
     <style>
         /* specific overrides for error pages */
         .error-container {
             text-align: center;
             margin-top: 100px;
-            border: 2px dashed var(--nebula-purple);
+            border: 2px dashed var(--rocket-orange);
             padding: 40px;
             background: rgba(0, 0, 0, 0.8);
         }
-        h1 { font-size: 6rem; margin: 0; text-shadow: 0 0 10px var(--nebula-purple); }
+        h1 { font-size: 6rem; margin: 0; text-shadow: 0 0 10px var(--rocket-orange); }
         .code-desc { font-size: 1.5rem; letter-spacing: 2px; text-transform: uppercase; }
     </style>
 </head>
 <body>
     <div class="container error-container">
-        <h1>404</h1>
-        <p class="code-desc">Sector Not Found</p>
+        <h1>408</h1>
+        <p class="code-desc">Request Timeout</p>
         <hr style="border-color: #333; margin: 20px 0;">
-        <p>The coordinates you entered point to empty space.</p>
-        <p>Our deep-space probes could not locate the requested file.</p>
+        <p>Signal lost while awaiting transmission.</p>
+        <p>The request exceeded safe communication limits.</p>
         <br>
         <a href="/" style="text-decoration: none;">
             <button>Return to Mission Control</button>

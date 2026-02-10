@@ -3,28 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>403 | Access Denied</title>
+    <title>413 | Content Too Large</title>
     <link rel="stylesheet" href="../style.css">
     <style>
-        /* specific overrides for error pages */
         .error-container {
             text-align: center;
             margin-top: 100px;
-            border: 2px dashed var(--nebula-purple);
+            border: 2px solid var(--rocket-orange);
             padding: 40px;
             background: rgba(0, 0, 0, 0.8);
         }
-        h1 { font-size: 6rem; margin: 0; text-shadow: 0 0 10px var(--nebula-purple); }
+        h1 { font-size: 6rem; margin: 0; color: var(--rocket-orange); text-shadow: 0 0 10px orange; }
         .code-desc { font-size: 1.5rem; letter-spacing: 2px; text-transform: uppercase; }
     </style>
 </head>
 <body>
     <div class="container error-container">
-        <h1>403</h1>
-        <p class="code-desc">Forbidden</p>
+        <h1>413</h1>
+        <p class="code-desc">Content Too Large</p>
         <hr style="border-color: #333; margin: 20px 0;">
-        <p>Security clearance insufficient for this sector.</p>
-        <p>Access to these coordinates is restricted to authorized personnel only.</p>
+        <p>The data transmission is too heavy for our receiving dock.</p>
+        <p>Please reduce payload size and attempt re-entry.</p>
         <br>
         <a href="/" style="text-decoration: none;">
             <button>Return to Mission Control</button>

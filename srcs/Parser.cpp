@@ -151,7 +151,7 @@ void	Parser::tokenizeFile()
  * config struct data
  * @return const reference to the requested data structure
  */
-const Config	&Parser::getServerConfig(size_t index)
+Config const	&Parser::getServerConfig(size_t index)
 {
 	return _serverConfigs.at(index);
 }
@@ -159,7 +159,7 @@ const Config	&Parser::getServerConfig(size_t index)
 /**
  * will return the whole configs vector for server construction.
  */
-const std::vector<Config>	&Parser::getServerConfigs() const
+std::vector<Config> const	&Parser::getServerConfigs() const
 {
 	return _serverConfigs;
 }
