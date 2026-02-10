@@ -207,7 +207,7 @@ void	Response::formResponse()
 		_body = getDirectoryList(_reqTargetSanitized, _target);
 
 		if (_statusCode != InternalServerError) {
-			_startLine		 = _req.getHttpVersion() + " 200 OK";
+			_startLine		 = _req.getHttpVersion() + " 200 OK" + CRLF;
 			_contentType	 = "text/html";
 			_headerSection	+= "Content-Type: " + _contentType + CRLF;
 			_headerSection	+= "Content-Length: " + std::to_string(_body.length()) + CRLF;
@@ -217,7 +217,7 @@ void	Response::formResponse()
 			else
 				_headerSection += "Connection: keep-alive" + std::string(CRLF);
 
-			_content = _startLine + CRLF + _headerSection + CRLF + _body;
+			_content = _startLine + _headerSection + CRLF + _body;
 
 			return;
 		}
@@ -231,10 +231,12 @@ void	Response::formResponse()
 		_headerSection	+= "Content-Length: " + std::to_string(res.contentLength) + CRLF;
 
 		if (_req.getKeepAlive())
-			_headerSection	+= "Connection: keep-alive" + std::string(CRLF);
+			_headerSection += "Connection: keep-alive" + std::string(CRLF);
 		else
-			_headerSection	+= "Connection: close" + std::string(CRLF);
+			_headerSection += "Connection: close" + std::string(CRLF);
+
 		_content = _startLine + _headerSection + CRLF + res.body;
+
 		return;
 	}
 
