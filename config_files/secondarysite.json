@@ -1,0 +1,39 @@
+{
+    "server": [
+        {
+            "host": "127.0.0.1",
+            "server_name": "localhost",
+            "listen": [
+                8081
+            ],
+            "allowed_methods": [
+                "GET",
+                "POST",
+                "DELETE"
+            ],
+            "directory_listing": true,
+            "autoindex": true,
+            "upload_dir": "www/secondary_site/uploads",
+            "client_max_body_size": 11048576,
+            "routes": {
+                "/": "www/secondary_site",
+                "secret": "www/secondary_site/status_pages/418.html",
+                "uploads": "www/secondary_site/uploads"
+            },
+            "status_pages" : {
+                "200" : "www/secondary_site/status_pages/200.html",
+                "204" : "www/secondary_site/status_pages/204.html",
+                "207" : "www/secondary_site/status_pages/207.html",
+                "400" : "www/secondary_site/status_pages/400.html",
+                "403" : "www/secondary_site/status_pages/403.html",
+                "404" : "www/secondary_site/status_pages/404.html",
+                "405" : "www/secondary_site/status_pages/405.html",
+                "408" : "www/secondary_site/status_pages/408.html",
+                "409" : "www/secondary_site/status_pages/409.html",
+                "413" : "www/secondary_site/status_pages/413.html",
+                "500" : "www/secondary_site/status_pages/500.html",
+                "504" : "www/secondary_site/status_pages/504.html"
+            }
+        }
+    ]
+}
