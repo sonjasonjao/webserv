@@ -21,6 +21,10 @@ Parser::Parser(std::string const &fileName)
 
 	// File extension checking
 	size_t		pos = _fileName.rfind('.');
+
+	if (pos == std::string::npos || _fileName.begin() + pos + 1 == _fileName.end())
+		throw ParserException(ERROR_LOG("Filename '" + _fileName + "' has no extension"));
+
 	std::string	ext = _fileName.substr(pos + 1);
 
 	if (ext != EXTENSION)
