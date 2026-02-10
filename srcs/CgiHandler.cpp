@@ -1,6 +1,6 @@
 #include "CgiHandler.hpp"
+#include "Utils.hpp"
 #include "Log.hpp"
-#include "Request.hpp"
 #include <cstring>
 #include <cstdlib>
 #include <fcntl.h>
@@ -16,11 +16,11 @@ void	freeEnvp(char** envp)
 	if (!envp)
 		return;
 	for (int i = 0; envp[i] != nullptr; i++)
-		delete[] envp[i]; // Delete individual strings
-	delete[] envp; // Delete the array of pointers
+		delete[] envp[i];
+	delete[] envp;
 }
 
-std::map<std::string, std::string>	CgiHandler::getEnv(std::string const &scriptPath, Request const &request)
+std::map<std::string, std::string>	CgiHandler::getEnv(std::string const &scriptPath, Request const &request, Config const &conf)
 {
 	stringMap	env;
 
@@ -31,7 +31,7 @@ std::map<std::string, std::string>	CgiHandler::getEnv(std::string const &scriptP
 		default:					env["REQUEST_METHOD"] = "UNKNOWN";	break;
 	}
 	env["QUERY_STRING"]			= request.getQuery().has_value() ? request.getQuery().value() : "";
-	env["CONTENT_LENGTH"]		= std::to_string(request.getBody().size());
+	env["CONTENT_LENGTH"]		= std::to_string(request.getBody().length());
 	env["PATH_INFO"]			= request.getTarget();
 	env["SCRIPT_FILENAME"]		= scriptPath;
 	env["GATEWAY_INTERFACE"]	= "CGI/1.1";
@@ -43,20 +43,12 @@ std::map<std::string, std::string>	CgiHandler::getEnv(std::string const &scriptP
 
 	auto	ct = request.getHeader("content-type");
 
-	if(ct && !ct->empty())
+	if (ct && !ct->empty())
 		env["CONTENT_TYPE"] = ct->front();
 
 	// SERVER_DATA required by the RFC 3875
-	std::string	host	= request.getHost();
-	size_t		colon	= host.find(':');
-
-	if (colon != std::string::npos) {
-		env["SERVER_NAME"] = host.substr(0, colon);
-		env["SERVER_PORT"] = host.substr(colon + 1);
-	} else {
-		env["SERVER_NAME"] = host;
-		env["SERVER_PORT"] = "8080"; // NOTE: Need to fetch context from matching configuration file
-	}
+	env["SERVER_NAME"] = conf.host;
+	env["SERVER_PORT"] = conf.port;
 
 	// SCHEME_DATA required by RFC 3875
 	for (auto const &[key, values] : request.getHeaders()) {
@@ -65,7 +57,7 @@ std::map<std::string, std::string>	CgiHandler::getEnv(std::string const &scriptP
 
 		std::string	envKey = "HTTP_";
 
-		for (char c : key)
+		for (unsigned char const c : key)
 			envKey += (c == '-' ? '_' : std::toupper(c));
 		env[envKey] = values.front();
 	}
@@ -76,7 +68,7 @@ std::map<std::string, std::string>	CgiHandler::getEnv(std::string const &scriptP
 char	**CgiHandler::mapToEnvp(std::map<std::string, std::string> const &envMap)
 {
 	char	**envp	= new char*[envMap.size() + 1];
-	int		i		= 0;
+	size_t	i		= 0;
 
 	for (auto const &[key, value] : envMap) {
 		std::string	temp = key + "=" + value;
@@ -90,7 +82,7 @@ char	**CgiHandler::mapToEnvp(std::map<std::string, std::string> const &envMap)
 	return (envp);
 }
 
-std::pair<pid_t, int>	CgiHandler::execute(std::string const &scriptPath, Request const &request)
+std::pair<pid_t, int>	CgiHandler::execute(std::string const &scriptPath, Request const &request, Config const &conf)
 {
 	int	parentToChildPipe[2];
 	int	childToParentPipe[2];
@@ -105,7 +97,7 @@ std::pair<pid_t, int>	CgiHandler::execute(std::string const &scriptPath, Request
 		return {-1, -1};
 	}
 
-	stringMap	envMap	= getEnv(scriptPath, request);
+	stringMap	envMap	= getEnv(scriptPath, request, conf);
 	std::string path	= scriptPath; // Making copy for persisting existence
 
 	char	**envp	= mapToEnvp(envMap);
@@ -203,7 +195,7 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 	// Handle case where no header/body separator is found
 	if (bodyPos == std::string::npos) {
 		response.body = rawOutput;
-		response.contentLength = std::to_string(response.body.length());
+		response.contentLength = response.body.length();
 
 		return response;
 	}
@@ -235,19 +227,36 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 				value = value.substr(first, (last - first + 1));
 
 			// Mapping fields
-			if (key == "Status")
-				response.status = value;
+			if (key == "Status"){
+				response.statusString = value;
+				try {
+					std::string	trimmed	= trimWhitespace(value);
+					size_t		pos		= trimmed.find_first_not_of("0123456789");
+
+					response.status = std::stoi(trimmed.substr(0, pos));
+				} catch (std::exception &e) {
+					response.status = 500;
+					break;
+				}
+			}
 			else if (key == "Content-Type")
 				response.contentType = value;
-			else if (key == "Content-Length")
-				response.contentLength = value;
+			else if (key == "Content-Length") {
+				try {
+					std::string	trimmed	= trimWhitespace(value);
+					size_t		pos		= trimmed.find_first_not_of("0123456789");
+					response.contentLength = std::stoi(trimmed.substr(0, pos));
+				} catch (std::exception &e) {
+					response.contentLength = 0;
+				}
+			}
 		}
 		start = end + 1;
 	}
 
-	// Content-Length, set it based on body size
-	if (response.contentLength == "0" && !response.body.empty())
-		response.contentLength = std::to_string(response.body.length());
+	// Content-Length, re-adjust based on body size
+	if (response.contentLength == 0 && !response.body.empty())
+		response.contentLength = response.body.length();
 
 	return response;
 }

@@ -8,6 +8,7 @@
 #include <chrono>
 #include <memory>
 #include <fstream>
+#include <unistd.h>
 
 #define IDLE_TIMEOUT			10000
 #define RECV_TIMEOUT			5000
@@ -92,94 +93,95 @@ class Request {
 	using stringMap = std::unordered_map<std::string, std::vector<std::string>>;
 	using timePoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
-	private:
-		int								_fd;
-		int								_serverFd;
-		ClientStatus					_status;
-		ResponseCode					_responseCodeBypass;
-		bool							_keepAlive;
-		bool							_chunked;
-		bool							_completeHeaders;
-		std::unique_ptr<std::ofstream>	_uploadFD;
-		timePoint						_idleStart;
-		timePoint						_recvStart;
-		timePoint						_sendStart;
-		size_t							_headerSize;
-		std::optional<size_t>			_contentLen;
-		stringMap						_headers;
-		struct RequestLine				_request;
-		std::optional<CgiRequest>		_cgiRequest;
-		std::string						_buffer;
-		std::string						_body;
-		std::optional<std::string>		_boundary;
-		std::optional<std::string>		_uploadDir;
+private:
+	int								_fd;
+	int								_serverFd;
+	ClientStatus					_status;
+	ResponseCode					_responseCodeBypass;
+	bool							_keepAlive;
+	bool							_chunked;
+	bool							_completeHeaders;
+	std::unique_ptr<std::ofstream>	_uploadFD;
+	timePoint						_idleStart;
+	timePoint						_recvStart;
+	timePoint						_sendStart;
+	size_t							_headerSize;
+	std::optional<size_t>			_contentLen;
+	stringMap						_headers;
+	struct RequestLine				_request;
+	std::optional<CgiRequest>		_cgiRequest;
+	std::string						_buffer;
+	std::string						_body;
+	std::optional<std::string>		_boundary;
+	std::optional<std::string>		_uploadDir;
 
-		void	parseRequest(void);
-		void	parseRequestLine(std::string &req);
-		void	parseHeaders(std::string &str);
+	void	parseRequest();
+	void	parseRequestLine(std::string &req);
+	void	parseHeaders(std::string &str);
 
-		void	parseChunked();
-		void	printData() const;
+	void	parseChunked();
+	void	printData() const;
+	void	printStatus() const;
 
-		bool	validateHeaders();
-		bool	areValidChars(std::string &target);
-		bool	validateAndAssignTarget(std::string &target);
-		bool	validateAndAssignHttp(std::string &httpVersion);
-		bool	isUniqueHeader(std::string const &key);
-		bool	initialSaveToDisk(MultipartPart const &part);
-		bool	saveToDisk(MultipartPart const &part);
+	bool	validateHeaders();
+	bool	areValidChars(std::string &target);
+	bool	validateAndAssignTarget(std::string &target);
+	bool	validateAndAssignHttp(std::string &httpVersion);
+	bool	isUniqueHeader(std::string const &key);
+	bool	initialSaveToDisk(MultipartPart const &part);
+	bool	saveToDisk(MultipartPart const &part);
 
-	public:
-		Request() = delete;
-		Request(int fd, int serverFd);
-		~Request() = default;
 
-		void	processRequest(std::string const &buf);
+public:
+	Request() = delete;
+	Request(int fd, int serverFd);
+	~Request() = default;
 
-		bool	isHeadersCompleted() const;
-		bool	fillKeepAlive();
-		bool	boundaryHasValue();
+	void	processRequest(std::string const &buf);
 
-		void	reset();
-		void	resetKeepAlive();
+	bool	isHeadersCompleted() const;
+	bool	fillKeepAlive();
+	bool	boundaryHasValue();
 
-		void	checkReqTimeouts();
-		void	setIdleStart();
-		void	setRecvStart();
-		void	setSendStart();
-		void	setStatus(ClientStatus status);
-		void	setKeepAlive(bool value);
-		void	setResponseCodeBypass(ResponseCode code);
+	void	reset();
+	void	resetKeepAlive();
 
-		void	resetSendStart();
+	void	checkReqTimeouts();
+	void	setIdleStart();
+	void	setRecvStart();
+	void	setSendStart();
+	void	setStatus(ClientStatus status);
+	void	setKeepAlive(bool value);
+	void	setResponseCodeBypass(ResponseCode code);
 
-		void	handleFileUpload();
-		void	setUploadDir(std::string path);
+	void	resetSendStart();
 
-		std::vector<std::string> const	*getHeader(std::string const &key) const;
-		RequestMethod					getRequestMethod() const;
-		ClientStatus					getStatus() const;
-		ResponseCode					getResponseCodeBypass() const;
-		std::string const				&getHttpVersion() const;
-		std::string const				&getBody() const;
-		std::string const				&getTarget() const;
-		std::string const				&getBuffer() const;
-		std::string const				&getMethodString() const;
-		std::string						getHost() const;
-		std::optional<std::string>		getQuery() const;
-		size_t							getContentLength() const;
-		bool							getKeepAlive() const;
-		int								getFd() const;
-		int								getServerFd() const;
+	void	handleFileUpload();
+	void	setUploadDir(std::string path);
 
-		// Methods directly interacing with CGI handler
-		bool			isCgiRequest() const;
-		void			setCgiResult(std::string str);
-		void			setCgiPid(pid_t pid);
-		void			setCgiStartTime();
-		void			printStatus() const;
-		pid_t			getCgiPid() const;
-		timePoint		getCgiStartTime() const;
-		std::string		getCgiResult() const;
-		stringMap const	&getHeaders(void) const;
+	std::vector<std::string> const	*getHeader(std::string const &key) const;
+	RequestMethod					getRequestMethod() const;
+	ClientStatus					getStatus() const;
+	ResponseCode					getResponseCodeBypass() const;
+	std::string const				&getHttpVersion() const;
+	std::string const				&getBody() const;
+	std::string const				&getTarget() const;
+	std::string const				&getBuffer() const;
+	std::string const				&getMethodString() const;
+	std::string						getHost() const;
+	std::optional<std::string>		getQuery() const;
+	size_t							getContentLength() const;
+	bool							getKeepAlive() const;
+	int								getFd() const;
+	int								getServerFd() const;
+
+	// Methods directly interacing with CGI handler
+	bool			isCgiRequest() const;
+	void			setCgiResult(std::string str);
+	void			setCgiPid(pid_t pid);
+	void			setCgiStartTime();
+	pid_t			getCgiPid() const;
+	timePoint		getCgiStartTime() const;
+	std::string		getCgiResult() const;
+	stringMap const	&getHeaders() const;
 };
