@@ -85,7 +85,7 @@ void	Parser::tokenizeFile()
 		Token const	&content = node.children[1];
 
 		if (content.children.empty())
-			throw ParserException(ERROR_LOG("Content node has no children"));
+			throw ParserException(ERROR_LOG("Content node for key '" + getKey(node) +"' has no children"));
 
 		for (auto const &block : content.children) {
 
