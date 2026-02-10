@@ -618,8 +618,8 @@ static void	listify(std::vector<std::string> const &vec,
 					std::stringstream &stream)
 {
 	stream << "<ul>\n";
-	for (auto const &subDir : vec) {
-		std::string_view	uriLastPart = subDir;
+	for (auto const &entryPath : vec) {
+		std::string_view	uriLastPart = entryPath;
 
 		uriLastPart = uriLastPart.substr(route.length() + 1);
 
