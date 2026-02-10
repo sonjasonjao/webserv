@@ -1,4 +1,4 @@
-# Webserv: a HTTP 1.1 server written in C++
+# Webserv: an HTTP/1.1 server written in C++
 Authors: [Sonja](https://github.com/sonjasonjao/), [Thiwanka](https://github.com/ThiwankaS), and [Johnny](https://github.com/zoni527)
 ## Description
 The project was written to deepen our understanding of HTTP, backend programming,
