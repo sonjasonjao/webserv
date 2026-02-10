@@ -7,10 +7,11 @@
 #include <sys/types.h>
 
 struct CgiResponse {
-	int	status					= 200;
+	int	status					= 0;
 	int	contentLength			= 0;
-	std::string	statusString	= "200 OK";
-    std::string contentType		= "text/html";
+	bool isSucceeded			= true;
+	std::string	statusString	= "default";
+    std::string contentType		= "default";
 	std::string	body;
 };
 

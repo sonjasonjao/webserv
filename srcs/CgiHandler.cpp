@@ -183,80 +183,106 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 {
 	CgiResponse	response;
 
-	// Separate header section from body section
-	size_t	bodyPos			= rawOutput.find("\r\n\r\n");
-	size_t	headerEndLen	= 4;
-
-	if (bodyPos == std::string::npos) {
-		bodyPos = rawOutput.find("\r\n");
-		headerEndLen = 2;
-	}
-
-	// Handle case where no header/body separator is found
-	if (bodyPos == std::string::npos) {
-		response.body = rawOutput;
-		response.contentLength = response.body.length();
-
+	if(rawOutput.empty()) {
+		ERROR_LOG("Ahhhhh... here is the error");
+		response.isSucceeded = false;
+		response.status = 400;
+		response.contentType = "text/html";
+		response.statusString = "Bad Request";
 		return response;
 	}
 
-	std::string	headerSection = rawOutput.substr(0, bodyPos);
+	// Separate header section from body section
+	if(!rawOutput.empty()) {
+			size_t	bodyPos			= rawOutput.find("\r\n\r\n");
+		size_t	headerEndLen	= 4;
 
-	response.body = rawOutput.substr(bodyPos + headerEndLen);
-
-	std::string	line;
-	size_t		start = 0;
-	size_t		end;
-
-	while ((end = headerSection.find('\n', start)) != std::string::npos) {
-		line = headerSection.substr(start, end - start);
-		if (!line.empty() && line.back() == '\r')
-			line.pop_back();
-
-		size_t	colonPos = line.find(':');
-
-		if (colonPos != std::string::npos) {
-			std::string key		= line.substr(0, colonPos);
-			std::string value	= line.substr(colonPos + 1);
-
-			// Trim leading/trailing spaces from value
-			size_t first = value.find_first_not_of(" ");
-			size_t last = value.find_last_not_of(" ");
-
-			if (first != std::string::npos)
-				value = value.substr(first, (last - first + 1));
-
-			// Mapping fields
-			if (key == "Status"){
-				response.statusString = value;
-				try {
-					std::string	trimmed	= trimWhitespace(value);
-					size_t		pos		= trimmed.find_first_not_of("0123456789");
-
-					response.status = std::stoi(trimmed.substr(0, pos));
-				} catch (std::exception &e) {
-					response.status = 500;
-					break;
-				}
-			}
-			else if (key == "Content-Type")
-				response.contentType = value;
-			else if (key == "Content-Length") {
-				try {
-					std::string	trimmed	= trimWhitespace(value);
-					size_t		pos		= trimmed.find_first_not_of("0123456789");
-					response.contentLength = std::stoi(trimmed.substr(0, pos));
-				} catch (std::exception &e) {
-					response.contentLength = 0;
-				}
-			}
+		if (bodyPos == std::string::npos) {
+			bodyPos = rawOutput.find("\r\n");
+			headerEndLen = 2;
 		}
-		start = end + 1;
+
+		// Handle case where no header/body separator is found
+		if (bodyPos == std::string::npos) {
+			response.body = rawOutput;
+			response.contentLength = response.body.length();
+
+			return response;
+		}
+
+		std::string	headerSection = rawOutput.substr(0, bodyPos);
+
+		response.body = rawOutput.substr(bodyPos + headerEndLen);
+
+		std::string	line;
+		size_t		start = 0;
+		size_t		end;
+
+		while ((end = headerSection.find('\n', start)) != std::string::npos) {
+			line = headerSection.substr(start, end - start);
+			if (!line.empty() && line.back() == '\r')
+				line.pop_back();
+
+			size_t	colonPos = line.find(':');
+
+			if (colonPos != std::string::npos) {
+				std::string key		= line.substr(0, colonPos);
+				std::string value	= line.substr(colonPos + 1);
+
+				// Trim leading/trailing spaces from value
+				size_t first = value.find_first_not_of(" ");
+				size_t last = value.find_last_not_of(" ");
+
+				if (first != std::string::npos)
+					value = value.substr(first, (last - first + 1));
+
+				// Mapping fields
+				if (key == "Status"){
+					response.statusString = value;
+					try {
+						std::string	trimmed	= trimWhitespace(value);
+						size_t		pos		= trimmed.find_first_not_of("0123456789");
+
+						response.status = std::stoi(trimmed.substr(0, pos));
+					} catch (std::exception &e) {
+						response.status = 500;
+						break;
+					}
+				}
+				else if (key == "Content-Type")
+					response.contentType = value;
+				else if (key == "Content-Length") {
+					try {
+						std::string	trimmed	= trimWhitespace(value);
+						size_t		pos		= trimmed.find_first_not_of("0123456789");
+						response.contentLength = std::stoi(trimmed.substr(0, pos));
+					} catch (std::exception &e) {
+						response.contentLength = 0;
+					}
+				}
+			}
+			start = end + 1;
+		}
+
+		// Content-Length, re-adjust based on body size
+		if (response.contentLength == 0)
+			response.contentLength = response.body.length();
 	}
 
-	// Content-Length, re-adjust based on body size
-	if (response.contentLength == 0 && !response.body.empty())
-		response.contentLength = response.body.length();
+	// this will be the error case, where 
+	// 1. the sciprt it self will not execute so there is no result at all
+	// 2. script out put is not following the expected format
+	if(rawOutput.empty() || (response.status == 0 && response.contentType == "default")) {
+		DEBUG_LOG("Chechking the info : ");
+		ERROR_LOG("status" + std::to_string(response.status)); 
+		response.isSucceeded = false;
+		response.status = 400;
+		response.contentType = "text/html";
+		response.statusString = "Bad Request";
+	}
 
+	// if the content type not set by the script then it will default to text/html
+	if (response.contentType == "default")
+		response.contentType = "text/html";
 	return response;
 }
