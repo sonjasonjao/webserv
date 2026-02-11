@@ -259,135 +259,6 @@ void	Server::handleClientData(size_t &i)
 	it->setIdleStart();
 	it->setRecvStart();
 	it->processRequest(std::string(buf, numBytes));
-
-	Config const	&conf = matchConfig(*it);
-
-	if (it->getStatus() == ClientStatus::Error) {
-		ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
-			+ " connection dropped: suspicious request");
-		removeClientFromPollFds(i);
-		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
-		cleanupCgi(&(*it));
-		_clients.erase(it);
-
-		return;
-	}
-
-	if (it->isHeadersCompleted()) {
-		size_t	maxBodySize;
-		if (conf.clientMaxBodySize.has_value())
-		// If clientMaxBodySize has been set in configuration file
-			maxBodySize = conf.clientMaxBodySize.value();
-		else // Check against the default value
-			maxBodySize = CLIENT_MAX_BODY_SIZE;
-		if (it->getContentLength() > maxBodySize) {
-			it->setResponseCodeBypass(ContentTooLarge);
-			it->setStatus(ClientStatus::Invalid);
-			ERROR_LOG("Client body size " + std::to_string(it->getContentLength())
-				+ " exceeds the limit " + std::to_string(maxBodySize));
-		}
-	}
-
-	if (it->isCgiRequest()) {
-
-		// Lambda function to avoid duplicate code in the error cases below
-		auto	applySettingsAndPrepareResponse = [it, i, conf, this](std::string msg, ResponseCode resCode) {
-				ERROR_LOG(msg);
-				it->setResponseCodeBypass(resCode);
-				it->setStatus(ClientStatus::Invalid);
-				prepareResponse(*it, conf);
-				_pfds[i].events |= POLLOUT;
-				it->setIdleStart();
-				it->setSendStart();
-		};
-
-		// Check if cgi-bin has been routed
-		auto	routeIt = conf.routes.find("cgi-bin");
-
-		if (routeIt == conf.routes.end()) {
-			// If cgi-bin isn't set, return
-			applySettingsAndPrepareResponse("CGI functionality not enabled!", Forbidden);
-			return;
-		}
-
-		std::filesystem::path	cgiDir = routeIt->second.target; // Extract cgi-bin directory path on the physical disk
-		std::string				requestedTarget = it->getTarget();
-		std::string				cgiPrefix = "/cgi-bin/";
-		std::string				relativePath = requestedTarget.substr(0 + cgiPrefix.length());
-		std::filesystem::path	path;
-
-		if (relativePath.empty()) {
-			applySettingsAndPrepareResponse("Empty CGI path", Forbidden);
-			return;
-		}
-
-		// Build the final CGI path
-		path = cgiDir / relativePath;
-		if (!std::filesystem::exists(path)) {
-			applySettingsAndPrepareResponse("CGI script '" + path.string()
-				+ "' does not exist", NotFound);
-			return;
-		} else if (access(path.c_str(), X_OK) == -1) {
-			applySettingsAndPrepareResponse("CGI script '" + path.string()
-				+ "' can't be executed", Forbidden);
-			return;
-		}
-
-		// Execute the CGI script
-		std::pair<pid_t, int> cgiInfo = CgiHandler::execute(path.string(), *it, conf);
-
-		// Error occurred
-		if (cgiInfo.first == -1 || cgiInfo.second == -1) {
-			ERROR_LOG("Error executing CGI script '" + path.string() + "'");
-			it->setResponseCodeBypass(InternalServerError);
-			it->setStatus(ClientStatus::Invalid);
-		} else {
-			INFO_LOG("CGI started with PID " + std::to_string(cgiInfo.first)
-				+ " and reading from FD " + std::to_string(cgiInfo.second));
-			it->setCgiPid(cgiInfo.first);
-			it->setCgiStartTime();
-			it->setStatus(ClientStatus::CgiRunning);
-
-			 // Add CGI read fd to poll list
-			_pfds.push_back({ cgiInfo.second, POLLIN, 0 });
-			_cgiFdMap[cgiInfo.second] = &(*it);
-
-			return;
-		}
-	}
-
-	if (it->getRequestMethod() == RequestMethod::Post && it->boundaryHasValue()) {
-		if (conf.uploadDir.has_value()) {
-			DEBUG_LOG("Handling file upload for client fd " + std::to_string(_pfds[i].fd));
-			it->setUploadDir(conf.uploadDir.value());
-			it->handleFileUpload();
-			if (it->getStatus() == ClientStatus::Error) {
-				ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
-					+ " connection dropped: suspicious request");
-				removeClientFromPollFds(i);
-				INFO_LOG("Erasing fd " + std::to_string(it->getFd())
-					+ " from clients list");
-				cleanupCgi(&(*it));
-				_clients.erase(it);
-
-				return;
-			}
-		} else {
-			DEBUG_LOG("File uploading is forbidden");
-			it->setResponseCodeBypass(Forbidden);
-			it->setStatus(ClientStatus::Invalid);
-		}
-	}
-
-	if (it->getStatus() == ClientStatus::WaitingForData) {
-		INFO_LOG("Waiting for more data to complete partial request");
-		return;
-	}
-
-	prepareResponse(*it, conf);
-	_pfds[i].events |= POLLOUT;
-	it->setIdleStart();
-	it->setSendStart();
     processClientRequest(i, it);
 }
 
@@ -513,7 +384,6 @@ void	Server::sendResponse(size_t &i)
 
 	it->resetKeepAlive();
 	it->setStatus(ClientStatus::WaitingForData);
-	it->setStatus(ClientStatus::WaitingData);
 	// Once the response send re-enable clientFD for reading
 	_pfds[i].events |= POLLIN;
 	// Since there can be requests already read and stored in the buffer, immediately
@@ -760,11 +630,11 @@ void	Server::cleanupCgi(Request *req)
 
 void Server::processClientRequest(size_t &i, ReqIter it)
 {
-	Config const &conf = matchConfig(*it);
+		Config const	&conf = matchConfig(*it);
 
-	if (it->getStatus() == ClientStatus::Error)
-	{
-		ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd) + " connection dropped: suspicious request");
+	if (it->getStatus() == ClientStatus::Error) {
+		ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
+			+ " connection dropped: suspicious request");
 		removeClientFromPollFds(i);
 		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 		cleanupCgi(&(*it));
@@ -773,65 +643,63 @@ void Server::processClientRequest(size_t &i, ReqIter it)
 		return;
 	}
 
-	if (it->isHeadersCompleted())
-	{
-		size_t maxBodySize;
-		if (conf.clientMaxBodySize.has_value()) // If there is user defined value for clientMaxBodySize, check against the value
+	if (it->isHeadersCompleted()) {
+		size_t	maxBodySize;
+		if (conf.clientMaxBodySize.has_value())
+		// If clientMaxBodySize has been set in configuration file
 			maxBodySize = conf.clientMaxBodySize.value();
-		else // Check against the default clientMaxBodySize value
+		else // Check against the default value
 			maxBodySize = CLIENT_MAX_BODY_SIZE;
-		if (it->getContentLength() > maxBodySize)
-		{
+		if (it->getContentLength() > maxBodySize) {
 			it->setResponseCodeBypass(ContentTooLarge);
 			it->setStatus(ClientStatus::Invalid);
-			ERROR_LOG("Client body size " + std::to_string(it->getContentLength()) + " exceeds the limit " + std::to_string(maxBodySize));
+			ERROR_LOG("Client body size " + std::to_string(it->getContentLength())
+				+ " exceeds the limit " + std::to_string(maxBodySize));
 		}
 	}
 
-	if (it->isCgiRequest())
-	{
+	if (it->isCgiRequest()) {
 
 		// Lambda function to avoid duplicate code in the error cases below
-		auto applySettingsAndPrepareResponse = [it, i, conf, this](std::string msg, ResponseCode resCode)
-		{
-			ERROR_LOG(msg);
-			it->setResponseCodeBypass(resCode);
-			it->setStatus(ClientStatus::Invalid);
-			prepareResponse(*it, conf);
-			_pfds[i].events |= POLLOUT;
-			it->setIdleStart();
-			it->setSendStart();
+		auto	applySettingsAndPrepareResponse = [it, i, conf, this](std::string msg, ResponseCode resCode) {
+				ERROR_LOG(msg);
+				it->setResponseCodeBypass(resCode);
+				it->setStatus(ClientStatus::Invalid);
+				prepareResponse(*it, conf);
+				_pfds[i].events |= POLLOUT;
+				it->setIdleStart();
+				it->setSendStart();
 		};
 
-		auto routeIt = conf.routes.find("cgi-bin"); // Check if cgi-bin has been routed
+		// Check if cgi-bin has been routed
+		auto	routeIt = conf.routes.find("cgi-bin");
 
-		if (routeIt == conf.routes.end())
-		{ // If cgi-bin isn't set, return
+		if (routeIt == conf.routes.end()) {
+			// If cgi-bin isn't set, return
 			applySettingsAndPrepareResponse("CGI functionality not enabled!", Forbidden);
 			return;
 		}
 
-		std::filesystem::path cgiDir = routeIt->second.target; // Extract cgi-bin directory path on the physical disk
-		std::string requestedTarget = it->getTarget();
-		std::string cgiPrefix = "/cgi-bin/";
-		std::string relativePath = requestedTarget.substr(0 + cgiPrefix.length());
-		std::filesystem::path path;
+		std::filesystem::path	cgiDir = routeIt->second.target; // Extract cgi-bin directory path on the physical disk
+		std::string				requestedTarget = it->getTarget();
+		std::string				cgiPrefix = "/cgi-bin/";
+		std::string				relativePath = requestedTarget.substr(0 + cgiPrefix.length());
+		std::filesystem::path	path;
 
-		if (relativePath.empty())
-		{
+		if (relativePath.empty()) {
 			applySettingsAndPrepareResponse("Empty CGI path", Forbidden);
 			return;
 		}
 
-		path = cgiDir / relativePath; // Building the final CGI path
-		if (!std::filesystem::exists(path))
-		{
-			applySettingsAndPrepareResponse("CGI script '" + path.string() + "' does not exist", NotFound);
+		// Build the final CGI path
+		path = cgiDir / relativePath;
+		if (!std::filesystem::exists(path)) {
+			applySettingsAndPrepareResponse("CGI script '" + path.string()
+				+ "' does not exist", NotFound);
 			return;
-		}
-		else if (access(path.c_str(), X_OK) == -1)
-		{
-			applySettingsAndPrepareResponse("CGI script '" + path.string() + "' can't be executed", Forbidden);
+		} else if (access(path.c_str(), X_OK) == -1) {
+			applySettingsAndPrepareResponse("CGI script '" + path.string()
+				+ "' can't be executed", Forbidden);
 			return;
 		}
 
@@ -839,54 +707,49 @@ void Server::processClientRequest(size_t &i, ReqIter it)
 		std::pair<pid_t, int> cgiInfo = CgiHandler::execute(path.string(), *it, conf);
 
 		// Error occurred
-		if (cgiInfo.first == -1 || cgiInfo.second == -1)
-		{
+		if (cgiInfo.first == -1 || cgiInfo.second == -1) {
 			ERROR_LOG("Error executing CGI script '" + path.string() + "'");
 			it->setResponseCodeBypass(InternalServerError);
 			it->setStatus(ClientStatus::Invalid);
-		}
-		else
-		{
-			INFO_LOG("CGI started with PID " + std::to_string(cgiInfo.first) + " and reading from FD " + std::to_string(cgiInfo.second));
+		} else {
+			INFO_LOG("CGI started with PID " + std::to_string(cgiInfo.first)
+				+ " and reading from FD " + std::to_string(cgiInfo.second));
 			it->setCgiPid(cgiInfo.first);
 			it->setCgiStartTime();
 			it->setStatus(ClientStatus::CgiRunning);
 
-			_pfds.push_back({cgiInfo.second, POLLIN, 0}); // Adding CGI read fd to poll list
+			 // Add CGI read fd to poll list
+			_pfds.push_back({ cgiInfo.second, POLLIN, 0 });
 			_cgiFdMap[cgiInfo.second] = &(*it);
-			_pfds[i].events &= ~POLLIN;
+
 			return;
 		}
 	}
 
-	if (it->getRequestMethod() == RequestMethod::Post && it->boundaryHasValue())
-	{
-		if (conf.uploadDir.has_value())
-		{
+	if (it->getRequestMethod() == RequestMethod::Post && it->boundaryHasValue()) {
+		if (conf.uploadDir.has_value()) {
 			DEBUG_LOG("Handling file upload for client fd " + std::to_string(_pfds[i].fd));
 			it->setUploadDir(conf.uploadDir.value());
 			it->handleFileUpload();
-			if (it->getStatus() == ClientStatus::Error)
-			{
-				ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd) + " connection dropped: suspicious request");
+			if (it->getStatus() == ClientStatus::Error) {
+				ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
+					+ " connection dropped: suspicious request");
 				removeClientFromPollFds(i);
-				INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
+				INFO_LOG("Erasing fd " + std::to_string(it->getFd())
+					+ " from clients list");
 				cleanupCgi(&(*it));
 				_clients.erase(it);
 
 				return;
 			}
-		}
-		else
-		{
+		} else {
 			DEBUG_LOG("File uploading is forbidden");
 			it->setResponseCodeBypass(Forbidden);
 			it->setStatus(ClientStatus::Invalid);
 		}
 	}
 
-	if (it->getStatus() == ClientStatus::WaitingData)
-	{
+	if (it->getStatus() == ClientStatus::WaitingForData) {
 		INFO_LOG("Waiting for more data to complete partial request");
 		return;
 	}
