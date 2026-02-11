@@ -1,4 +1,10 @@
 http://localhost:8081/
+http://localhost:8081/secret
+http://localhost:8081/img
+http://localhost:8081/calculator
+http://localhost:8081/upload
+http://localhost:8081/delete
+http://localhost:8081/uploads
 http://localhost:8081/cgi-bin/hello.py
 http://localhost:8081/cgi-bin/calculator.py?a=10&b=32
 http://localhost:8081/img/bernie.jpg
