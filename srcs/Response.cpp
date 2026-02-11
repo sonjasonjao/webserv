@@ -20,7 +20,10 @@ constexpr char const * const	CRLF = "\r\n";
 static Route				getRoute(std::string uri, Config const &conf);
 static std::string const	&getResponsePageContent(std::string const &key, Config const &conf);
 static std::string			getContentType(std::string sv);
-static void					listify(std::vector<std::string> const &vec, size_t offset, std::stringstream &stream);
+static void					listify(std::vector<std::string> const &vec,
+									std::string_view target,
+									std::string_view route,
+									std::stringstream &stream);
 
 /**
  * Main functionality for response forming. Categorizes and links information from the source request
@@ -413,7 +416,7 @@ void	Response::handleDirectoryTarget()
 
 	// Directory listing is prioritized over autoindexing
 	if (_conf.directoryListing) {
-		_directoryListing	= true;
+		_directoryListing = true;
 	} else if (_conf.autoindex) {
 		_target = _target + "/" + "index.html";
 	}
@@ -460,12 +463,12 @@ std::string	Response::getDirectoryList(std::string_view target, std::string_view
 
 	if (!directories.empty()) {
 		stream << "<h2>Directories</h2>\n";
-		listify(directories, route.length() + 1, stream);
+		listify(directories, target, route, stream);
 	}
 
 	if (!files.empty()) {
 		stream << "\n<h2>Files</h2>\n";
-		listify(files, route.length() + 1, stream);
+		listify(files, target, route, stream);
 	}
 
 	stream << "</body></html>\n";
@@ -617,14 +620,26 @@ static std::string const	&getResponsePageContent(std::string const &key, Config 
 /**
  * Helper function for forming directory lists, creates HTML unordered list out of a vector.
  */
-static void	listify(std::vector<std::string> const &vec, size_t offset, std::stringstream &stream)
+static void	listify(std::vector<std::string> const &vec,
+					std::string_view listedDir,
+					std::string_view route,
+					std::stringstream &stream)
 {
 	stream << "<ul>\n";
+	for (auto const &entryPath : vec) {
+		std::string_view	uriLastPart = entryPath;
 
-	for (auto const &v : vec) {
+		uriLastPart = uriLastPart.substr(route.length() + 1);
+
 		stream << "<li>";
-		stream << "<a href=\"" << v.substr(offset) << "\">";
-		stream << v.substr(offset);
+		if (listedDir == "/")
+			stream << "<a href=\"/" << uriLastPart << "\">";
+		else {
+			if (listedDir.back() == '/')
+				listedDir = listedDir.substr(0, listedDir.length() - 1);
+			stream << "<a href=\"/" << listedDir << "/" << uriLastPart << "\">";
+		}
+		stream << uriLastPart;
 		stream << "</a>";
 		stream << "</li>\n";
 	}
