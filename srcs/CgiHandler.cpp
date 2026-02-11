@@ -88,7 +88,7 @@ std::pair<pid_t, int>	CgiHandler::execute(std::string const &scriptPath, Request
 	int	childToParentPipe[2];
 
 	if (pipe(parentToChildPipe) == -1 || pipe(childToParentPipe) == -1) {
-		ERROR_LOG("CGI Pipe failed!");
+		ERROR_LOG("CGI Pipe failed");
 		// Clean up parentToChildPipe if childToParentPipe failed
 		if (parentToChildPipe[READ] != -1) {
 			close(parentToChildPipe[READ]);
@@ -106,7 +106,7 @@ std::pair<pid_t, int>	CgiHandler::execute(std::string const &scriptPath, Request
 	pid_t	pid = fork();
 
 	if (pid == -1) {
-		ERROR_LOG("CGI fork failed!");
+		ERROR_LOG("CGI fork failed");
 		close(parentToChildPipe[READ]);
 		close(parentToChildPipe[WRITE]);
 		close(childToParentPipe[READ]);

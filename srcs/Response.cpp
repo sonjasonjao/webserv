@@ -35,7 +35,7 @@ static void					listify(std::vector<std::string> const &vec,
  */
 Response::Response(Request const &req, Config const &conf) : _req(req), _conf(conf)
 {
-	INFO_LOG("Forming response for " + _req.getMethodString() + " request targeting " + _req.getTarget());
+	DEBUG_LOG("Forming response for " + _req.getMethodString() + " request targeting " + _req.getTarget());
 
 	/* --- Already flagged requests --- */
 
@@ -67,7 +67,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	_target = _req.getTarget();
 
 	if (!uriFormatOk(_target) || uriTargetAboveRoot(_target)) {
-		DEBUG_LOG("Bad target: " + _req.getTarget());
+		INFO_LOG("Invalid request target: " + _req.getTarget());
 		_statusCode = BadRequest;
 		formResponse();
 
@@ -102,8 +102,8 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		auto const	&m = *okMethods;
 
 		if (methodString.empty() || std::find(m->begin(), m->end(), methodString) == m->end()) {
-			DEBUG_LOG("Method '" + methodString + "' not in list of allowed methods");
-			_statusCode = Forbidden;
+			ERROR_LOG("Method '" + methodString + "' not in the list of allowed methods");
+			_statusCode = MethodNotAllowed;
 			formResponse();
 
 			return;
@@ -122,7 +122,7 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	/* ----------------------- */
 
 	if (!_route.original.empty())
-		INFO_LOG("Routing " + _reqTargetSanitized + " to " + _target);
+		DEBUG_LOG("Routing " + _reqTargetSanitized + " to " + _target);
 
 	/* --- Directory targets --- */
 
@@ -228,7 +228,7 @@ void	Response::formResponse()
 
 	if (_req.isCgiRequest() && _statusCode == Unassigned) {
 		CgiResponse	res = CgiHandler::parseCgiOutput(_req.getCgiResult());
-		
+
 		_startLine		 = _req.getHttpVersion() + " " + std::to_string(res.status) + CRLF;
 		_headerSection	+= "Content-Type: " + res.contentType + CRLF;
 		_headerSection	+= "Content-Length: " + std::to_string(res.contentLength) + CRLF;
@@ -366,7 +366,7 @@ void	Response::handleDelete()
 
 	if (!resourceExists(_target)) {
 		INFO_LOG("Resource '" + _target + "' could not be found");
-		_statusCode = NotFound; // do we disconnect client?
+		_statusCode = NotFound;
 
 		return;
 	}
@@ -384,11 +384,11 @@ void	Response::handleDelete()
 		if (!ret)
 			throw std::runtime_error("");
 
-		INFO_LOG("Resource " + _target + " deleted");
+		DEBUG_LOG("Resource " + _target + " deleted");
 		_statusCode = NoContent;
 	} catch (std::exception &e) {
-		INFO_LOG("Resource " + _target + " could not be deleted");
-		_statusCode = InternalServerError; // do we disconnect client?
+		ERROR_LOG("Resource " + _target + " could not be deleted");
+		_statusCode = InternalServerError;
 		_diagnosticMessage = "Target '" + _target + "' could not be deleted";
 	}
 }
@@ -397,7 +397,7 @@ void	Response::handleDirectoryTarget()
 {
 	DEBUG_LOG("Target '" + _target + "' is a directory");
 	if (!_conf.autoindex && !_conf.directoryListing) {
-		DEBUG_LOG("Autoindexing and directory listing is disabled");
+		INFO_LOG("Autoindexing and directory listing is disabled");
 		_statusCode = Forbidden;
 
 		return;
@@ -487,11 +487,11 @@ void	Response::locateTargetAndSetStatusCode()
 			}
 			if (Pages::isCached(getAbsPath(_target)))
 				DEBUG_LOG("Resource " + _target + " found in cache");
-			INFO_LOG("Resource " + _target + " found");
+			DEBUG_LOG("Resource " + _target + " found");
 			_statusCode = OK;
 		break;
 		case RequestMethod::Post:
-			INFO_LOG("Responding to POST request with target " + _target);
+			DEBUG_LOG("Responding to POST request with target " + _target);
 			_statusCode = OK;
 		break;
 		default:

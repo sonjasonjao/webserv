@@ -193,7 +193,7 @@ void	Server::handleNewClient(int listener)
 		throw std::runtime_error(ERROR_LOG("accept: " + std::string(strerror(errno))));
 
 	if (_clients.size() >= MAX_CLIENTS) {
-		DEBUG_LOG("Connected clients limit reached, unable to accept new client");
+		INFO_LOG("Connected clients limit reached, unable to accept new client");
 		close(clientFd);
 
 		return;
@@ -229,7 +229,7 @@ void	Server::handleClientData(size_t &i)
 		&& it->getStatus() != ClientStatus::CgiRunning)
 		return;
 
-	INFO_LOG("Handling client data from fd " + std::to_string(_pfds[i].fd));
+	DEBUG_LOG("Handling client data from fd " + std::to_string(_pfds[i].fd));
 
 	char	buf[RECV_BUF_SIZE + 1];
 
@@ -243,7 +243,7 @@ void	Server::handleClientData(size_t &i)
 
 		removeClientFromPollFds(i);
 
-		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
+		DEBUG_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 		cleanupCgi(&(*it));
 		_clients.erase(it);
 		return;
@@ -263,10 +263,10 @@ void	Server::handleClientData(size_t &i)
 	Config const	&conf = matchConfig(*it);
 
 	if (it->getStatus() == ClientStatus::Error) {
-		ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
-			+ " connection dropped: suspicious request");
+		ERROR_LOG("Disconnecting client fd " + std::to_string(_pfds[i].fd)
+			+ ": suspicious request");
 		removeClientFromPollFds(i);
-		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
+		DEBUG_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 		cleanupCgi(&(*it));
 		_clients.erase(it);
 
@@ -283,7 +283,7 @@ void	Server::handleClientData(size_t &i)
 		if (it->getContentLength() > maxBodySize) {
 			it->setResponseCodeBypass(ContentTooLarge);
 			it->setStatus(ClientStatus::Invalid);
-			ERROR_LOG("Client body size " + std::to_string(it->getContentLength())
+			INFO_LOG("Client body size " + std::to_string(it->getContentLength())
 				+ " exceeds the limit " + std::to_string(maxBodySize));
 		}
 	}
@@ -292,7 +292,7 @@ void	Server::handleClientData(size_t &i)
 
 		// Lambda function to avoid duplicate code in the error cases below
 		auto	applySettingsAndPrepareResponse = [it, i, conf, this](std::string msg, ResponseCode resCode) {
-				ERROR_LOG(msg);
+				INFO_LOG(msg);
 				it->setResponseCodeBypass(resCode);
 				it->setStatus(ClientStatus::Invalid);
 				prepareResponse(*it, conf);
@@ -362,10 +362,10 @@ void	Server::handleClientData(size_t &i)
 			it->setUploadDir(conf.uploadDir.value());
 			it->handleFileUpload();
 			if (it->getStatus() == ClientStatus::Error) {
-				ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
-					+ " connection dropped: suspicious request");
+				ERROR_LOG("Disconnecting client fd " + std::to_string(_pfds[i].fd)
+					+ ": suspicious request");
 				removeClientFromPollFds(i);
-				INFO_LOG("Erasing fd " + std::to_string(it->getFd())
+				DEBUG_LOG("Erasing fd " + std::to_string(it->getFd())
 					+ " from clients list");
 				cleanupCgi(&(*it));
 				_clients.erase(it);
@@ -373,14 +373,15 @@ void	Server::handleClientData(size_t &i)
 				return;
 			}
 		} else {
-			DEBUG_LOG("File uploading is forbidden");
+			INFO_LOG("File uploading is forbidden");
 			it->setResponseCodeBypass(Forbidden);
 			it->setStatus(ClientStatus::Invalid);
 		}
 	}
 
 	if (it->getStatus() == ClientStatus::WaitingForData) {
-		INFO_LOG("Waiting for more data to complete partial request");
+		INFO_LOG("Waiting for more data to complete partial request from fd "
+			+ std::to_string(it->getFd()));
 		return;
 	}
 
@@ -396,7 +397,7 @@ void	Server::handleClientData(size_t &i)
  */
 void	Server::prepareResponse(Request &req, Config const &conf)
 {
-	INFO_LOG("Building response to client fd " + std::to_string(req.getFd()));
+	DEBUG_LOG("Building response to client fd " + std::to_string(req.getFd()));
 	_responses[req.getFd()].emplace_back(Response(req, conf));
 	req.reset();
 	req.setStatus(ClientStatus::ResponseReady);
@@ -439,13 +440,13 @@ Config const	&Server::matchConfig(Request const &req)
  */
 void	Server::removeClientFromPollFds(size_t &i)
 {
-	INFO_LOG("Closing fd " + std::to_string(_pfds[i].fd));
+	DEBUG_LOG("Closing fd " + std::to_string(_pfds[i].fd));
 	close(_pfds[i].fd);
 
 	if (_pfds.size() > (i + 1)) {
 		DEBUG_LOG("Overwriting fd " + std::to_string(_pfds[i].fd) + " with fd "
 			+ std::to_string(_pfds[_pfds.size() - 1].fd));
-		INFO_LOG("Removing client fd " + std::to_string(_pfds[i].fd) + " from poll list");
+		DEBUG_LOG("Removing client fd " + std::to_string(_pfds[i].fd) + " from poll list");
 		_pfds[i] = _pfds[_pfds.size() - 1];
 		_pfds.pop_back();
 		i--;
@@ -453,7 +454,7 @@ void	Server::removeClientFromPollFds(size_t &i)
 		return;
 	}
 
-	INFO_LOG("Removing client fd " + std::to_string(_pfds.back().fd) + ", last client");
+	DEBUG_LOG("Removing client fd " + std::to_string(_pfds.back().fd) + ", last client");
 	_pfds.pop_back();
 	i--;
 }
@@ -494,7 +495,8 @@ void	Server::sendResponse(size_t &i)
 			+ std::to_string(_pfds[i].fd)));
 	}
 
-	DEBUG_LOG("Removing front element of _responses container for fd " + std::to_string(_pfds[i].fd));
+	DEBUG_LOG("Removing front element of _responses container for fd "
+		+ std::to_string(_pfds[i].fd));
 	_responses.at(_pfds[i].fd).pop_front();
 
 	it->resetSendStart();
@@ -502,8 +504,9 @@ void	Server::sendResponse(size_t &i)
 
 	DEBUG_LOG("Keep alive status: " + std::to_string(it->getKeepAlive()));
 	if (it->getStatus() == ClientStatus::Invalid || !it->getKeepAlive()) {
+		INFO_LOG("Disconnecting client fd " + std::to_string(it->getFd()));
 		removeClientFromPollFds(i);
-		INFO_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
+		DEBUG_LOG("Erasing fd " + std::to_string(it->getFd()) + " from clients list");
 		cleanupCgi(&(*it));
 		_clients.erase(it);
 
@@ -558,8 +561,9 @@ void	Server::checkTimeouts()
 			sendResponse(i);
 		} else if (it->getStatus() == ClientStatus::IdleTimeout
 			|| it->getStatus() == ClientStatus::SendTimeout) {
+			INFO_LOG("Disconnecting client fd " + std::to_string(it->getFd()));
 			removeClientFromPollFds(i);
-			INFO_LOG("Erasing fd " + std::to_string(it->getFd())
+			DEBUG_LOG("Erasing fd " + std::to_string(it->getFd())
 				+ " from clients list");
 			cleanupCgi(&(*it));
 			_clients.erase(it);
@@ -569,9 +573,7 @@ void	Server::checkTimeouts()
 
 /**
  * Checks if current fd is a server or a client fd.
- *
  * @param fd	Fd to check
- *
  * @return	true if server fd
  * 			false if client fd
  */
@@ -645,7 +647,7 @@ void	Server::handleCgiOutput(size_t &i)
 		return;
 	}
 
-	INFO_LOG("Handling cgi from fd " + std::to_string(_pfds[i].fd));
+	DEBUG_LOG("Handling cgi from fd " + std::to_string(_pfds[i].fd));
 
 	// Reading data from the CGI client fd
 	ssize_t	bytesRead = read(cgiFd, buf, sizeof(buf));
@@ -663,7 +665,7 @@ void	Server::handleCgiOutput(size_t &i)
 		return;
 	}
 
-	INFO_LOG("CGI finished execution for fd " + std::to_string(cgiFd));
+	DEBUG_LOG("CGI finished execution for fd " + std::to_string(cgiFd));
 
 	int		status;
 	pid_t	result = waitpid(req->getCgiPid(), &status, WNOHANG); // Wait for the specific child process

@@ -6,7 +6,7 @@
 // Activators for different message types, set to 0 for deactivation
 #define ERROR_LOGGING	1
 #define INFO_LOGGING	1
-#define DEBUG_LOGGING	1
+#define DEBUG_LOGGING	0
 
 #define TIMESTAMP_WIDTH	27
 #define CATEGORY_WIDTH	20

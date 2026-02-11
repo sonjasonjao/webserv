@@ -202,7 +202,7 @@ bool	Pages::isCached(std::string const &key)
  */
 std::string const	&Pages::getPageContent(std::string const &key)
 {
-	INFO_LOG("Retrieving " + key);
+	DEBUG_LOG("Retrieving " + key);
 
 	if (defaultPages.find(key) != defaultPages.end())
 		return defaultPages.at(key);
