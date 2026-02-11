@@ -88,7 +88,7 @@ std::pair<pid_t, int>	CgiHandler::execute(std::string const &scriptPath, Request
 	int	childToParentPipe[2];
 
 	if (pipe(parentToChildPipe) == -1 || pipe(childToParentPipe) == -1) {
-		ERROR_LOG("CGI Pipe failed");
+		ERROR_LOG("CGI Pipe failed, client fd " + std::to_string(request.getFd()));
 		// Clean up parentToChildPipe if childToParentPipe failed
 		if (parentToChildPipe[READ] != -1) {
 			close(parentToChildPipe[READ]);
@@ -106,7 +106,7 @@ std::pair<pid_t, int>	CgiHandler::execute(std::string const &scriptPath, Request
 	pid_t	pid = fork();
 
 	if (pid == -1) {
-		ERROR_LOG("CGI fork failed");
+		ERROR_LOG("CGI fork failed, client fd " + std::to_string(request.getFd()));
 		close(parentToChildPipe[READ]);
 		close(parentToChildPipe[WRITE]);
 		close(childToParentPipe[READ]);
@@ -120,12 +120,14 @@ std::pair<pid_t, int>	CgiHandler::execute(std::string const &scriptPath, Request
 
 		// Redirect stdin to read from parentToChildPipe
 		if (dup2(parentToChildPipe[READ], STDIN_FILENO) == -1) {
-			ERROR_LOG("CGI dup2 input failed: " + std::string(strerror(errno)));
+			ERROR_LOG("CGI dup2 input failed: " + std::string(strerror(errno))
+				+ ", client fd " + std::to_string(request.getFd()));
 			std::exit(1);
 		}
 		// Redirect stdout to write to childToParentPipe
 		if (dup2(childToParentPipe[WRITE], STDOUT_FILENO) == -1) {
-			ERROR_LOG("CGI dup2 output failed: " + std::string(strerror(errno)));
+			ERROR_LOG("CGI dup2 output failed: " + std::string(strerror(errno))
+				+ ", client fd " + std::to_string(request.getFd()));
 			std::exit(1);
 		}
 
@@ -139,7 +141,8 @@ std::pair<pid_t, int>	CgiHandler::execute(std::string const &scriptPath, Request
 		execve(path.c_str(), argv, envp);
 
 		// Execve fail fallback
-		ERROR_LOG("CGI execve failed: " + std::string(strerror(errno)));
+		ERROR_LOG("CGI execve failed: " + std::string(strerror(errno))
+			+ ", client fd " + std::to_string(request.getFd()));
 		std::exit(1);
 	}
 
@@ -149,7 +152,8 @@ std::pair<pid_t, int>	CgiHandler::execute(std::string const &scriptPath, Request
 
 	// Make read-end non-blocking
 	if (fcntl(childToParentPipe[READ], F_SETFL, O_NONBLOCK) == -1) {
-		ERROR_LOG("CGI fcntl failed: " + std::string(strerror(errno)));
+		ERROR_LOG("CGI fcntl failed: " + std::string(strerror(errno))
+			+ ", client fd " + std::to_string(request.getFd()));
 		close(parentToChildPipe[WRITE]);
 		close(childToParentPipe[READ]);
 		kill(pid, SIGKILL);
@@ -166,7 +170,8 @@ std::pair<pid_t, int>	CgiHandler::execute(std::string const &scriptPath, Request
 			ssize_t	written = write(parentToChildPipe[WRITE], data, remaining);
 
 			if (written == -1) {
-				ERROR_LOG("CGI write failed: " + std::string(strerror(errno)));
+				ERROR_LOG("CGI write failed: " + std::string(strerror(errno))
+					+ ", client fd " + std::to_string(request.getFd()));
 				break;
 			}
 			data += written;

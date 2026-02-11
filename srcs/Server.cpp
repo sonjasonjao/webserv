@@ -185,7 +185,7 @@ void	Server::handleNewClient(int listener)
 	socklen_t				addrLen = sizeof(newClient);
 	int						clientFd;
 
-	INFO_LOG("Handling new client connecting on fd " + std::to_string(listener));
+	DEBUG_LOG("Handling new client connecting on fd " + std::to_string(listener));
 
 	clientFd = accept(listener, (struct sockaddr*)&newClient, &addrLen);
 
@@ -239,7 +239,8 @@ void	Server::handleClientData(size_t &i)
 		if (numBytes == 0)
 			INFO_LOG("Client disconnected on fd " + std::to_string(_pfds[i].fd));
 		else
-			ERROR_LOG("recv: " + std::string(strerror(errno)));
+			ERROR_LOG("recv: " + std::string(strerror(errno)) + ", client fd "
+				+ std::to_string(it->getFd()));
 
 		removeClientFromPollFds(i);
 
@@ -354,7 +355,8 @@ void	Server::sendResponse(size_t &i)
 		INFO_LOG("Sending response to client fd " + std::to_string(_pfds[i].fd));
 		res.sendToClient();
 		if (!res.sendIsComplete()) {
-			INFO_LOG("Response partially sent, waiting for server to complete response sending");
+			INFO_LOG("Response partially sent, waiting for server to complete response sending for client fd "
+				+ std::to_string(it->getFd()));
 			return;
 		}
 
@@ -426,7 +428,7 @@ void	Server::checkTimeouts()
 
 		if (it == _clients.end())
 			throw std::runtime_error(ERROR_LOG("Could not find request with fd "
-									  + std::to_string(_pfds[i].fd)));
+				+ std::to_string(_pfds[i].fd)));
 
 		it->checkReqTimeouts();
 
@@ -470,6 +472,60 @@ bool	Server::isServerFd(int fd)
 	return false;
 }
 
+void	Server::handlePollError(size_t &i, short int revent)
+{
+	if (isServerFd(_pfds[i].fd)) {
+		if (revent == POLLERR)
+			throw std::runtime_error(ERROR_LOG("Socket error on server side"));
+		else if (revent == POLLNVAL)
+			throw std::runtime_error(ERROR_LOG("poll: invalid fd " + std::to_string(_pfds[i].fd)));
+	}
+
+	if (isCgiFd(_pfds[i].fd)) {
+		Request	*req = _cgiFdMap[_pfds[i].fd];
+		if (revent == POLLERR) {
+			ERROR_LOG("CGI fd " + std::to_string(_pfds[i].fd) + " was disconnected, socket error");
+			req->setStatus(ClientStatus::Invalid);
+			req->setResponseCodeBypass(InternalServerError);
+			prepareResponse(*req, matchConfig(*req));
+			_pfds[i].events |= POLLOUT;
+			req->setIdleStart();
+			req->setSendStart();
+			cleanupCgi(req);
+			return;
+		} else if (revent == POLLNVAL) {
+			ERROR_LOG("poll: invalid fd " + std::to_string(_pfds[i].fd));
+			for (size_t idx = 0; idx < _pfds.size(); idx++) {
+				if (_pfds[idx].fd == req->getFd()) {
+					removeClientFromPollFds(idx);
+					break;
+				}
+			}
+			cleanupCgi(req);
+			_clients.erase(getRequestByFd(req->getFd()));
+			return;
+		}
+	}
+
+	auto	it = getRequestByFd(_pfds[i].fd);
+	if (it == _clients.end())
+		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
+			+ std::to_string(_pfds[i].fd)));
+
+	if (revent == POLLERR)
+		ERROR_LOG("Client was disconnected on fd " + std::to_string(_pfds[i].fd)
+			+ ", socket error");
+	else {
+		ERROR_LOG("poll: invalid fd " + std::to_string(_pfds[i].fd));
+	}
+
+	removeClientFromPollFds(i);
+
+	DEBUG_LOG("Erasing fd " + std::to_string(_pfds[i].fd) + " from clients list");
+	cleanupCgi(&(*it));
+	_clients.erase(it);
+}
+
 /**
  * Loops through _pfds, finding which fd had an event, and whether it's new client or
  * incoming request. If the fd that had a new event is one of the server fds, it's a
@@ -481,6 +537,8 @@ bool	Server::isServerFd(int fd)
 void	Server::handleConnections()
 {
 	for (size_t i = 0; i < _pfds.size(); i++) {
+		if (_pfds[i].revents & (POLLERR | POLLNVAL))
+			handlePollError(i, _pfds[i].revents);
 		if (_pfds[i].revents & (POLLIN | POLLHUP)) {
 			if (isServerFd(_pfds[i].fd))
 				handleNewClient(_pfds[i].fd);
@@ -559,7 +617,8 @@ void	Server::handleCgiOutput(size_t &i)
 		DEBUG_LOG("CGI process " + std::to_string(result) + " exited with status "
 		+ std::to_string(status));
 	} else {
-		ERROR_LOG("Waiting for child failed: " + std::string(strerror(errno)));
+		ERROR_LOG("Waiting for child failed: " + std::string(strerror(errno))
+		 + ", client fd " + std::to_string(req->getFd()));
 	}
 
 	close(cgiFd); // Cleanup CGI fd
@@ -593,17 +652,17 @@ void	Server::cleanupCgi(Request *req)
 
 		if (result == 0) {
 			// Process is still running, need to stop
-			ERROR_LOG("Forced to kill the child process "
-				+ std::to_string(req->getCgiPid()));
+			ERROR_LOG("Forced to kill the child process " + std::to_string(req->getCgiPid())
+				+ ", client fd " + std::to_string(req->getFd()));
 			kill(req->getCgiPid(), SIGKILL);
 			waitpid(req->getCgiPid(), &status, 0);
 		} else if (result == -1 && errno != ECHILD) {
 			if (errno == EINTR) {
 				ERROR_LOG("Server interrupted while waiting for child: "
-					+ std::to_string(req->getCgiPid()));
+					+ std::to_string(req->getCgiPid()) + ", client fd " + std::to_string(req->getFd()));
 			} else {
 				ERROR_LOG("Unexpected error occurred while waiting for child: "
-					+ std::string(strerror(errno)));
+					+ std::string(strerror(errno)) + ", client fd " + std::to_string(req->getFd()));
 			}
 		}
 
@@ -632,6 +691,17 @@ void	Server::processParsedRequest(size_t &i, ReqIter it)
 {
 	Config const	&conf = matchConfig(*it);
 
+	// Lambda function to avoid duplicate code in the error cases below
+	auto	applySettingsAndPrepareResponse = [it, i, conf, this](std::string msg, ResponseCode resCode) {
+			ERROR_LOG(msg);
+			it->setResponseCodeBypass(resCode);
+			it->setStatus(ClientStatus::Invalid);
+			prepareResponse(*it, conf);
+			_pfds[i].events |= POLLOUT;
+			it->setIdleStart();
+			it->setSendStart();
+	};
+
 	if (it->getStatus() == ClientStatus::Error) {
 		ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
 			+ " connection dropped: suspicious request");
@@ -651,32 +721,23 @@ void	Server::processParsedRequest(size_t &i, ReqIter it)
 		else // Check against the default value
 			maxBodySize = CLIENT_MAX_BODY_SIZE;
 		if (it->getContentLength() > maxBodySize) {
-			it->setResponseCodeBypass(ContentTooLarge);
-			it->setStatus(ClientStatus::Invalid);
-			ERROR_LOG("Client body size " + std::to_string(it->getContentLength())
-				+ " exceeds the limit " + std::to_string(maxBodySize));
+			applySettingsAndPrepareResponse("Client body size " + std::to_string(it->getContentLength())
+				+ " exceeds the limit " + std::to_string(maxBodySize) + ", client fd "
+				+ std::to_string(it->getFd()), ContentTooLarge);
+
+			return;
 		}
 	}
 
-	if (it->isCgiRequest()) {
-
-		// Lambda function to avoid duplicate code in the error cases below
-		auto	applySettingsAndPrepareResponse = [it, i, conf, this](std::string msg, ResponseCode resCode) {
-				ERROR_LOG(msg);
-				it->setResponseCodeBypass(resCode);
-				it->setStatus(ClientStatus::Invalid);
-				prepareResponse(*it, conf);
-				_pfds[i].events |= POLLOUT;
-				it->setIdleStart();
-				it->setSendStart();
-		};
+	if (it->getStatus() != ClientStatus::Invalid && it->isCgiRequest()) {
 
 		// Check if cgi-bin has been routed
 		auto	routeIt = conf.routes.find("cgi-bin");
 
 		if (routeIt == conf.routes.end()) {
 			// If cgi-bin isn't set, return
-			applySettingsAndPrepareResponse("CGI functionality not enabled!", Forbidden);
+			applySettingsAndPrepareResponse("CGI functionality not enabled, client fd " +
+				std::to_string(it->getFd()), Forbidden);
 			return;
 		}
 
@@ -687,7 +748,8 @@ void	Server::processParsedRequest(size_t &i, ReqIter it)
 		std::filesystem::path	path;
 
 		if (relativePath.empty()) {
-			applySettingsAndPrepareResponse("Empty CGI path", Forbidden);
+			applySettingsAndPrepareResponse("Empty CGI path, client fd "
+				+ std::to_string(it->getFd()), Forbidden);
 			return;
 		}
 
@@ -695,11 +757,11 @@ void	Server::processParsedRequest(size_t &i, ReqIter it)
 		path = cgiDir / relativePath;
 		if (!std::filesystem::exists(path)) {
 			applySettingsAndPrepareResponse("CGI script '" + path.string()
-				+ "' does not exist", NotFound);
+				+ "' does not exist, client fd " + std::to_string(it->getFd()), NotFound);
 			return;
 		} else if (access(path.c_str(), X_OK) == -1) {
 			applySettingsAndPrepareResponse("CGI script '" + path.string()
-				+ "' can't be executed", Forbidden);
+				+ "' can't be executed, client fd " + std::to_string(it->getFd()), Forbidden);
 			return;
 		}
 
@@ -708,12 +770,13 @@ void	Server::processParsedRequest(size_t &i, ReqIter it)
 
 		// Error occurred
 		if (cgiInfo.first == -1 || cgiInfo.second == -1) {
-			ERROR_LOG("Error executing CGI script '" + path.string() + "'");
+			ERROR_LOG("Error executing CGI script '" + path.string() + "', client fd "
+				+ std::to_string(it->getFd()));
 			it->setResponseCodeBypass(InternalServerError);
 			it->setStatus(ClientStatus::Invalid);
 		} else {
-			INFO_LOG("CGI started with PID " + std::to_string(cgiInfo.first)
-				+ " and reading from FD " + std::to_string(cgiInfo.second));
+			DEBUG_LOG("CGI started with PID " + std::to_string(cgiInfo.first)
+				+ " and reading from fd " + std::to_string(cgiInfo.second));
 			it->setCgiPid(cgiInfo.first);
 			it->setCgiStartTime();
 			it->setStatus(ClientStatus::CgiRunning);
@@ -743,14 +806,15 @@ void	Server::processParsedRequest(size_t &i, ReqIter it)
 				return;
 			}
 		} else {
-			DEBUG_LOG("File uploading is forbidden");
+			INFO_LOG("File uploading is forbidden for client fd " + std::to_string(it->getFd()));
 			it->setResponseCodeBypass(Forbidden);
 			it->setStatus(ClientStatus::Invalid);
 		}
 	}
 
 	if (it->getStatus() == ClientStatus::WaitingForData) {
-		INFO_LOG("Waiting for more data to complete partial request");
+		INFO_LOG("Waiting for more data to complete partial request, client fd "
+			+ std::to_string(it->getFd()));
 		return;
 	}
 

@@ -185,7 +185,7 @@ void	Request::parseRequest()
 
 	if (_contentLen.has_value() && _contentLen.value() > CLIENT_MAX_BODY_SIZE) {
 		// If Content-length header value exceeds the limit, we won't parse further
-		INFO_LOG("Request body too large");
+		INFO_LOG("Request body too large, client fd " + std::to_string(_fd));
 		_responseCodeBypass = ContentTooLarge;
 		_status = ClientStatus::Invalid;
 	} else if ((!_contentLen.has_value() || _contentLen.value() == 0) && !_chunked) {
@@ -193,7 +193,8 @@ void	Request::parseRequest()
 		if (_buffer.empty())
 			_status = ClientStatus::CompleteReq;
 		else {
-			INFO_LOG("Bad request: excessive data in the buffer");
+			INFO_LOG("Bad request: excessive data in the buffer, client fd "
+				+ std::to_string(_fd));
 			_status = ClientStatus::Invalid;
 		}
 	} else if (_request.method == RequestMethod::Post && _boundary.has_value()) {
@@ -205,7 +206,7 @@ void	Request::parseRequest()
 		if (missingLen < _buffer.size()) {
 			/* If the remaining buffer is larger than what's missing from contentLen,
 			it's invalid */
-			INFO_LOG("Bad request: excessive data in the buffer");
+			INFO_LOG("Bad request: excessive data in the buffer, client fd " + std::to_string(_fd));
 			_status = ClientStatus::Invalid;
 			return;
 		} else {
@@ -213,7 +214,7 @@ void	Request::parseRequest()
 			_buffer.clear();
 		}
 		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
-			INFO_LOG("Request body too large");
+			INFO_LOG("Request body too large, client fd " + std::to_string(_fd));
 			_responseCodeBypass = ContentTooLarge;
 			_status = ClientStatus::Invalid;
 		} else if (_body.size() < _contentLen.value()) {
@@ -231,7 +232,8 @@ void	Request::parseRequest()
 	or CGI request */
 	if (_request.method == RequestMethod::Post && !(_cgiRequest.has_value()
 		|| _boundary.has_value())) {
-		INFO_LOG("POST request invalid with no boundary value nor CGI request");
+		INFO_LOG("POST request invalid if no boundary value and not a CGI request, client fd "
+			+ std::to_string(_fd));
 		_responseCodeBypass = MethodNotAllowed;
 		_status = ClientStatus::Invalid;
 	}
@@ -258,7 +260,7 @@ void	Request::parseRequestLine(std::string &req)
 	httpVersion	= req;
 
 	if (method.empty() || target.empty() || httpVersion.empty()) {
-		INFO_LOG("Bad request: invalid request line");
+		INFO_LOG("Bad request: invalid request line, client fd " + std::to_string(_fd));
 		_status = ClientStatus::Invalid;
 		return;
 	}
@@ -276,10 +278,11 @@ void	Request::parseRequestLine(std::string &req)
 			_status = ClientStatus::Invalid;
 			if (std::find(existingMethods.begin(), existingMethods.end(), _request.methodString)
 				== existingMethods.end()) {
-					INFO_LOG("Bad request: invalid request method format");
+					INFO_LOG("Bad request: invalid method format, client fd "
+						+ std::to_string(_fd));
 					_responseCodeBypass = BadRequest;
 			} else {
-				INFO_LOG("Request method not allowed");
+				INFO_LOG("Request method not allowed, client fd " + std::to_string(_fd));
 				_responseCodeBypass = MethodNotAllowed;
 			}
 			return;
@@ -287,7 +290,7 @@ void	Request::parseRequestLine(std::string &req)
 
 	if ((_request.methodString + target + httpVersion).length() > REQLINE_MAX_SIZE
 		|| !validateAndAssignTarget(target) || !validateAndAssignHttp(httpVersion)) {
-			INFO_LOG("Bad request: invalid request line format");
+			INFO_LOG("Bad request: invalid request line, client fd " + std::to_string(_fd));
 			_status = ClientStatus::Invalid;
 	}
 }
@@ -314,7 +317,7 @@ void	Request::parseHeaders(std::string &str)
 
 	_headerSize = headEnd;
 	if (_headerSize > HEADERS_MAX_SIZE) {
-		INFO_LOG("Bad request: header section too large");
+		INFO_LOG("Bad request: header section too large, client fd " + std::to_string(_fd));
 		_status = ClientStatus::Invalid;
 		return;
 	}
@@ -332,7 +335,7 @@ void	Request::parseHeaders(std::string &str)
 
 		// If a header line doesn't include ':', it's a suspicious request
 		if (colonPos == std::string::npos) {
-			ERROR_LOG("Request header section format error");
+			ERROR_LOG("Bad request: invalid header section format, client fd " + std::to_string(_fd));
 			_status = ClientStatus::Error;
 			_keepAlive = false;
 			return;
@@ -348,7 +351,7 @@ void	Request::parseHeaders(std::string &str)
 
 		// No header value after key, ':', and space(s) means invalid request
 		if (realStart == std::string::npos) {
-			INFO_LOG("Bad request: header section format error");
+			INFO_LOG("Bad request: invalid header section, client fd " + std::to_string(_fd));
 			_status = ClientStatus::Invalid;
 			return;
 		}
@@ -364,7 +367,8 @@ void	Request::parseHeaders(std::string &str)
 
 		// Headers that allow only one value will be checked for validity
 		if (_headers.find(key) != _headers.end() && isUniqueHeader(key)) {
-			INFO_LOG("Bad request: duplicate value for unique header");
+			INFO_LOG("Bad request: duplicate value for unique header, client fd "
+				+ std::to_string(_fd));
 			_status = ClientStatus::Invalid;
 			return;
 		}
@@ -401,7 +405,7 @@ void	Request::parseHeaders(std::string &str)
 		_status = ClientStatus::WaitingForData;
 
 	if (_headers.empty() || !validateHeaders()) {
-		INFO_LOG("Bad request: invalid header section");
+		INFO_LOG("Bad request: invalid header section, client fd " + std::to_string(_fd));
 		_status = ClientStatus::Invalid;
 	}
 }
@@ -429,7 +433,7 @@ void	Request::parseChunked()
 		try {
 			len = std::stoi(_buffer.substr(0, crlfPos), 0, 16);
 		} catch (std::exception const &e) {
-			INFO_LOG("Bad request: invalid chunk size");
+			INFO_LOG("Bad request: invalid chunk size, client fd " + std::to_string(_fd));
 			_status = ClientStatus::Invalid;
 			return;
 		}
@@ -438,13 +442,13 @@ void	Request::parseChunked()
 		std::string	part = extractFromLine(_buffer, CRLF);
 
 		if (part.size() != len) {
-			INFO_LOG("Bad request: chunk size mismatch");
+			INFO_LOG("Bad request: chunk size mismatch, client fd " + std::to_string(_fd));
 			_status = ClientStatus::Invalid;
 			return;
 		}
 		_body += part;
 		if (_body.size() > CLIENT_MAX_BODY_SIZE) {
-			INFO_LOG("Request body too large");
+			INFO_LOG("Request body too large, client fd " + std::to_string(_fd));
 			_responseCodeBypass = ContentTooLarge;
 			_status = ClientStatus::Invalid;
 			return;
@@ -454,19 +458,19 @@ void	Request::parseChunked()
 
 	// If loop was not broken from because of final chunk
 	if (extractFromLine(_buffer, "0\r\n\r\n") != "") {
-		INFO_LOG("Bad request: invalid header section format");
+		INFO_LOG("Bad request: invalid header section, client fd " + std::to_string(_fd));
 		_status = ClientStatus::Invalid;
 		return;
 	}
 	if (_body.size() > CLIENT_MAX_BODY_SIZE) {
-		INFO_LOG("Request body too large");
+		INFO_LOG("Request body too large, client fd " + std::to_string(_fd));
 		_responseCodeBypass = ContentTooLarge;
 		_status = ClientStatus::Invalid;
 		return;
 	}
 	// If buffer has data after the final chunk
 	if (!_buffer.empty()) {
-		INFO_LOG("Bad request: excessive data in the buffer");
+		INFO_LOG("Bad request: excessive data in the buffer, client fd " + std::to_string(_fd));
 		_status = ClientStatus::Invalid;
 	} else
 		_status = ClientStatus::CompleteReq;
@@ -928,7 +932,7 @@ void	Request::handleFileUpload()
 
 		// No data -> error, there might be a lone \r\n
 		if ((partEnd - headersStart) < 2) {
-			ERROR_LOG("No data in multipart/form-data");
+			ERROR_LOG("No data in multipart/form-data, client fd " + std::to_string(_fd));
 			_status = ClientStatus::Error;
 			_keepAlive = false;
 			return;
@@ -947,7 +951,7 @@ void	Request::handleFileUpload()
 			mp.filename = extractQuotedValue(mp.headers, "filename=");
 			mp.contentType = extractValue(mp.headers, "Content-Type: ");
 		} else { // No headers -> error
-			ERROR_LOG("No headers in multipart/form-data");
+			ERROR_LOG("No headers in multipart/form-data, client fd " + std::to_string(_fd));
 			_status = ClientStatus::Error;
 			_keepAlive = false;
 			return;
@@ -971,7 +975,7 @@ bool	Request::saveToDisk(MultipartPart const &part)
 	_uploadFD->write(part.data.c_str(), part.data.size());
 
 	if (!_uploadFD->good()) {
-		ERROR_LOG("Writing data to the file failed");
+		ERROR_LOG("Writing data to the file failed, client fd " + std::to_string(_fd));
 		_responseCodeBypass = InternalServerError;
 		_status = ClientStatus::Invalid;
 		return false;
@@ -986,7 +990,7 @@ bool	Request::initialSaveToDisk(MultipartPart const &part)
 	/* If the upload directory has not been set in the config file, upload operation
 	is forbidden */
 	if (!_uploadDir.has_value()) {
-		INFO_LOG("Upload directory has not been set in the config file");
+		INFO_LOG("Upload directory has not been configured, client fd " + std::to_string(_fd));
 		_responseCodeBypass = Forbidden;
 		_status = ClientStatus::Invalid;
 		return false;
@@ -998,7 +1002,8 @@ bool	Request::initialSaveToDisk(MultipartPart const &part)
 			std::filesystem::create_directories(_uploadDir.value());
 
 	} catch (std::filesystem::filesystem_error const &e) {
-		ERROR_LOG("Failed to create upload directory: " + std::string(e.what()));
+		ERROR_LOG("Failed to create upload directory: " + std::string(e.what())
+			+ ", client fd " + std::to_string(_fd));
 		_responseCodeBypass = InternalServerError;
 		_status = ClientStatus::Invalid;
 		return false;
@@ -1010,7 +1015,8 @@ bool	Request::initialSaveToDisk(MultipartPart const &part)
 
 	// If filename conflicts, will be treated as an error
 	if (std::filesystem::exists(targetPath)) {
-		INFO_LOG("File '" + std::string(targetPath) + "' already exists");
+		INFO_LOG("File '" + std::string(targetPath) + "' already exists, client fd "
+			+ std::to_string(_fd));
 		_responseCodeBypass = Conflict;
 		_status = ClientStatus::Invalid;
 		return false;
@@ -1025,14 +1031,16 @@ bool	Request::initialSaveToDisk(MultipartPart const &part)
 			DEBUG_LOG("File " + part.filename + " initial write successful");
 			return true;
 		} else {
-			ERROR_LOG("File " + part.filename + " initial write failed");
+			ERROR_LOG("File " + part.filename + " initial write failed, client fd "
+				+ std::to_string(_fd));
 			_uploadFD->close();
 			_responseCodeBypass = InternalServerError;
 			_status = ClientStatus::Invalid;
 			return false;
 		}
 	} else {
-		ERROR_LOG("File " + part.filename + " save process failed");
+		ERROR_LOG("File " + part.filename + " save process failed, client fd "
+			+ std::to_string(_fd));
 		_responseCodeBypass = InternalServerError;
 		_status = ClientStatus::Invalid;
 		return false;

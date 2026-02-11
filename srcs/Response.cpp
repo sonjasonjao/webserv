@@ -67,7 +67,8 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 	_target = _req.getTarget();
 
 	if (!uriFormatOk(_target) || uriTargetAboveRoot(_target)) {
-		INFO_LOG("Invalid request target: " + _req.getTarget());
+		INFO_LOG("Invalid request target: " + _req.getTarget() + ", client fd "
+			+ std::to_string(_req.getFd()));
 		_statusCode = BadRequest;
 		formResponse();
 
@@ -102,7 +103,8 @@ Response::Response(Request const &req, Config const &conf) : _req(req), _conf(co
 		auto const	&m = *okMethods;
 
 		if (methodString.empty() || std::find(m->begin(), m->end(), methodString) == m->end()) {
-			ERROR_LOG("Method '" + methodString + "' not in the list of allowed methods");
+			INFO_LOG("Method '" + methodString + "' not in the list of allowed methods, client fd "
+				+ std::to_string(_req.getFd()));
 			_statusCode = MethodNotAllowed;
 			formResponse();
 
@@ -181,7 +183,8 @@ void	Response::sendToClient()
 	ssize_t const	bytesSent = send(_req.getFd(), bufferPosition, bytesToSend, MSG_DONTWAIT);
 
 	if (bytesSent < 0) {
-		ERROR_LOG("send: " + std::string(strerror(errno)));
+		ERROR_LOG("send: " + std::string(strerror(errno)) + ", client fd "
+			+ std::to_string(_req.getFd()));
 		return;
 	}
 
@@ -233,7 +236,7 @@ void	Response::formResponse()
 		_startLine		 = _req.getHttpVersion() + " " + std::to_string(res.status) + CRLF;
 
 		if (res.badCgiOutput) {
-			ERROR_LOG("CGI produced bad output");
+			INFO_LOG("CGI produced bad output, client fd " + std::to_string(_req.getFd()));
 			_startLine		= _req.getHttpVersion() + " 400 Bad Request" + std::string(CRLF);
 			res.body		= getResponsePageContent("400", _conf);
 			res.contentType	= "text/html";
@@ -383,14 +386,16 @@ void	Response::handleDelete()
 	_target = uploadDir + "/" + _target;
 
 	if (!resourceExists(_target)) {
-		INFO_LOG("Resource '" + _target + "' could not be found");
+		INFO_LOG("Resource '" + _target + "' could not be found, client fd "
+			+ std::to_string(_req.getFd()));
 		_statusCode = NotFound;
 
 		return;
 	}
 
 	if (std::filesystem::is_directory(_target)) {
-		INFO_LOG("Resource '" + _target + "' is a directory");
+		INFO_LOG("Resource '" + _target + "' is a directory, client fd "
+			+ std::to_string(_req.getFd()));
 		_statusCode = Forbidden;
 
 		return;
@@ -405,7 +410,8 @@ void	Response::handleDelete()
 		DEBUG_LOG("Resource " + _target + " deleted");
 		_statusCode = NoContent;
 	} catch (std::exception &e) {
-		ERROR_LOG("Resource " + _target + " could not be deleted");
+		ERROR_LOG("Resource " + _target + " could not be deleted, client fd "
+			+ std::to_string(_req.getFd()));
 		_statusCode = InternalServerError;
 		_diagnosticMessage = "Target '" + _target + "' could not be deleted";
 	}
@@ -415,7 +421,7 @@ void	Response::handleDirectoryTarget()
 {
 	DEBUG_LOG("Target '" + _target + "' is a directory");
 	if (!_conf.autoindex && !_conf.directoryListing) {
-		INFO_LOG("Autoindexing and directory listing is disabled for fd " + std::to_string(_req.getFd()));
+		INFO_LOG("Autoindexing and directory listing is disabled for fd "+ std::to_string(_req.getFd()));
 		_statusCode = Forbidden;
 
 		return;
@@ -499,7 +505,8 @@ void	Response::locateTargetAndSetStatusCode()
 	switch (_req.getRequestMethod()) {
 		case RequestMethod::Get:
 			if (!Pages::isCached(getAbsPath(_target)) && !resourceExists(_target, searchDir)) {
-				INFO_LOG("Resource " + _target + " could not be found");
+				INFO_LOG("Resource " + _target + " could not be found, client fd "
+					+ std::to_string(_req.getFd()));
 				_statusCode = NotFound;
 				break;
 			}
@@ -513,7 +520,8 @@ void	Response::locateTargetAndSetStatusCode()
 			_statusCode = OK;
 		break;
 		default:
-			INFO_LOG("Unknown request method, response status defaulting to bad request");
+			INFO_LOG("Unknown request method, response status defaulting to bad request, client fd "
+				+ std::to_string(_req.getFd()));
 			_statusCode = BadRequest;
 		break;
 	}
