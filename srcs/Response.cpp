@@ -397,7 +397,7 @@ void	Response::handleDirectoryTarget()
 {
 	DEBUG_LOG("Target '" + _target + "' is a directory");
 	if (!_conf.autoindex && !_conf.directoryListing) {
-		INFO_LOG("Autoindexing and directory listing is disabled");
+		INFO_LOG("Autoindexing and directory listing is disabled for fd " + std::to_string(_req.getFd()));
 		_statusCode = Forbidden;
 
 		return;

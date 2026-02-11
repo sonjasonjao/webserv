@@ -342,8 +342,8 @@ void	Server::handleClientData(size_t &i)
 			it->setResponseCodeBypass(InternalServerError);
 			it->setStatus(ClientStatus::Invalid);
 		} else {
-			INFO_LOG("CGI started with PID " + std::to_string(cgiInfo.first)
-				+ " and reading from FD " + std::to_string(cgiInfo.second));
+			INFO_LOG("CGI handler started for client fd " + std::to_string(it->getFd()));
+			DEBUG_LOG("CGI pid: " + std::to_string(cgiInfo.first) + ", read fd: " + std::to_string(cgiInfo.second));
 			it->setCgiPid(cgiInfo.first);
 			it->setCgiStartTime();
 			it->setStatus(ClientStatus::CgiRunning);
