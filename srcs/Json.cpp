@@ -175,7 +175,8 @@ std::vector<std::string>	splitElements(std::string_view sv)
  */
 Token	createToken(std::string const &str, TokenType type)
 {
-	Token token;
+	Token	token;
+
 	if (type == TokenType::Identifier || type == TokenType::Value) {
 		token.type = type;
 		token.value = removeQuotes(str);
@@ -195,9 +196,9 @@ Token	createToken(std::string const &str, TokenType type)
  */
 Token	createToken(std::string const &str)
 {
-	Token token;
-	size_t len = str.length();
-	TokenType type = getTokenType(str);
+	Token		token;
+	size_t		len = str.length();
+	TokenType	type = getTokenType(str);
 
 	if (type == TokenType::Object) {
 		token.type = TokenType::Object;
@@ -230,12 +231,11 @@ Token	createToken(std::string const &str)
 	}
 
 	if (type == TokenType::Element) {
-
 		token.type = TokenType::Element;
-		size_t pos = unquotedDelimiter(str, ':');
 
-		std::string left = trim(str.substr(0, pos));
-		std::string right = trim(str.substr(pos + 1));
+		size_t		pos = unquotedDelimiter(str, ':');
+		std::string	left = trim(str.substr(0, pos));
+		std::string	right = trim(str.substr(pos + 1));
 
 		token.children.emplace_back(
 			createToken(left, TokenType::Identifier)
@@ -286,8 +286,8 @@ std::string	getKey(Token const &token)
  */
 std::string	removeQuotes(std::string const &str)
 {
-	if (str.length() >= 2 && str.front() == '"' && str.back() == '"') {
+	if (str.length() >= 2 && str.front() == '"' && str.back() == '"')
 		return trim(str.substr(1, str.length() - 2));
-	}
+
 	return str;
 }
