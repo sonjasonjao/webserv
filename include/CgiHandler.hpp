@@ -7,12 +7,12 @@
 #include <sys/types.h>
 
 struct CgiResponse {
-	int	status					= 0;
-	int	contentLength			= 0;
-	bool isSucceeded			= true;
-	std::string	statusString	= "default";
-    std::string contentType		= "default";
+	std::string	statusString	= "unknown";
+    std::string	contentType		= "text/plain";
 	std::string	body;
+	int			status			= 0;
+	int			contentLength	= 0;
+	bool		cgiCrashed		= false;
 };
 
 class CgiHandler {

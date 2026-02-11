@@ -184,10 +184,9 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 	CgiResponse	response;
 
 	if (rawOutput.empty()) {
-		response.isSucceeded = false;
-		response.status = 400;
-		response.contentType = "text/html";
-		response.statusString = "Bad Request";
+		response.cgiCrashed		= true;
+		response.status			= 400;
+		response.statusString	= "Bad Request";
 
 		return response;
 	}
@@ -270,15 +269,11 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 	// this will be the error case, where 
 	// 1. the script it self will not execute so there is no result at all
 	// 2. script output is not following the expected format
-	if (response.status == 0 && response.contentType == "default") {
-		response.isSucceeded = false;
+	if (response.status == 0) {
+		response.cgiCrashed = true;
 		response.status = 400;
-		response.contentType = "text/html";
 		response.statusString = "Bad Request";
 	}
 
-	// if the content type not set by the script then it will default to text/html
-	if (response.contentType == "default")
-		response.contentType = "text/html";
 	return response;
 }
