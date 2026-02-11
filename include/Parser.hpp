@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CustomException.hpp"
-#include "JSON.hpp"
+#include "Json.hpp"
 #include <fstream>
 #include <string>
 #include <vector>

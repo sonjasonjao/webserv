@@ -6,7 +6,7 @@
 class CustomException : public std::exception {
 
 protected:
-	std::string _error_message;
+	std::string _errorMessage;
 
 public:
 	CustomException() noexcept;

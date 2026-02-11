@@ -1,23 +1,23 @@
 #include "CustomException.hpp"
 
 CustomException::CustomException() noexcept
-	: _error_message("unknown") {}
+	: _errorMessage("unknown") {}
 
 CustomException::CustomException(std::string const &msg) noexcept
-	: _error_message(msg) {}
+	: _errorMessage(msg) {}
 
 CustomException::CustomException(CustomException const &other) noexcept
-	: _error_message(other._error_message) {}
+	: _errorMessage(other._errorMessage) {}
 
 CustomException	&CustomException::operator=(CustomException const &other) noexcept
 {
 	if (this != &other) {
-		_error_message = other._error_message;
+		_errorMessage = other._errorMessage;
 	}
 	return *this;
 }
 
 char const	*CustomException::what() const noexcept
 {
-	return _error_message.c_str();
+	return _errorMessage.c_str();
 }

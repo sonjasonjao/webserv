@@ -1,4 +1,4 @@
-#include "JSON.hpp"
+#include "Json.hpp"
 #include <iostream>
 
 /**
@@ -82,30 +82,30 @@ std::string	trim(std::string_view sv)
 size_t	unquotedDelimiter(std::string_view sv, char const c)
 {
 	size_t	pos					= std::string::npos;
-	bool	in_quote			= false;
-	int		curly_braces_depth	= 0;
-	int		squar_braces_depth	= 0;
+	bool	inQuote				= false;
+	int		curlyBracesDepth	= 0;
+	int		squareBracesDepth	= 0;
 
 	for (size_t i = 0; i < sv.size(); ++i) {
 		if (sv[i] == '"' && (i == 0 || sv[i - 1] != '\\')) {
-			in_quote = !in_quote;
+			inQuote = !inQuote;
 		}
-		if (sv[i] == '{' && !in_quote) {
-			curly_braces_depth++;
+		if (sv[i] == '{' && !inQuote) {
+			curlyBracesDepth++;
 		}
-		if (sv[i] == '}' && !in_quote) {
-			curly_braces_depth--;
+		if (sv[i] == '}' && !inQuote) {
+			curlyBracesDepth--;
 		}
-		if (sv[i] == '[' && !in_quote) {
-			squar_braces_depth++;
+		if (sv[i] == '[' && !inQuote) {
+			squareBracesDepth++;
 		}
-		if (sv[i] == ']' && !in_quote) {
-			squar_braces_depth--;
+		if (sv[i] == ']' && !inQuote) {
+			squareBracesDepth--;
 		}
 		if (sv[i] == c
-			&& !in_quote
-			&& curly_braces_depth == 0
-			&& squar_braces_depth == 0
+			&& !inQuote
+			&& curlyBracesDepth == 0
+			&& squareBracesDepth == 0
 		) {
 			pos = i;
 			break;
