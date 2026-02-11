@@ -183,6 +183,11 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 {
 	CgiResponse	response;
 
+	if (rawOutput.empty()) {
+		response.badCgiOutput	= true;
+		return response;
+	}
+
 	// Separate header section from body section
 	size_t	bodyPos			= rawOutput.find("\r\n\r\n");
 	size_t	headerEndLen	= 4;
@@ -195,7 +200,6 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 	// Handle case where no header/body separator is found
 	if (bodyPos == std::string::npos) {
 		response.body = rawOutput;
-		response.contentLength = response.body.length();
 
 		return response;
 	}
@@ -220,8 +224,8 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 			std::string value	= line.substr(colonPos + 1);
 
 			// Trim leading/trailing spaces from value
-			size_t first = value.find_first_not_of(" ");
-			size_t last = value.find_last_not_of(" ");
+			size_t	first	= value.find_first_not_of(" ");
+			size_t	last	= value.find_last_not_of(" ");
 
 			if (first != std::string::npos)
 				value = value.substr(first, (last - first + 1));
@@ -235,7 +239,7 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 
 					response.status = std::stoi(trimmed.substr(0, pos));
 				} catch (std::exception &e) {
-					response.status = 500;
+					response.badCgiOutput = true;
 					break;
 				}
 			}
@@ -243,20 +247,17 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 				response.contentType = value;
 			else if (key == "Content-Length") {
 				try {
-					std::string	trimmed	= trimWhitespace(value);
-					size_t		pos		= trimmed.find_first_not_of("0123456789");
-					response.contentLength = std::stoi(trimmed.substr(0, pos));
+					size_t	contentLength = std::stoi(value);
+
+					if (contentLength != response.body.length())
+						response.badCgiOutput = true;
 				} catch (std::exception &e) {
-					response.contentLength = 0;
+					response.badCgiOutput = true;
 				}
 			}
 		}
 		start = end + 1;
 	}
-
-	// Content-Length, re-adjust based on body size
-	if (response.contentLength == 0 && !response.body.empty())
-		response.contentLength = response.body.length();
 
 	return response;
 }

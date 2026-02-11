@@ -227,11 +227,27 @@ void	Response::formResponse()
 	}
 
 	if (_req.isCgiRequest() && _statusCode == Unassigned) {
-		CgiResponse	res = CgiHandler::parseCgiOutput(_req.getCgiResult());
 		
-		_startLine		 = _req.getHttpVersion() + " " + std::to_string(res.status) + CRLF;
+		CgiResponse	res = CgiHandler::parseCgiOutput(_req.getCgiResult());
+
+		if (res.badCgiOutput) {
+			ERROR_LOG("CGI produced bad output");
+			_startLine		= _req.getHttpVersion() + " 400 Bad Request" + std::string(CRLF);
+			res.body		= getResponsePageContent("400", _conf);
+			res.contentType	= "text/html";
+		}
+
+		std::string	statusString;
+
+		if (!res.statusString.empty())
+			statusString = res.statusString;
+		else
+			statusString = std::to_string(res.status);
+
+		_startLine = _req.getHttpVersion() + " " + statusString + CRLF;
+
 		_headerSection	+= "Content-Type: " + res.contentType + CRLF;
-		_headerSection	+= "Content-Length: " + std::to_string(res.contentLength) + CRLF;
+		_headerSection	+= "Content-Length: " + std::to_string(res.body.length()) + CRLF;
 
 		if (_req.getKeepAlive())
 			_headerSection += "Connection: keep-alive" + std::string(CRLF);
