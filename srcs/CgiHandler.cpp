@@ -129,7 +129,7 @@ std::pair<pid_t, int>	CgiHandler::execute(std::string const &scriptPath, Request
 			std::exit(1);
 		}
 
-		// Closing unused file FDs
+		// Closing unused file fds
 		close(parentToChildPipe[READ]);
 		close(parentToChildPipe[WRITE]);
 		close(childToParentPipe[READ]);

@@ -1,8 +1,11 @@
-#include "JSON.hpp"
+#include "Json.hpp"
 #include <iostream>
 
 /**
- * this function will print the AST recursively, pure debugging function
+ * Prints the AST recursively, for debugging purposes.
+ *
+ * @param root		Root node of AST to be printed
+ * @param indent	Amount of spaces to indent the output by
  */
 void	printToken(Token const &root, int indent)
 {
@@ -20,10 +23,11 @@ void	printToken(Token const &root, int indent)
 }
 
 /**
- * convert TokenType enum value to a string
- * @param type Token type
- * @return corresponding string value, default or unmatching will result
- * empty string
+ * Converts TokenType enum value to a string
+ *
+ * @param type	Token type enum value
+ *
+ * @return	String matching enum type, empty string if unmatched
  */
 std::string	typeToString(TokenType type)
 {
@@ -47,10 +51,11 @@ std::string	typeToString(TokenType type)
 }
 
 /**
- * remove leading and trailing white speces (\t\n)
- * @param string need to be trimmed
- * @return new copy of the string without leading and trailing
- * white spaces
+ * Removes leading and trailing white space (\t\n)
+ *
+ * @param sv	String view to be trimmed
+ *
+ * @return	String with surrounding white space removed
  */
 std::string	trim(std::string_view sv)
 {
@@ -59,44 +64,48 @@ std::string	trim(std::string_view sv)
 		return "";
 	}
 	size_t const	end = sv.find_last_not_of(" \t\n");
+
 	return std::string(sv.substr(start, end - start + 1));
 }
 
 /**
- * will return the position of a unqoted character, or not surrounded by
- * '"', '{', '[' , '}', ']'
- * usefull to detemine the position of correct position to split
+ * Returns the position of an unquoted character, or one not surrounded by
+ * '"', '{', '[' , '}', ']'.
+ * Used to determine the correct position to split.
  * {"key1" : "value1"}, {"key2" : "value2", "key3" : "value3"}
- * @param string and the character need to check
- * @return index of the first occuranece of the character in the string
+ *
+ * @param sv	String view to split later
+ * @param c		Delimiting character to search for
+ *
+ * @return	Index of the first unquoted occurrence of the character in the string
  */
 size_t	unquotedDelimiter(std::string_view sv, char const c)
 {
 	size_t	pos					= std::string::npos;
-	bool	in_quote			= false;
-	int		curly_braces_depth	= 0;
-	int		squar_braces_depth	= 0;
+	bool	inQuote				= false;
+	int		curlyBracesDepth	= 0;
+	int		squareBracesDepth	= 0;
 
 	for (size_t i = 0; i < sv.size(); ++i) {
 		if (sv[i] == '"' && (i == 0 || sv[i - 1] != '\\')) {
-			in_quote = !in_quote;
+			inQuote = !inQuote;
 		}
-		if (sv[i] == '{' && !in_quote) {
-			curly_braces_depth++;
+		if (sv[i] == '{' && !inQuote) {
+			curlyBracesDepth++;
 		}
-		if (sv[i] == '}' && !in_quote) {
-			curly_braces_depth--;
+		if (sv[i] == '}' && !inQuote) {
+			curlyBracesDepth--;
 		}
-		if (sv[i] == '[' && !in_quote) {
-			squar_braces_depth++;
+		if (sv[i] == '[' && !inQuote) {
+			squareBracesDepth++;
 		}
-		if (sv[i] == ']' && !in_quote) {
-			squar_braces_depth--;
+		if (sv[i] == ']' && !inQuote) {
+			squareBracesDepth--;
 		}
 		if (sv[i] == c
-			&& !in_quote
-			&& curly_braces_depth == 0
-			&& squar_braces_depth == 0
+			&& !inQuote
+			&& curlyBracesDepth == 0
+			&& squareBracesDepth == 0
 		) {
 			pos = i;
 			break;
@@ -166,7 +175,8 @@ std::vector<std::string>	splitElements(std::string_view sv)
  */
 Token	createToken(std::string const &str, TokenType type)
 {
-	Token token;
+	Token	token;
+
 	if (type == TokenType::Identifier || type == TokenType::Value) {
 		token.type = type;
 		token.value = removeQuotes(str);
@@ -186,9 +196,9 @@ Token	createToken(std::string const &str, TokenType type)
  */
 Token	createToken(std::string const &str)
 {
-	Token token;
-	size_t len = str.length();
-	TokenType type = getTokenType(str);
+	Token		token;
+	size_t		len = str.length();
+	TokenType	type = getTokenType(str);
 
 	if (type == TokenType::Object) {
 		token.type = TokenType::Object;
@@ -221,12 +231,11 @@ Token	createToken(std::string const &str)
 	}
 
 	if (type == TokenType::Element) {
-
 		token.type = TokenType::Element;
-		size_t pos = unquotedDelimiter(str, ':');
 
-		std::string left = trim(str.substr(0, pos));
-		std::string right = trim(str.substr(pos + 1));
+		size_t		pos = unquotedDelimiter(str, ':');
+		std::string	left = trim(str.substr(0, pos));
+		std::string	right = trim(str.substr(pos + 1));
 
 		token.children.emplace_back(
 			createToken(left, TokenType::Identifier)
@@ -277,8 +286,8 @@ std::string	getKey(Token const &token)
  */
 std::string	removeQuotes(std::string const &str)
 {
-	if (str.length() >= 2 && str.front() == '"' && str.back() == '"') {
+	if (str.length() >= 2 && str.front() == '"' && str.back() == '"')
 		return trim(str.substr(1, str.length() - 2));
-	}
+
 	return str;
 }

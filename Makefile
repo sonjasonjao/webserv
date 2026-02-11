@@ -14,7 +14,7 @@ SRC	:=	$(SRC_DIR)/main.cpp				\
 		$(SRC_DIR)/Log.cpp				\
 		$(SRC_DIR)/Parser.cpp			\
 		$(SRC_DIR)/Server.cpp			\
-		$(SRC_DIR)/JSON.cpp				\
+		$(SRC_DIR)/Json.cpp				\
 		$(SRC_DIR)/Request.cpp			\
 		$(SRC_DIR)/Response.cpp			\
 		$(SRC_DIR)/Pages.cpp			\
