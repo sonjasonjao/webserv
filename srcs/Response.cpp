@@ -403,15 +403,14 @@ void	Response::handleDelete()
 		INFO_LOG("Resource " + _target + " deleted");
 		_statusCode = NoContent;
 	} catch (std::exception &e) {
-		INFO_LOG("Resource " + _target + " could not be deleted");
+		INFO_LOG(_diagnosticMessage = "Resource '" + _target + "' could not be deleted");
 		_statusCode = InternalServerError; // do we disconnect client?
-		_diagnosticMessage = "Target '" + _target + "' could not be deleted";
 	}
 }
 
 void	Response::handleDirectoryTarget()
 {
-	DEBUG_LOG("Target '" + _target + "' is a directory");
+	DEBUG_LOG("Resource '" + _target + "' is a directory");
 	if (!_conf.autoindex && !_conf.directoryListing) {
 		DEBUG_LOG("Autoindexing and directory listing is disabled");
 		_statusCode = Forbidden;
