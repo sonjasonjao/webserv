@@ -137,7 +137,7 @@ public:
 	Request(int fd, int serverFd);
 	~Request() = default;
 
-	void	processRequest(std::string const &buf);
+	void	processRequest(std::string const &buf = "");
 
 	bool	isHeadersCompleted() const;
 	bool	fillKeepAlive();
