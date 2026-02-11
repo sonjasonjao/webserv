@@ -129,7 +129,7 @@ std::pair<pid_t, int>	CgiHandler::execute(std::string const &scriptPath, Request
 			std::exit(1);
 		}
 
-		// Closing unused file FDs
+		// Closing unused file fds
 		close(parentToChildPipe[READ]);
 		close(parentToChildPipe[WRITE]);
 		close(childToParentPipe[READ]);
@@ -184,11 +184,7 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 	CgiResponse	response;
 
 	if (rawOutput.empty()) {
-		response.isSucceeded = false;
-		response.status = 400;
-		response.contentType = "text/html";
-		response.statusString = "Bad Request";
-
+		response.badCgiOutput	= true;
 		return response;
 	}
 
@@ -204,7 +200,6 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 	// Handle case where no header/body separator is found
 	if (bodyPos == std::string::npos) {
 		response.body = rawOutput;
-		response.contentLength = response.body.length();
 
 		return response;
 	}
@@ -229,8 +224,8 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 			std::string value	= line.substr(colonPos + 1);
 
 			// Trim leading/trailing spaces from value
-			size_t first = value.find_first_not_of(" ");
-			size_t last = value.find_last_not_of(" ");
+			size_t	first	= value.find_first_not_of(" ");
+			size_t	last	= value.find_last_not_of(" ");
 
 			if (first != std::string::npos)
 				value = value.substr(first, (last - first + 1));
@@ -244,7 +239,7 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 
 					response.status = std::stoi(trimmed.substr(0, pos));
 				} catch (std::exception &e) {
-					response.status = 500;
+					response.badCgiOutput = true;
 					break;
 				}
 			}
@@ -252,37 +247,17 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 				response.contentType = value;
 			else if (key == "Content-Length") {
 				try {
-					std::string	trimmed	= trimWhitespace(value);
-					size_t		pos		= trimmed.find_first_not_of("0123456789");
-					response.contentLength = std::stoi(trimmed.substr(0, pos));
+					size_t	contentLength = std::stoi(value);
+
+					if (contentLength != response.body.length())
+						response.badCgiOutput = true;
 				} catch (std::exception &e) {
-					response.contentLength = 0;
+					response.badCgiOutput = true;
 				}
 			}
 		}
 		start = end + 1;
 	}
 
-	// Content-Length, re-adjust based on body size
-	if (response.contentLength == 0)
-		response.contentLength = response.body.length();
-
-	// this will be the error case, where 
-	// 1. the script it self will not execute so there is no result at all
-	// 2. script output is not following the expected format
-	if (response.status == 0 && response.contentType == "default") {
-		response.isSucceeded = false;
-		response.status = 400;
-		response.contentType = "text/html";
-		response.statusString = "Bad Request";
-	}
-
-	// if the content type not set by the script then it will default to text/html
-	if (response.contentType == "default")
-		response.contentType = "text/html";
-
-    // if the status not set by the script then it will default to 200
-    if (response.status == 0)
-        response.status = 200;
-    return response;
+	return response;
 }
