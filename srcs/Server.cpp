@@ -388,9 +388,8 @@ void	Server::sendResponse(size_t &i)
 	_pfds[i].events |= POLLIN;
 	// Since there can be requests already read and stored in the buffer, immediately
 	// start to process the left-over in the buffer
-	if (!it->getBuffer().empty())
-	{
-		it->processRequest("");
+	if (!it->getBuffer().empty()) {
+		it->processRequest();
 		processClientRequest(i, it);
 	}
 }
@@ -628,9 +627,9 @@ void	Server::cleanupCgi(Request *req)
 	}
 }
 
-void Server::processClientRequest(size_t &i, ReqIter it)
+void	Server::processClientRequest(size_t &i, ReqIter it)
 {
-		Config const	&conf = matchConfig(*it);
+	Config const	&conf = matchConfig(*it);
 
 	if (it->getStatus() == ClientStatus::Error) {
 		ERROR_LOG("Client fd " + std::to_string(_pfds[i].fd)
