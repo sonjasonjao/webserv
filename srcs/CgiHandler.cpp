@@ -184,10 +184,7 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 	CgiResponse	response;
 
 	if (rawOutput.empty()) {
-		response.cgiCrashed		= true;
-		response.status			= 400;
-		response.statusString	= "Bad Request";
-
+		response.badCgiOutput	= true;
 		return response;
 	}
 
@@ -242,7 +239,7 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 
 					response.status = std::stoi(trimmed.substr(0, pos));
 				} catch (std::exception &e) {
-					response.status = 400;
+					response.badCgiOutput = true;
 					break;
 				}
 			}
@@ -255,7 +252,7 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 					if (contentLength != response.body.length())
 						response.status = 400;
 				} catch (std::exception &e) {
-					response.status = 400;
+					response.badCgiOutput = true;
 				}
 			}
 		}
