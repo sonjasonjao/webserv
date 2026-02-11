@@ -3,22 +3,27 @@
 #include "Pages.hpp"
 #include <iostream>
 
+static void	debugPrintActiveServers(Parser const &parser, size_t configCount);
+
 /**
- * Main loop: instantiating Parser to parse config file, then creating Server object
- * with config data. This initial version only creates one server socket (for config
- * at index 0 for now), but that will be changed to make listener to each config.
+ * Entry point for starting the webserver.
+ *
+ * With no command line arguments a default config file is used, otherwise the first optional command
+ * line argument is the config file, and the second optional argument is a logfile for server logging.
+ *
+ * The parser parses the config file, and sets up data structures that are then used to start the
+ * server program, which creates listener sockets for the configured ports, and begins the server loop.
  */
-int	main(int argc, char **argv)
+int	main(int argc, char *argv[])
 {
 	if (argc > 3) {
 		std::cout << "Usage: ./webserv [configuration file] [output log file]\n";
-
-		return EXIT_SUCCESS;
+		return EXIT_FAILURE;
 	}
 
-	std::string	confFile = "./config_files/default.json"; // default configuration file
+	std::string	confFile = "./config_files/default.json";
 
-	// Handling one or two user inputs
+	// Handling the optional user inputs
 	if (argc == 1)
 		std::cout << "No config file provided, using default: " << confFile << "\n";
 	if (argc < 3)
@@ -35,38 +40,39 @@ int	main(int argc, char **argv)
 
 	try {
 		Parser	parser(confFile);
-
 		size_t	configCount = parser.getNumberOfServerConfigs();
-
-		std::cout << "\n--- Active servers ---\n\n";
-		std::cout << "Number of active servers: " << configCount << "\n";
-		for (size_t i = 0; i < configCount; ++i) {
-			Config config = parser.getServerConfig(i);
-			std::cout << "Host		: " << config.host << "\n";
-			std::cout << "Server Name	: " << config.serverName << "\n";
-			std::cout << "Listen		: ";
-			std::cout << config.port << " ";
-			std::cout << "\n\n";
-		}
-		std::cout << "----------------------\n\n";
-
 		Server	server(parser);
-		Pages::loadDefaults();
+
+		debugPrintActiveServers(parser, configCount);
+
+		Pages::loadDefaults(); // Load fallback status pages to cache
 		server.run();
-
-	} catch (Parser::ParserException const &e) {
-		std::cerr << "Exiting\n";
-
-		return EXIT_FAILURE;
 	} catch (std::exception const &e) {
+		std::cerr << "Exception caught at main: " << e.what() << "\n";
 		std::cerr << "Exiting\n";
-
 		return EXIT_FAILURE;
 	} catch (...) {
 		std::cerr << "Exiting\n";
-
 		return EXIT_FAILURE;
 	}
 
 	return EXIT_SUCCESS;
+}
+
+static void	debugPrintActiveServers(Parser const &parser, size_t configCount)
+{
+	#if DEBUG_LOGGING
+	std::cout << "\n--- Active servers ---\n\n";
+	std::cout << "Number of active servers: " << configCount << "\n";
+	for (size_t i = 0; i < configCount; ++i) {
+		Config const	&config = parser.getServerConfig(i);
+
+		std::cout << "Host		: " << config.host << "\n";
+		std::cout << "Server Name	: " << config.serverName << "\n";
+		std::cout << "Listen		: ";
+		std::cout << config.port << " ";
+		std::cout << "\n\n";
+	}
+	std::cout << "----------------------\n\n";
+	#endif
 }

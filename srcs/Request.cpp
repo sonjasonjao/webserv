@@ -13,8 +13,8 @@ constexpr char const * const	CRLF = "\r\n";
 
 /**
  * Initializes attribute values for request. Http version is HTTP/1.1 by default,
- * so if the http version given in the request is invalid, 1.1 will be used to send the error
- * page response.
+ * so if the http version given in the request is invalid, 1.1 will be used to send
+ * the error page response.
  */
 Request::Request(int fd, int serverFd)
 	:	_fd(fd),
@@ -26,7 +26,7 @@ Request::Request(int fd, int serverFd)
 		_headerSize(0)
 {
 	_request.method = RequestMethod::Unknown;
-	_status = ClientStatus::WaitingData;
+	_status = ClientStatus::WaitingForData;
 	_responseCodeBypass = Unassigned;
 	_idleStart = std::chrono::high_resolution_clock::now();
 	_recvStart = {};
@@ -36,22 +36,23 @@ Request::Request(int fd, int serverFd)
 
 /**
  * Saves the current buffer filled by recv into the combined buffer of this client.
- * Checks whether the buffer so far includes "\r\n\r\n". If not, and the headers section hasn't
- * been received completely (ending with "\r\n\r\n"), we assume the request is partial. In that
- * case, we go back to poll() to wait for the rest of the response before parsing.
+ * Checks whether the buffer so far includes "\r\n\r\n". If not, and the headers
+ * section hasn't earlier been received completely (ending with "\r\n\r\n"), we
+ * assume the request is partial. In that case, we go back to poll() to wait for
+ * the rest of the response before parsing.
  */
 void	Request::processRequest(std::string const &buf)
 {
 	_buffer += buf;
 
 	if (_buffer.find("\r\n\r\n") == std::string::npos && !_completeHeaders)
-		_status = ClientStatus::WaitingData;
+		_status = ClientStatus::WaitingForData;
 	else
 		parseRequest();
 }
 
 /**
- * After receiving and parsing a complete request, and building a response,
+ * After receiving and parsing a complete request, and preparing a response,
  * these properties of the current client are reset for a possible following request.
  */
 void	Request::reset()
@@ -78,8 +79,8 @@ void	Request::reset()
 }
 
 /**
- * Resets the keepAlive status separately from other resets, only after keepAlive status of the
- * latest request has been checked.
+ * Resets the keepAlive status separately from other resets, only after keepAlive
+ * status of the latest request has been checked.
  */
 void	Request::resetKeepAlive()
 {
@@ -88,9 +89,9 @@ void	Request::resetKeepAlive()
 
 /**
  * In handleConnections, each client fd is checked for possible timeouts by comparing
- * the stored _idleStart, _recvStart, and _sendStart with the current time stamp. Helper
- * variable init is used to check whether _recvStart or _sendStart has ever been updated
- * after the initialization to zero.
+ * the stored _idleStart, _recvStart, _sendStart, and cgiStartTime with the current
+ * time stamp. Helper variable init is used to check whether _recvStart or _sendStart
+ * has ever been updated after the initialization to zero.
  */
 void	Request::checkReqTimeouts()
 {
@@ -161,9 +162,7 @@ static std::string	extractFromLine(std::string &orig, std::string_view delim)
 }
 
 /**
- * Validates and parses request section by section. After the last valid
- * header line, if there is remaining data, and content-length is found in headers, that length
- * of data is stored in _body - if chunked is found in headers, the rest is handled as chunks.
+ * Validates and parses request section by section.
  */
 void	Request::parseRequest()
 {
@@ -183,24 +182,26 @@ void	Request::parseRequest()
 		_buffer.clear();
 		return;
 	}
+
 	if (_contentLen.has_value() && _contentLen.value() > CLIENT_MAX_BODY_SIZE) {
+		// If Content-length header value exceeds the limit, we won't parse further
 		_responseCodeBypass = ContentTooLarge;
 		_status = ClientStatus::Invalid;
-	} else if ((!_contentLen.has_value()
-		|| _contentLen.value() == 0)
-		 && !_chunked) {
-		// this request should not have body, so buffer should be empty by now
+	} else if ((!_contentLen.has_value() || _contentLen.value() == 0) && !_chunked) {
+		// This request should not have body, so buffer should be empty by now
 		if (_buffer.empty())
 			_status = ClientStatus::CompleteReq;
 		else
 			_status = ClientStatus::Invalid;
 	} else if (_request.method == RequestMethod::Post && _boundary.has_value()) {
-		// handled from handleClientData in Server
+		// File upload is handled from handleClientData in Server
 		return;
-	} else if (!_buffer.empty() && (_contentLen.has_value() && _body.size() < _contentLen.value())) {
+	} else if (!_buffer.empty() && (_contentLen.has_value() && _body.size()
+		< _contentLen.value())) {
 		size_t	missingLen = _contentLen.value() - _body.size();
 		if (missingLen < _buffer.size()) {
-			// if the remaining buffer is larger than what's missing from contentLen, it's invalid
+			/* If the remaining buffer is larger than what's missing from contentLen,
+			it's invalid */
 			_status = ClientStatus::Invalid;
 			return;
 		} else {
@@ -211,7 +212,7 @@ void	Request::parseRequest()
 			_responseCodeBypass = ContentTooLarge;
 			_status = ClientStatus::Invalid;
 		} else if (_body.size() < _contentLen.value()) {
-			_status = ClientStatus::WaitingData;
+			_status = ClientStatus::WaitingForData;
 		} else if (_body.size() == _contentLen.value())
 			_status = ClientStatus::CompleteReq;
 	} else if (_chunked)
@@ -221,8 +222,10 @@ void	Request::parseRequest()
 	if (_request.target.find("/cgi-bin/") == 0)
 		_cgiRequest.emplace(); // Emplace _cgiRequest to indentify in poll event loop
 
-	// POST method is only allowed for file upload (-> _boundary needs to have value) or CGI request
-	if (_request.method == RequestMethod::Post && !(_cgiRequest.has_value() || _boundary.has_value())) {
+	/* POST method is only allowed for file upload (-> _boundary needs to have value)
+	or CGI request */
+	if (_request.method == RequestMethod::Post && !(_cgiRequest.has_value()
+		|| _boundary.has_value())) {
 		_responseCodeBypass = MethodNotAllowed;
 		_status = ClientStatus::Invalid;
 	}
@@ -277,7 +280,7 @@ void	Request::parseRequestLine(std::string &req)
  */
 void	Request::parseHeaders(std::string &str)
 {
-	// http/1.0 request is valid even without any headers, just trailing CRLF left
+	// HTTP/1.0 request is valid without any headers; only trailing CRLF left here
 	if (_request.httpVersion == "HTTP/1.0" && str == "\r\n") {
 		_completeHeaders = true;
 		_status = ClientStatus::CompleteReq;
@@ -299,7 +302,7 @@ void	Request::parseHeaders(std::string &str)
 
 	while (!str.empty()) {
 		if (str.substr(0, 2) == CRLF) {
-			str = str.substr(2);
+			str.erase(0, 2);
 			_completeHeaders = true;
 			break;
 		}
@@ -308,7 +311,7 @@ void	Request::parseHeaders(std::string &str)
 
 		size_t const	colonPos = line.find(":");
 
-		// If header section has a line that doesn't include ':', it's a suspicious request
+		// If a header line doesn't include ':', it's a suspicious request
 		if (colonPos == std::string::npos) {
 			_status = ClientStatus::Error;
 			_keepAlive = false;
@@ -329,13 +332,15 @@ void	Request::parseHeaders(std::string &str)
 			return;
 		}
 		if (realStart != 0)
-			value = value.substr(realStart);
+			value.erase(0, realStart);
+
 		/* For Content-Type, value will not be turned to lowercase to keep possible
-		boundary= value literal*/
+		boundary= value literal */
 		if (key != "content-type") {
 			for (size_t i = 0; i < value.size(); i++)
 				value[i] = std::tolower(static_cast<unsigned char>(value[i]));
 		}
+
 		// Headers that allow only one value will be checked for validity
 		if (_headers.find(key) != _headers.end() && isUniqueHeader(key)) {
 			_status = ClientStatus::Invalid;
@@ -346,7 +351,7 @@ void	Request::parseHeaders(std::string &str)
 		std::string			oneValue;
 
 		/* For Content-Type, possible multiple values on same line are separated
-		with a semicolon, for other headers, with a comma*/
+		with a semicolon, for other headers, with a comma */
 		if (key == "content-type") {
 			if (value.find(";") == std::string::npos) {
 				_headers[key].emplace_back(value);
@@ -354,7 +359,7 @@ void	Request::parseHeaders(std::string &str)
 			}
 			while (getline(values, oneValue, ';')) {
 				if (!oneValue.empty() && oneValue[0] == ' ')
-					oneValue = oneValue.substr(1);
+					oneValue.erase(0, 1);
 				_headers[key].emplace_back(oneValue);
 			}
 		} else {
@@ -364,23 +369,24 @@ void	Request::parseHeaders(std::string &str)
 			}
 			while (getline(values, oneValue, ',')) {
 				if (!oneValue.empty() && oneValue[0] == ' ')
-					oneValue = oneValue.substr(1);
+					oneValue.erase(0, 1);
 				_headers[key].emplace_back(oneValue);
 			}
 		}
 	}
 
 	if (!_completeHeaders)
-		_status = ClientStatus::WaitingData;
+		_status = ClientStatus::WaitingForData;
 
 	if (_headers.empty() || !validateHeaders())
 		_status = ClientStatus::Invalid;
 }
 
 /**
- * In the case of a chunked request, attempts to check the size of each chunk and split the
- * string accordingly to store that chunk into body. Body is parsed only after receiving the
- * final 0\r\n\r\n chunk, as single chunks can be split across multiple recv() calls.
+ * In the case of a chunked request, attempts to check the size of each chunk and
+ * split the string accordingly to store that chunk into body. Body is parsed only
+ * after receiving the final 0\r\n\r\n chunk, as single chunks can be split across
+ * multiple recv() calls.
  */
 void	Request::parseChunked()
 {
@@ -390,7 +396,7 @@ void	Request::parseChunked()
 	auto	headerEnd = _buffer.find("0\r\n\r\n");
 
 	if (headerEnd == std::string::npos) {
-		_status = ClientStatus::WaitingData;
+		_status = ClientStatus::WaitingForData;
 		return;
 	}
 
@@ -402,7 +408,7 @@ void	Request::parseChunked()
 			_status = ClientStatus::Invalid;
 			return;
 		}
-		_buffer = _buffer.substr(crlfPos + 2);
+		_buffer.erase(0, crlfPos + 2);
 
 		std::string	part = extractFromLine(_buffer, CRLF);
 
@@ -419,6 +425,7 @@ void	Request::parseChunked()
 		crlfPos = _buffer.find(CRLF);
 	}
 
+	// If loop was not broken from because of final chunk
 	if (extractFromLine(_buffer, "0\r\n\r\n") != "") {
 		_status = ClientStatus::Invalid;
 		return;
@@ -489,7 +496,8 @@ bool	Request::validateHeaders()
 {
 	auto	it = _headers.find("host");
 
-	if (_request.httpVersion == "HTTP/1.1" && (it == _headers.end() || it->second.empty()))
+	if (_request.httpVersion == "HTTP/1.1" && (it == _headers.end()
+		|| it->second.empty()))
 		return false;
 
 	if (!fillKeepAlive())
@@ -536,10 +544,10 @@ bool	Request::isUniqueHeader(std::string const &key)
 {
 	std::unordered_set<std::string>	uniques = {
 		"access-control-request-method",
-		"alt-used", // added
+		"alt-used",
 		"authorization",
 		"content-length",
-		"content-location", // added
+		"content-location",
 		"content-md5",
 		"date",
 		"from",
@@ -553,19 +561,19 @@ bool	Request::isUniqueHeader(std::string const &key)
 		"pragma",
 		"proxy-authorization",
 		"referer",
-		"sec-fetch-dest", // added
-		"sec-fetch-mode", //added
-		"sec-fetch-site", // added
-		"sec-fetch-storage-access", // added
-		"sec-fetch-user", // added
-		"sec-purpose", // added
-		"sec-websocket-key", // added
-		"sec-websocket-version", // added
-		"service-worker-header", // added
-		"service-worker-navigation-preload", // added
-		"upgrade-insecure-requests", // added
-		"x-forwarded-host", // added
-		"x-forwarded-proto", // added
+		"sec-fetch-dest",
+		"sec-fetch-mode",
+		"sec-fetch-site",
+		"sec-fetch-storage-access",
+		"sec-fetch-user",
+		"sec-purpose",
+		"sec-websocket-key",
+		"sec-websocket-version",
+		"service-worker-header",
+		"service-worker-navigation-preload",
+		"upgrade-insecure-requests",
+		"x-forwarded-host",
+		"x-forwarded-proto"
 	};
 
 	auto	it = uniques.find(key);
@@ -633,7 +641,7 @@ bool	Request::validateAndAssignHttp(std::string &httpVersion)
 void	Request::printStatus() const
 {
 	switch (_status) {
-		case ClientStatus::WaitingData:
+		case ClientStatus::WaitingForData:
 			std::cout << "Waiting for more data\n";
 		break;
 		case ClientStatus::CgiRunning:
@@ -648,8 +656,8 @@ void	Request::printStatus() const
 		case ClientStatus::Invalid:
 			std::cout << "Invalid HTTP request\n";
 		break;
-		case ClientStatus::ReadyForResponse:
-			std::cout << "Ready to receive response\n";
+		case ClientStatus::ResponseReady:
+			std::cout << "Response is ready for this client\n";
 		break;
 		case ClientStatus::RecvTimeout:
 			std::cout << "Receive timed out\n";
@@ -669,7 +677,7 @@ void	Request::printStatus() const
 }
 
 /**
- * Prints parsed data for debugging.
+ * Prints parsed request data for debugging.
  */
 void	Request::printData() const
 {
@@ -719,19 +727,22 @@ void	Request::printData() const
 void	Request::setIdleStart()
 {
 	_idleStart = std::chrono::high_resolution_clock::now();
-	DEBUG_LOG("Fd " + std::to_string(_fd) + " _idleStart set to " + std::to_string(_idleStart.time_since_epoch().count()));
+	DEBUG_LOG("Fd " + std::to_string(_fd) + " _idleStart set to "
+		+ std::to_string(_idleStart.time_since_epoch().count()));
 }
 
 void	Request::setRecvStart()
 {
 	_recvStart = std::chrono::high_resolution_clock::now();
-	DEBUG_LOG("Fd " + std::to_string(_fd) + " _recvStart set to " + std::to_string(_recvStart.time_since_epoch().count()));
+	DEBUG_LOG("Fd " + std::to_string(_fd) + " _recvStart set to "
+		+ std::to_string(_recvStart.time_since_epoch().count()));
 }
 
 void	Request::setSendStart()
 {
 	_sendStart = std::chrono::high_resolution_clock::now();
-	DEBUG_LOG("Fd " + std::to_string(_fd) + " _sendStart set to " + std::to_string(_sendStart.time_since_epoch().count()));
+	DEBUG_LOG("Fd " + std::to_string(_fd) + " _sendStart set to "
+		+ std::to_string(_sendStart.time_since_epoch().count()));
 }
 
 void	Request::resetSendStart()
@@ -739,7 +750,8 @@ void	Request::resetSendStart()
 	_sendStart = {};
 }
 
-std::string	Request::getHost() const {
+std::string	Request::getHost() const
+{
 	std::string	host;
 
 	try {
@@ -779,7 +791,8 @@ void	Request::setStatus(ClientStatus status)
 	_status = status;
 }
 
-void	Request::setKeepAlive(bool value) {
+void	Request::setKeepAlive(bool value)
+{
 	_keepAlive = value;
 }
 
@@ -855,13 +868,15 @@ void	Request::handleFileUpload()
 	std::string const	endDelimiter	= partDelimiter + "--";
 
 	while (true) {
-		size_t const	partStart = _buffer.find(partDelimiter); // Look for delimiter in the buffer
+		// Look for delimiter in the buffer
+		size_t const	partStart = _buffer.find(partDelimiter);
 
 		if (partStart == std::string::npos) {
-			_status = ClientStatus::WaitingData;
+			_status = ClientStatus::WaitingForData;
 			break;
 		}
-		if (_buffer.compare(partStart, endDelimiter.length(), endDelimiter) == 0) { // End delimiter of form data found
+		if (_buffer.compare(partStart, endDelimiter.length(), endDelimiter) == 0) {
+			// End delimiter of form data found
 			_buffer.clear();
 			_responseCodeBypass = Created;
 			_status = ClientStatus::CompleteReq;
@@ -870,28 +885,28 @@ void	Request::handleFileUpload()
 
 		size_t	headersStart = partStart + partDelimiter.length();
 
-		if (_buffer.compare(headersStart, 2, "\r\n") == 0) // NOTE: Are we sure about that this is optional?
+		if (_buffer.compare(headersStart, 2, "\r\n") == 0)
 			headersStart += 2;
 
 		size_t const	partEnd = _buffer.find(partDelimiter, headersStart);
 
-		/**
-		 * NOTE:	This part is quite inefficient at the moment, the file only gets processed and duplicates
-		 *			validated after the whole file content has been received and it has to fit in memory.
-		 */
-		if (partEnd == std::string::npos) { // Need to find a second delimiter for data processing
-			_status = ClientStatus::WaitingData;
+		// Need to find a second delimiter for data processing
+		if (partEnd == std::string::npos) {
+			_status = ClientStatus::WaitingForData;
 			break;
 		}
 
-		if ((partEnd - headersStart) < 2) { // No data -> error, there might be a lone \r\n
+		// No data -> error, there might be a lone \r\n
+		if ((partEnd - headersStart) < 2) {
 			ERROR_LOG("No data in multipart/form-data");
 			_status = ClientStatus::Error;
 			_keepAlive = false;
 			return;
 		}
 
-		std::string_view	chunk		= std::string_view(_buffer).substr(headersStart, (partEnd - 2) - headersStart); // Remove extra \r\n by subtracting 2 from part end
+		// Remove extra \r\n by subtracting 2 from part end
+		std::string_view	chunk		= std::string_view(_buffer).substr(headersStart,
+			(partEnd - 2) - headersStart);
 		size_t				headersEnd	= chunk.find("\r\n\r\n");
 		MultipartPart		mp;
 
@@ -916,7 +931,8 @@ void	Request::handleFileUpload()
 				break;
 		}
 
-		_buffer = _buffer.substr(partEnd); // remove already saved part of buffer, no need to hold it in memory
+		// Remove already saved part of buffer, no need to hold it in memory
+		_buffer = _buffer.substr(partEnd);
 	}
 }
 
@@ -937,7 +953,8 @@ bool	Request::saveToDisk(MultipartPart const &part)
 
 bool	Request::initialSaveToDisk(MultipartPart const &part)
 {
-	// if the upload directory has not set in the config file upload operation is forbidden
+	/* If the upload directory has not been set in the config file, upload operation
+	is forbidden */
 	if (!_uploadDir.has_value()) {
 		ERROR_LOG("Upload directory has not set in the config file");
 		_responseCodeBypass = Forbidden;
@@ -946,7 +963,7 @@ bool	Request::initialSaveToDisk(MultipartPart const &part)
 	}
 
 	try {
-		// will create if not exists
+		// Will create uploadDir if it does not exist
 		if (!std::filesystem::exists(_uploadDir.value()))
 			std::filesystem::create_directories(_uploadDir.value());
 
@@ -957,10 +974,11 @@ bool	Request::initialSaveToDisk(MultipartPart const &part)
 		return false;
 	}
 
-	// constructing the file path
-	std::filesystem::path	targetPath = std::filesystem::path(_uploadDir.value()) / std::filesystem::path(part.filename).filename();
+	// Constructing the file path
+	std::filesystem::path	targetPath = std::filesystem::path(_uploadDir.value())
+		/ std::filesystem::path(part.filename).filename();
 
-	// if filename conflicts will treat as an error
+	// If filename conflicts, will be treated as an error
 	if (std::filesystem::exists(targetPath)) {
 		ERROR_LOG("File '" + std::string(targetPath) + "' already exists");
 		_responseCodeBypass = Conflict;
@@ -968,7 +986,7 @@ bool	Request::initialSaveToDisk(MultipartPart const &part)
 		return false;
 	}
 
-	// file handler to write data
+	// File handler to write data
 	_uploadFD = std::make_unique<std::ofstream>(targetPath, std::ios::binary);
 
 	if (_uploadFD && _uploadFD->is_open()) {
