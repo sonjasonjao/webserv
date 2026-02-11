@@ -231,16 +231,18 @@ void	Response::formResponse()
 		CgiResponse	res = CgiHandler::parseCgiOutput(_req.getCgiResult());
 
 		if (res.isSucceeded) {
-			_startLine		 = _req.getHttpVersion() + " " + std::to_string(res.status) + CRLF;
-			_headerSection	+= "Content-Type: " + res.contentType + CRLF;
-			_headerSection	+= "Content-Length: " + std::to_string(res.contentLength) + CRLF;
+            _statusCode = static_cast<ResponseCode>(res.status);
+            _startLine = _req.getHttpVersion() + " " + std::to_string(res.status) + CRLF;
+            _headerSection += "Content-Type: " + res.contentType + CRLF;
+            _headerSection	+= "Content-Length: " + std::to_string(res.contentLength) + CRLF;
 		} else {
 			// Logging errors to help with debugging
 			ERROR_LOG("CGI script failed to execute : " + _req.getCgiResult());
 			// loading the content for the relevant error
-			_headerSection	+= "Content-Type: " + res.contentType + CRLF;
-			_startLine		= _req.getHttpVersion() + " 400 Bad Request" + std::string(CRLF);
-			res.body		= getResponsePageContent("400", _conf);
+            _statusCode = BadRequest;
+            _headerSection += "Content-Type: " + res.contentType + CRLF;
+            _startLine = _req.getHttpVersion() + " 400 Bad Request" + std::string(CRLF);
+            res.body		= getResponsePageContent("400", _conf);
 			_headerSection	+= "Content-Length: " + std::to_string(res.body.size()) + CRLF;
 		}
 

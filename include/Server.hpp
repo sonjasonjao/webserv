@@ -38,6 +38,7 @@ private:
 	bool	isCgiFd(int fd);
 	void	handleCgiOutput(size_t &i);
 	void	cleanupCgi(Request *req);
+	void processClientRequest(size_t i, ReqIter it);
 
 public:
 	Server() = delete;
