@@ -259,7 +259,7 @@ void	Server::handleClientData(size_t &i)
 	it->setIdleStart();
 	it->setRecvStart();
 	it->processRequest(std::string(buf, numBytes));
-    processClientRequest(i, it);
+	processParsedRequest(i, it);
 }
 
 /**
@@ -384,13 +384,13 @@ void	Server::sendResponse(size_t &i)
 
 	it->resetKeepAlive();
 	it->setStatus(ClientStatus::WaitingForData);
-	// Once the response send re-enable clientFD for reading
+	// Once the response has been sent, re-enable client fd for reading
 	_pfds[i].events |= POLLIN;
-	// Since there can be requests already read and stored in the buffer, immediately
-	// start to process the left-over in the buffer
+	/* Since there can be requests already read and stored in the buffer, immediately
+	start to process the left-over in the buffer */
 	if (!it->getBuffer().empty()) {
 		it->processRequest();
-		processClientRequest(i, it);
+		processParsedRequest(i, it);
 	}
 }
 
@@ -627,7 +627,7 @@ void	Server::cleanupCgi(Request *req)
 	}
 }
 
-void	Server::processClientRequest(size_t &i, ReqIter it)
+void	Server::processParsedRequest(size_t &i, ReqIter it)
 {
 	Config const	&conf = matchConfig(*it);
 
