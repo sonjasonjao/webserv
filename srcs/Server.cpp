@@ -556,7 +556,7 @@ void	Server::handleCgiOutput(size_t &i)
 		kill(req->getCgiPid(), SIGKILL);
 		waitpid(req->getCgiPid(), &status, 0);
 	} else if (result > 0) {
-		INFO_LOG("CGI process " + std::to_string(result) + " exited with status "
+		DEBUG_LOG("CGI process " + std::to_string(result) + " exited with status "
 		+ std::to_string(status));
 	} else {
 		ERROR_LOG("Waiting for child failed: " + std::string(strerror(errno)));
