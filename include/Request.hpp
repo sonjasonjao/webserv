@@ -60,7 +60,7 @@ struct RequestLine {
  * - headers:      The raw HTTP header string for this part.
  * - name:         The form-field name (from Content-Disposition 'name').
  * - filename:     The client-side name of the file (from 'filename'), if provided.
- * - contenType:   The MIME type of the data (e.g., "text/plain" or "image/png").
+ * - contentType:   The MIME type of the data (e.g., "text/plain" or "image/png").
  * - data:         The raw content or binary body of the part.
  */
 
