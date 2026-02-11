@@ -281,8 +281,8 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 	if (response.contentType == "default")
 		response.contentType = "text/html";
 
-    // if the status not set by the script then it will default to 200
-    if (response.status == 0)
-        response.status = 200;
-    return response;
+	// if the status not set by the script then it will default to 200
+	if (response.status == 0)
+		response.status = 200;
+	return response;
 }
