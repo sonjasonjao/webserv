@@ -341,9 +341,9 @@ void	Server::handleClientData(size_t &i)
 
 			_pfds.push_back({ cgiInfo.second, POLLIN, 0 }); // Adding CGI read fd to poll list
 			_cgiFdMap[cgiInfo.second] = &(*it);
-
-			return;
-		}
+            _pfds[i].events &= ~POLLIN;
+            return;
+        }
 	}
 
 	if (it->getRequestMethod() == RequestMethod::Post && it->boundaryHasValue()) {
@@ -499,6 +499,7 @@ void	Server::sendResponse(size_t &i)
 
 	it->resetKeepAlive();
 	it->setStatus(ClientStatus::WaitingData);
+    _pfds[i].events |= POLLIN;
 }
 
 /**
