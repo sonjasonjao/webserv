@@ -230,17 +230,17 @@ void	Response::formResponse()
 		
 		CgiResponse	res = CgiHandler::parseCgiOutput(_req.getCgiResult());
 
-		if (!res.cgiCrashed) {
-			_startLine		 = _req.getHttpVersion() + " " + std::to_string(res.status) + CRLF;
-			_headerSection	+= "Content-Type: " + res.contentType + CRLF;
-			_headerSection	+= "Content-Length: " + std::to_string(res.contentLength) + CRLF;
-		} else {
+		_startLine = _req.getHttpVersion() + " " + std::to_string(res.status) + CRLF;
+
+		if (res.cgiCrashed) {
 			ERROR_LOG("CGI script failed to execute : " + _req.getCgiResult());
-			_headerSection	+= "Content-Type: " + res.contentType + CRLF;
 			_startLine		= _req.getHttpVersion() + " 400 Bad Request" + std::string(CRLF);
 			res.body		= getResponsePageContent("400", _conf);
-			_headerSection	+= "Content-Length: " + std::to_string(res.body.size()) + CRLF;
+			res.contentType	= "text/html";
 		}
+
+		_headerSection	+= "Content-Type: " + res.contentType + CRLF;
+		_headerSection	+= "Content-Length: " + std::to_string(res.body.length()) + CRLF;
 
 		if (_req.getKeepAlive())
 			_headerSection += "Connection: keep-alive" + std::string(CRLF);
@@ -248,6 +248,7 @@ void	Response::formResponse()
 			_headerSection += "Connection: close" + std::string(CRLF);
 
 		_content = _startLine + _headerSection + CRLF + res.body;
+
 		return;
 	}
 

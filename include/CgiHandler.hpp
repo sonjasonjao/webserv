@@ -10,8 +10,7 @@ struct CgiResponse {
 	std::string	statusString	= "unknown";
     std::string	contentType		= "text/plain";
 	std::string	body;
-	int			status			= 0;
-	int			contentLength	= 0;
+	int			status			= 200;
 	bool		cgiCrashed		= false;
 };
 
