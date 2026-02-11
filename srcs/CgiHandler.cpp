@@ -250,7 +250,7 @@ CgiResponse	CgiHandler::parseCgiOutput(std::string const &rawOutput)
 					size_t	contentLength = std::stoi(value);
 
 					if (contentLength != response.body.length())
-						response.status = 400;
+						response.badCgiOutput = true;
 				} catch (std::exception &e) {
 					response.badCgiOutput = true;
 				}

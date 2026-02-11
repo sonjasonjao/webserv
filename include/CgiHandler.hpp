@@ -7,7 +7,7 @@
 #include <sys/types.h>
 
 struct CgiResponse {
-    std::string	contentType		= "text/plain";
+	std::string	contentType		= "text/plain";
 	std::string	statusString;
 	std::string	body;
 	int			status			= 200;
