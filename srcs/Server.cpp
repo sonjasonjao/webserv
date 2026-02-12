@@ -497,7 +497,8 @@ void	Server::handlePollError(size_t &i, short int revent)
 
 			return;
 		} else if (revent == POLLNVAL) {
-			ERROR_LOG("poll: invalid fd " + std::to_string(_pfds[i].fd));
+			ERROR_LOG("poll: invalid CGI fd " + std::to_string(_pfds[i].fd) +
+				", disconnecting client fd " + std::to_string(req->getFd()));
 			for (size_t idx = 0; idx < _pfds.size(); idx++) {
 				if (_pfds[idx].fd == req->getFd()) {
 					removeClientFromPollFds(idx);
@@ -696,7 +697,7 @@ void	Server::processParsedRequest(size_t &i, ReqIter it)
 
 	// Lambda function to avoid duplicate code in the error cases below
 	auto	applySettingsAndPrepareResponse = [it, i, conf, this](std::string msg, ResponseCode resCode) {
-			ERROR_LOG(msg);
+			INFO_LOG(msg);
 			it->setResponseCodeBypass(resCode);
 			it->setStatus(ClientStatus::Invalid);
 			prepareResponse(*it, conf);
