@@ -50,7 +50,7 @@ struct Config {
 class Parser {
 
 private:
-	std::string const	_fileName;		// File name of the configuration file
+	std::string const	_fileName;		// Filename of the configuration file
 	std::ifstream		_file;			// ifstream instance to read the configuration file
 	std::vector<Config>	_serverConfigs;	// List of fully parsed server configurations built from the token list
 

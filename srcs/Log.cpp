@@ -131,7 +131,7 @@ std::string	Log::info(std::string_view message)
 }
 
 /**
- * Sets output file to be used by logging functions, using a file name string
+ * Sets output file to be used by logging functions, using a filename string
  * view. Closes previous file if open, throws runtime_error in case a file
  * operation fails.
  */
@@ -140,10 +140,10 @@ void	Log::setOutputFile(std::string_view outputFileName)
 	if (_ofs.is_open()) {
 		_ofs.close();
 		if (_ofs.fail())
-			throw std::runtime_error(ERROR_LOG("Couldn't close previously open file: " + std::string(strerror(errno))));
+			throw std::runtime_error(ERROR_LOG("Couldn't close previously open file '" + std::string(strerror(errno))) + "'");
 	}
 	_ofs.open(std::string(outputFileName));
 	if (!_ofs.is_open()) {
-		throw std::runtime_error(ERROR_LOG("Couldn't open file " + std::string(outputFileName) + ": " + std::string(strerror(errno))));
+		throw std::runtime_error(ERROR_LOG("Couldn't open '" + std::string(outputFileName) + "': " + std::string(strerror(errno))));
 	}
 }

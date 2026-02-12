@@ -20,5 +20,5 @@ make, and written in the C++ 20 standard.
 Clone the repository, open the repository root folder in the terminal and then run `make`.
 ## Usage
 To start the server using the default configuration you can simply `make run`.
-The server executable takes an optional configuration file and output log file name as
+The server executable takes an optional configuration file and output log filename as
 arguments. Example configuration files are inside the `config_files` folder.
