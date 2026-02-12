@@ -428,8 +428,8 @@ void	Server::checkTimeouts()
 		auto	it = getRequestByFd(_pfds[i].fd);
 
 		if (it == _clients.end())
-			throw std::runtime_error(ERROR_LOG("Could not find request with fd "
-				+ std::to_string(_pfds[i].fd)));
+			throw std::runtime_error(	ERROR_LOG("Could not find request with fd "
+										+ std::to_string(_pfds[i].fd)));
 
 		it->checkReqTimeouts();
 
@@ -484,6 +484,7 @@ void	Server::handlePollError(size_t &i, short int revent)
 
 	if (isCgiFd(_pfds[i].fd)) {
 		Request	*req = _cgiFdMap[_pfds[i].fd];
+
 		if (revent == POLLERR) {
 			ERROR_LOG("CGI fd " + std::to_string(_pfds[i].fd) + " was disconnected, socket error");
 			req->setStatus(ClientStatus::Invalid);
@@ -493,6 +494,7 @@ void	Server::handlePollError(size_t &i, short int revent)
 			req->setIdleStart();
 			req->setSendStart();
 			cleanupCgi(req);
+
 			return;
 		} else if (revent == POLLNVAL) {
 			ERROR_LOG("poll: invalid fd " + std::to_string(_pfds[i].fd));
@@ -504,21 +506,21 @@ void	Server::handlePollError(size_t &i, short int revent)
 			}
 			cleanupCgi(req);
 			_clients.erase(getRequestByFd(req->getFd()));
+
 			return;
 		}
 	}
 
 	auto	it = getRequestByFd(_pfds[i].fd);
+
 	if (it == _clients.end())
-		throw std::runtime_error(ERROR_LOG("Could not find request with fd "
-			+ std::to_string(_pfds[i].fd)));
+		throw std::runtime_error(	ERROR_LOG("Could not find request with fd "
+									+ std::to_string(_pfds[i].fd)));
 
 	if (revent == POLLERR)
-		ERROR_LOG("Client was disconnected on fd " + std::to_string(_pfds[i].fd)
-			+ ", socket error");
-	else {
+		ERROR_LOG("Client was disconnected on fd " + std::to_string(_pfds[i].fd) + ", socket error");
+	else
 		ERROR_LOG("poll: invalid fd " + std::to_string(_pfds[i].fd));
-	}
 
 	removeClientFromPollFds(i);
 

@@ -407,10 +407,10 @@ void	Response::handleDelete()
 		if (!ret)
 			throw std::runtime_error("");
 
-		DEBUG_LOG("Resource " + _target + " deleted");
+		DEBUG_LOG("Resource '" + _target + "' deleted");
 		_statusCode = NoContent;
 	} catch (std::exception &e) {
-		ERROR_LOG("Resource " + _target + " could not be deleted, client fd "
+		ERROR_LOG("Resource '" + _target + "' could not be deleted, client fd "
 			+ std::to_string(_req.getFd()));
 		_statusCode = InternalServerError;
 		_diagnosticMessage = "Target '" + _target + "' could not be deleted";
@@ -505,14 +505,14 @@ void	Response::locateTargetAndSetStatusCode()
 	switch (_req.getRequestMethod()) {
 		case RequestMethod::Get:
 			if (!Pages::isCached(getAbsPath(_target)) && !resourceExists(_target, searchDir)) {
-				INFO_LOG("Resource " + _target + " could not be found, client fd "
+				INFO_LOG("Resource '" + _target + "' could not be found, client fd "
 					+ std::to_string(_req.getFd()));
 				_statusCode = NotFound;
 				break;
 			}
 			if (Pages::isCached(getAbsPath(_target)))
-				DEBUG_LOG("Resource " + _target + " found in cache");
-			DEBUG_LOG("Resource " + _target + " found");
+				DEBUG_LOG("Resource '" + _target + "' found in cache");
+			DEBUG_LOG("Resource '" + _target + "' found");
 			_statusCode = OK;
 		break;
 		case RequestMethod::Post:
