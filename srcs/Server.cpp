@@ -694,7 +694,7 @@ void	Server::processParsedRequest(size_t &i, ReqIter it)
 
 	// Lambda function to avoid duplicate code in the error cases below
 	auto	applySettingsAndPrepareResponse = [it, i, conf, this](std::string msg, ResponseCode resCode) {
-			ERROR_LOG(msg);
+			INFO_LOG(msg);
 			it->setResponseCodeBypass(resCode);
 			it->setStatus(ClientStatus::Invalid);
 			prepareResponse(*it, conf);
