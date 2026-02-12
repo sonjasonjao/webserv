@@ -156,7 +156,8 @@ std::pair<pid_t, int>	CgiHandler::execute(std::string const &scriptPath, Request
 			+ ", client fd " + std::to_string(request.getFd()));
 		close(parentToChildPipe[WRITE]);
 		close(childToParentPipe[READ]);
-		kill(pid, SIGKILL);
+        freeEnvp(envp);
+        kill(pid, SIGKILL);
 		waitpid(pid, nullptr, 0);
 		return {-1, -1};
 	}
