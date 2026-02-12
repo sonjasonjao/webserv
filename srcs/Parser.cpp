@@ -32,7 +32,7 @@ Parser::Parser(std::string const &fileName)
 
 	_file.open(_fileName);
 	if (_file.fail())
-		throw ParserException(ERROR_LOG("Couldn't open file " + _fileName + ": " + std::string(strerror(errno))));
+		throw ParserException(ERROR_LOG("Couldn't open '" + _fileName + "': " + std::string(strerror(errno))));
 
 	if (std::filesystem::file_size(_fileName) == 0)
 		throw ParserException(ERROR_LOG("Empty file: " + _fileName));

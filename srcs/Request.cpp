@@ -193,7 +193,7 @@ void	Request::parseRequest()
 		if (_buffer.empty())
 			_status = ClientStatus::CompleteReq;
 		else {
-			INFO_LOG("Bad request: excessive data in the buffer, client fd "
+			INFO_LOG("Bad request: excess data in buffer, client fd "
 				+ std::to_string(_fd));
 			_status = ClientStatus::Invalid;
 		}
@@ -206,7 +206,7 @@ void	Request::parseRequest()
 		if (missingLen < _buffer.size()) {
 			/* If the remaining buffer is larger than what's missing from contentLen,
 			it's invalid */
-			INFO_LOG("Bad request: excessive data in the buffer, client fd " + std::to_string(_fd));
+			INFO_LOG("Bad request: excess data in buffer, client fd " + std::to_string(_fd));
 			_status = ClientStatus::Invalid;
 			return;
 		} else {
@@ -232,7 +232,7 @@ void	Request::parseRequest()
 	or CGI request */
 	if (_request.method == RequestMethod::Post && !(_cgiRequest.has_value()
 		|| _boundary.has_value())) {
-		INFO_LOG("POST request invalid if no boundary value and not a CGI request, client fd "
+		INFO_LOG("POST request invalid: no boundary value nor a CGI request, client fd "
 			+ std::to_string(_fd));
 		_responseCodeBypass = MethodNotAllowed;
 		_status = ClientStatus::Invalid;
@@ -251,8 +251,8 @@ void	Request::parseRequestLine(std::string &req)
 {
 	std::string					method, target, httpVersion;
 	std::vector<std::string>	implementedMethods = { "GET", "POST", "DELETE" };
-	std::vector<std::string>	existingMethods = { "GET", "POST", "DELETE", "PUT", "PATCH",
-		"HEAD", "OPTIONS", "TRACE", "CONNECT" };
+	std::vector<std::string>	existingMethods = {	"GET", "POST", "DELETE", "PUT", "PATCH",
+													"HEAD", "OPTIONS", "TRACE", "CONNECT" };
 	size_t						i = 0;
 
 	method		= extractFromLine(req, " ");
@@ -470,7 +470,7 @@ void	Request::parseChunked()
 	}
 	// If buffer has data after the final chunk
 	if (!_buffer.empty()) {
-		INFO_LOG("Bad request: excessive data in the buffer, client fd " + std::to_string(_fd));
+		INFO_LOG("Bad request: excess data in buffer, client fd " + std::to_string(_fd));
 		_status = ClientStatus::Invalid;
 	} else
 		_status = ClientStatus::CompleteReq;
