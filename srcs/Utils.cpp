@@ -346,7 +346,7 @@ std::string	getFileAsString(std::string const &fileName, std::string searchDir)
 	std::ifstream		fileStream(searchDir + "/" + fileName);
 
 	if (fileStream.fail())
-		throw std::runtime_error(ERROR_LOG("Couldn't open " + fileName + ": " + strerror(errno)));
+		throw std::runtime_error(ERROR_LOG("Couldn't open '" + fileName + "': " + strerror(errno)));
 
 	std::stringstream	buf;
 

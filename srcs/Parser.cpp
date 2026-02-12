@@ -17,7 +17,7 @@ Parser::Parser(std::string const &fileName)
 {
 
 	if (!std::filesystem::exists(_fileName))
-		throw ParserException(ERROR_LOG("File does not exist: " + _fileName));
+		throw ParserException(ERROR_LOG("File '" + _fileName + "' does not exist"));
 
 	// File extension checking
 	size_t		pos = _fileName.rfind('.');
@@ -28,11 +28,11 @@ Parser::Parser(std::string const &fileName)
 	std::string	ext = _fileName.substr(pos + 1);
 
 	if (ext != EXTENSION)
-		throw ParserException(ERROR_LOG("Wrong extension: " + _fileName));
+		throw ParserException(ERROR_LOG("Wrong filename extension: " + _fileName));
 
 	_file.open(_fileName);
 	if (_file.fail())
-		throw ParserException(ERROR_LOG("Couldn't open file: " + _fileName + ": " + std::string(strerror(errno))));
+		throw ParserException(ERROR_LOG("Couldn't open '" + _fileName + "': " + std::string(strerror(errno))));
 
 	if (std::filesystem::file_size(_fileName) == 0)
 		throw ParserException(ERROR_LOG("Empty file: " + _fileName));
@@ -80,12 +80,13 @@ void	Parser::tokenizeFile()
 		if (getKey(node) != "server")
 			throw ParserException(ERROR_LOG("Bad key node: " + getKey(node)));
 		if (node.children.size() < 2)
-			throw ParserException(ERROR_LOG("Children size is less than 2"));
+			throw ParserException(ERROR_LOG("Children size is less than 2: " + getKey(node)));
 
 		Token const	&content = node.children[1];
 
 		if (content.children.empty())
-			throw ParserException(ERROR_LOG("Content node for key '" + getKey(node) +"' has no children"));
+			throw ParserException(ERROR_LOG("Content node for key '" + getKey(node)
+				+"' has no children"));
 
 		for (auto const &block : content.children) {
 
@@ -152,7 +153,7 @@ Config	Parser::convertToServerData(Token const &block)
 
 	for (auto const &item : block.children) {
 		if (item.children.size() != 2)
-			throw ParserException(ERROR_LOG("\tbad key value pair"));
+			throw ParserException(ERROR_LOG("\tBad key-value pair"));
 
 		std::string	key = getKey(item);
 		Token		tok = item.children.at(1);
@@ -266,7 +267,7 @@ Config	Parser::convertToServerData(Token const &block)
 
 			for (auto const &r : tok.children) {
 				if (r.children.size() != 2) {
-					ERROR_LOG("\t\t" + key + ": bad key value pair");
+					ERROR_LOG("\t\t" + key + ": bad key-value pair");
 					continue;
 				}
 
@@ -458,12 +459,12 @@ bool	Parser::isValidJsonString(std::string_view sv)
 	}
 
 	if (inQuotes) {
-		ERROR_LOG("Un-closed double quotations !\n");
+		ERROR_LOG("Unclosed double quotations\n");
 		return false;
 	}
 
 	if (!brackets.empty()) {
-		ERROR_LOG(std::string("Un-closed brackets ") + brackets.top() + "!\n");
+		ERROR_LOG(std::string("Unclosed brackets ") + brackets.top() + "\n");
 		return false;
 	}
 	return true;

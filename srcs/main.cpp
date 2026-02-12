@@ -74,5 +74,8 @@ static void	debugPrintActiveServers(Parser const &parser, size_t configCount)
 		std::cout << "\n\n";
 	}
 	std::cout << "----------------------\n\n";
+	#else
+	(void)parser;
+	(void)configCount;
 	#endif
 }

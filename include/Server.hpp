@@ -58,6 +58,7 @@ public:
 	void			sendResponse(size_t &i);
 	void			checkTimeouts();
 	void			handleConnections();
+	void			handlePollError(size_t &i, short int revent);
 	void			groupConfigs();
 	bool			isGroupMember(Config &conf);
 	bool			isServerFd(int fd);
