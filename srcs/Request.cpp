@@ -276,11 +276,12 @@ void	Request::parseRequestLine(std::string &req)
 		case 2:	_request.method = RequestMethod::Delete;	break;
 		default:
 			_status = ClientStatus::Invalid;
-			if (std::find(existingMethods.begin(), existingMethods.end(), _request.methodString)
-				== existingMethods.end()) {
-					INFO_LOG("Bad request: invalid method format, client fd "
-						+ std::to_string(_fd));
-					_responseCodeBypass = BadRequest;
+
+			auto	it = std::find(existingMethods.begin(), existingMethods.end(), _request.methodString);
+
+			if (it == existingMethods.end()) {
+				INFO_LOG("Bad request: invalid method format, client fd " + std::to_string(_fd));
+				_responseCodeBypass = BadRequest;
 			} else {
 				INFO_LOG("Request method not allowed, client fd " + std::to_string(_fd));
 				_responseCodeBypass = MethodNotAllowed;
