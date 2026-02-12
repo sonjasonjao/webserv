@@ -131,7 +131,7 @@ std::string	Log::info(std::string_view message)
 }
 
 /**
- * Sets output file to be used by logging functions, using a file name string
+ * Sets output file to be used by logging functions, using a filename string
  * view. Closes previous file if open, throws runtime_error in case a file
  * operation fails.
  */
