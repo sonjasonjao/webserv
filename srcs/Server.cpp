@@ -130,7 +130,8 @@ int	Server::createSingleServerSocket(Config conf)
 		throw std::runtime_error(ERROR_LOG("listen: " + std::string(strerror(errno))));
 	}
 
-	INFO_LOG("Server listening on fd " + std::to_string(listener));
+	INFO_LOG("Server listening on fd " + std::to_string(listener)
+		+ ", port " + std::to_string(conf.port));
 
 	return listener;
 }
