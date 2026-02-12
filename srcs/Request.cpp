@@ -289,10 +289,10 @@ void	Request::parseRequestLine(std::string &req)
 			return;
 	}
 
-	if ((_request.methodString + target + httpVersion).length() > REQLINE_MAX_SIZE
+	if (_request.methodString.length() + target.length() + httpVersion.length() > REQLINE_MAX_SIZE
 		|| !validateAndAssignTarget(target) || !validateAndAssignHttp(httpVersion)) {
-			INFO_LOG("Bad request: invalid request line, client fd " + std::to_string(_fd));
-			_status = ClientStatus::Invalid;
+		INFO_LOG("Bad request: invalid request line, client fd " + std::to_string(_fd));
+		_status = ClientStatus::Invalid;
 	}
 }
 
