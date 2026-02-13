@@ -23,7 +23,7 @@
             "status_pages" : {
                 "200" : "www/site/status_pages/200.html",
                 "204" : "www/site/status_pages/204.html",
-                "207" : "www/site/status_pages/207.html",
+                "201" : "www/site/status_pages/201.html",
                 "400" : "www/site/status_pages/400.html",
                 "403" : "www/site/status_pages/403.html",
                 "404" : "www/site/status_pages/404.html",

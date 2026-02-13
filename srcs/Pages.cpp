@@ -35,14 +35,14 @@ R"(<!DOCTYPE html>
 </html>
 )";
 
-constexpr static char const * const	DEFAULT207	= \
+constexpr static char const * const	DEFAULT201	= \
 R"(<!DOCTYPE html>
 <html>
 	<head>
-		<title>207 Created</title>
+		<title>201 Created</title>
 	</head>
 	<body>
-		<h1>207: Created</h1>
+		<h1>201: Created</h1>
 		<p>Your request was processed successfully.</p>
 	</body>
 </html>
@@ -170,7 +170,7 @@ void	Pages::loadDefaults()
 	defaultPages.clear();
 	defaultPages["default200"] = DEFAULT200;
 	defaultPages["default204"] = DEFAULT204;
-	defaultPages["default207"] = DEFAULT207;
+	defaultPages["default201"] = DEFAULT201;
 	defaultPages["default400"] = DEFAULT400;
 	defaultPages["default403"] = DEFAULT403;
 	defaultPages["default404"] = DEFAULT404;

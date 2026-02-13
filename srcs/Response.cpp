@@ -285,9 +285,9 @@ void	Response::formResponse()
 			_startLine	= _req.getHttpVersion() + " 204 No Content";
 			_body		= getResponsePageContent("204", _conf);
 		break;
-		case 207:
-			_startLine	= _req.getHttpVersion() + " 207 Created";
-			_body		= getResponsePageContent("207", _conf);
+		case 201:
+			_startLine	= _req.getHttpVersion() + " 201 Created";
+			_body		= getResponsePageContent("201", _conf);
 		break;
 		case 400:
 			_startLine	= _req.getHttpVersion() + " 400 Bad Request";

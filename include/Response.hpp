@@ -10,7 +10,7 @@ enum ResponseCode : int {
 	Unassigned				= -1,
 	OK						= 200,
 	NoContent				= 204,
-	Created					= 207,
+	Created					= 201,
 	BadRequest				= 400,
 	Forbidden				= 403,
 	NotFound				= 404,
