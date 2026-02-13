@@ -24,7 +24,7 @@ filedelete.addEventListener('submit', (e) => {
 							<button type=\"button\" class=\"link\" onclick=\"location.href='/index.html'\">Back to main page</button>\
 							</div>\
 						<p class=\"footer\">\
-							© Johnny, Sonja, and Thiwanka 2026. Built for the 42 project Webserv.\
+							© Sonja, Johnny, and Thiwanka 2026. Built for the 42 project Webserv.\
 						</p>\
 					</body>\
 				</html>";
