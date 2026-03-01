@@ -1,5 +1,7 @@
 # Web server: an HTTP/1.1 server written in C++
 Authors: [Johnny](https://github.com/zoni527), [Sonja](https://github.com/sonjasonjao/), and [Thiwanka](https://github.com/ThiwankaS)
+<br><br>
+![](demo.png)
 ## Description
 The project was written to deepen our understanding of HTTP, backend programming,
 nonblocking sockets, and using poll for socket IO.
